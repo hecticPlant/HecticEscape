@@ -1,0 +1,22 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35707.178 d17.12
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScreenZen", "ScreenZen.csproj", "{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

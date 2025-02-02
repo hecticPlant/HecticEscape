@@ -1,0 +1,17 @@
+{
+    "Gruppe 1": {
+        "Date": "2025-01-31",
+        "Apps": [
+            {
+                "Name": "Spotify",
+                "HeuteOeffnungen": false
+            }
+        ],
+        "Websites": [
+            {
+                "Name": "youtube",
+                "Blockiert": false
+            }
+        ]
+    }
+}

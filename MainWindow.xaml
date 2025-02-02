@@ -1,0 +1,75 @@
+﻿<Window x:Class="ScreenZen.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:ScreenZen"
+        mc:Ignorable="d"
+        Title="MainWindow" Height="617" Width="791">
+    <Grid>
+        <!-- Spalten-Definition -->
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- Zeilen-Definition -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Control Zeile -->
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,41" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2">
+            <Button Content="Start Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartButton_Click"/>
+            <Button Content="Stop Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopButton_Click"/>
+            <Button Content="Starte Timer" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartTimer_Click"/>
+            <Button Content="Stop Timer" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopTimer_Click"/>
+            <Button Content="Force Break" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ForceBreak_Click"/>
+            <Button Content="End Break" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="EndBreak_Click"/>
+            <Button Content="Block Apps" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="BlockApps_Click"/>
+            <Button Content="Lebt timerCheck?" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="timerCheckalive_Click"/>
+        </StackPanel>
+
+        <!-- Status Zeile -->
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
+            <TextBlock Name="StatusProxyTextBlock" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20,10,0,0" FontSize="16" Foreground="Green" Text="Status: Proxy inaktiv" />
+            <TextBlock Name="StatuTimersTextBlock" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20,10,0,0" FontSize="16" Foreground="Green" Text="Status: Timer inaktiv" />
+            <TextBlock Name="StatusPauseTextBlock" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20,10,0,0" FontSize="16" Foreground="Green" Text="Momentan keine Pause" />
+        </StackPanel>
+
+        <!-- Website Zeile-->
+        <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
+            <Button Content="Blockierte Website anzeigen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ListBlockedDomains_Click"/>
+            <Button Content="Website speichern" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="AddWebsiteToBlocklist_Click"/>
+            <TextBox Name="WebsiteTextBox" Width="200" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Text="Website eingeben"/>
+            <Button Content="Lösche Website" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="RemoveDomainFromFile_Click"/>
+        </StackPanel>
+
+        <!-- Prozesse Zeile-->
+        <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
+            <Button Content="Blockierte Apps anzeigen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ListBlockedApps_Click"/>
+            <Button Content="Speichere Prozess" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="SaveProcessButton_Click"/>
+            <Button Content="Laufende Prozesse" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ListProcessButton_Click"/>
+            <Button Content="Lösche Prozess" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="RemoveProcessFromFile_Click"/>
+        </StackPanel>
+
+        <!-- Panel Zeile -->
+        <StackPanel Orientation="Vertical" Margin="0,20,0,0" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+            <ComboBox Name="GroupComboBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Width="200"/>
+            <Button Content="Neue Gruppe Erstellen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="CreateNewGroupButton_Click"/>
+            <Button Content="Gruppe Löschen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeleteGroupButton_Click"/>
+
+            <!-- Panel Row -->
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3">
+            <ListBox Name="ProcessListBox" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="300" Margin="10" Width="200" d:ItemsSource="{d:SampleData ItemCount=5}"/>
+        </StackPanel>
+        <TextBox Name="ConsoleOutputTextBox" Grid.Column="1" HorizontalAlignment="Left" Margin="223,34,0,0" Grid.Row="4" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="200" Height="294" Grid.ColumnSpan="3" TextChanged="ConsoleOutputTextBox_TextChanged"/>
+    </Grid>
+</Window>
