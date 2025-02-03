@@ -9,12 +9,14 @@ namespace ScreenZen
     public partial class MainWindow : Window
     {
         private TimeManagement timeManager;
-        private ProcessManager processManager;
-        private WebManagerSZ webManager;
+        private AppManager processManager;
+        private WebManager webManager;
         private WebProxySZ webProxy;
+        private Overlay overlay;
+        private readonly TimeManagement _timeManagement;
 
         // Der Konstruktor nimmt die Abhängigkeiten entgegen:
-        public MainWindow(TimeManagement timeManager, ProcessManager processManager, WebManagerSZ webManager, WebProxySZ webProxy)
+        public MainWindow(TimeManagement timeManager, AppManager processManager, WebManager webManager, WebProxySZ webProxy, Overlay overlay)
         {
             InitializeComponent();
 
@@ -22,9 +24,14 @@ namespace ScreenZen
             this.processManager = processManager;
             this.webManager = webManager;
             this.webProxy = webProxy;
+            this.overlay = overlay;
 
             this.timeManager.StatusChanged += OnStatusChanged;
             LoadGroups();
+            this.overlay = overlay;
+
+            _timeManagement = timeManager;
+            _timeManagement.OverlayToggleRequested += ToggleOverlay;
         }
 
         private void OnStatusChanged(string newStatus)
@@ -99,32 +106,35 @@ namespace ScreenZen
 
                         foreach (var group in jsonObject.Properties())
                         {
-                            GroupComboBox.Items.Add(group.Name); // Gruppenname hinzufügen
+                            string str = group.Name;
+                            string aktivValue = group.Value.Value<string>("Aktiv");
+                            str += $" ( {aktivValue})";
+                            GroupComboBox.Items.Add(str);
                         }
 
                         // Falls keine Gruppen gefunden wurden
                         if (GroupComboBox.Items.Count == 0)
                         {
-                            ((MainWindow)Application.Current.MainWindow).AppendToConsole("Keine Gruppen in der JSON-Datei gefunden.");
+                            Logger.Instance.Log("Keine Gruppen in der JSON-Datei gefunden.");
                         }
                     }
                     else
                     {
-                        ((MainWindow)Application.Current.MainWindow).AppendToConsole("Das JSON-Dokument ist leer oder ungültig.");
+                        Logger.Instance.Log("Das JSON-Dokument ist leer oder ungültig.");
                     }
                 }
                 catch (Exception ex)
                 {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Laden der Gruppen: {ex.Message}");
+                    Logger.Instance.Log($"Fehler beim Laden der Gruppen: {ex.Message}");
                 }
             }
             else
             {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
+                Logger.Instance.Log($"Die Datei '{filePath}' wurde nicht gefunden.");
             }
         }
 
-        //Methode zum Erstellen einer neuen Gruppe
+        //JSON Methode zum Erstellen einer neuen Gruppe
         private void CreateNewGroupButton_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -155,6 +165,7 @@ namespace ScreenZen
                 JObject newGroup = new JObject
                 {
                     ["Date"] = DateTime.Now.ToString("yyyy-MM-dd"), // Setzt das heutige Datum
+                    ["Aktiv"] = false,
                     ["Apps"] = new JArray(), // Leere App-Liste
                     ["Websites"] = new JArray() // Leere Website-Liste
                 };
@@ -193,6 +204,7 @@ namespace ScreenZen
                 JObject jsonObject = string.IsNullOrEmpty(jsonContent) ? new JObject() : JObject.Parse(jsonContent);
 
                 string groupNameToDelete = GroupComboBox.SelectedItem as string;
+                groupNameToDelete = CleanGroupName(groupNameToDelete);
 
                 // Überprüfen, ob die Gruppe existiert
                 if (jsonObject.ContainsKey(groupNameToDelete))
@@ -222,6 +234,7 @@ namespace ScreenZen
             try
             {
                 string selectedGroup = GroupComboBox.SelectedItem as string;
+                selectedGroup = CleanGroupName(selectedGroup);
                 string selectedProcess = ProcessListBox.SelectedItem as string;
 
                 if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess))
@@ -240,6 +253,7 @@ namespace ScreenZen
         private void BlockApps_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
+            selectedGroup = CleanGroupName(selectedGroup);
             processManager.BlockAppsFromGroup(selectedGroup);
             StatusPauseTextBlock.Text = "Momentan Pause";
         }
@@ -247,6 +261,7 @@ namespace ScreenZen
         private void RemoveProcessFromFile_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
+            selectedGroup = CleanGroupName(selectedGroup);
             string selectedProcess = ProcessListBox.SelectedItem as string;
             processManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
         }
@@ -254,6 +269,7 @@ namespace ScreenZen
         private void RemoveDomainFromFile_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
+            selectedGroup = CleanGroupName(selectedGroup);
             string selectedProcess = ProcessListBox.SelectedItem as string;
             webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedProcess);
         }
@@ -310,6 +326,7 @@ namespace ScreenZen
 
                     // Wenn der Benutzer eine Gruppe auswählt
                     string selectedGroup = GroupComboBox.SelectedItem as string;
+                    selectedGroup = CleanGroupName(selectedGroup);
 
                     if (string.IsNullOrEmpty(selectedGroup))
                     {
@@ -376,6 +393,7 @@ namespace ScreenZen
 
                     // Wenn der Benutzer eine Gruppe auswählt
                     string selectedGroup = GroupComboBox.SelectedItem as string;
+                    selectedGroup = CleanGroupName(selectedGroup);
 
                     if (string.IsNullOrEmpty(selectedGroup))
                     {
@@ -430,6 +448,7 @@ namespace ScreenZen
         {
             string websiteName = WebsiteTextBox.Text.Trim();
             string selectedGroup = GroupComboBox.SelectedItem as string;
+            selectedGroup = CleanGroupName(selectedGroup);
 
             if (string.IsNullOrWhiteSpace(websiteName))
             {
@@ -474,6 +493,7 @@ namespace ScreenZen
                                 ConsoleOutputTextBox.Clear();
 
                             ConsoleOutputTextBox.AppendText(logMessage + Environment.NewLine);
+                            Logger.Instance.Log(logMessage);
                             ConsoleOutputTextBox.ScrollToEnd();
                         });
                     }
@@ -483,14 +503,128 @@ namespace ScreenZen
             }
         }
 
-        public void timerCheckalive_Click(object sender, RoutedEventArgs e)
+        private bool isOvelay = false;
+        public void ToggleOverlayClick(object sender, RoutedEventArgs e)
         {
-            //timeManager.isTimerRuning();
+            ToggleOverlay();
+        }
+
+        public void ToggleOverlay()
+        {
+            if (!isOvelay)
+            {
+                overlay.Show();
+                isOvelay = true;
+            }
+            else
+            {
+                overlay.Hide();
+                isOvelay = false;
+            }
         }
 
         private void ConsoleOutputTextBox_TextChanged(object sender, TextChangedEventArgs e)
         {
 
+        }
+
+        private void ToggleGroupButton_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedGroup = GroupComboBox.SelectedItem as string;
+            selectedGroup = CleanGroupName(selectedGroup);
+            if (selectedGroup != null)
+            {
+                ToggleGroup(selectedGroup);
+            }
+        }
+
+        public string CleanGroupName(string input)
+        {
+            if (input.EndsWith(" ( True)", StringComparison.OrdinalIgnoreCase))
+            {
+                return input.Substring(0, input.Length - 7).Trim(); ; // Länge von " (True)" ist 8
+            }
+            else if (input.EndsWith(" ( False)", StringComparison.OrdinalIgnoreCase))
+            {
+                return input.Substring(0, input.Length - 8).Trim(); // Länge von " (False)" ist 9
+            }
+            else
+            {
+                Logger.Instance.Log($"Es wurde nichts entfernt von {input}");
+                return input; // Rückgabe des Original-Strings, wenn kein Suffix gefunden wurde
+            }
+        }
+
+        public void ToggleGroup(string selectedGroup)
+        {
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");  // Die Datei, in der die Gruppen gespeichert sind
+
+            try
+            {
+                // Überprüfe, ob die Datei existiert
+                if (!File.Exists(filePath))
+                {
+                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
+                    return;
+                }
+
+                // Lese den Inhalt der JSON-Datei
+                string jsonContent = File.ReadAllText(filePath);
+                JObject jsonObject = JObject.Parse(jsonContent);
+
+                // Überprüfen, ob die angegebene Gruppe existiert
+                if (!jsonObject.ContainsKey(selectedGroup))
+                {
+                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Gruppe '{selectedGroup}' existiert nicht.");
+                    return;
+                }
+                else
+                {
+                    JObject selectedGroupObject = (JObject)jsonObject[selectedGroup];
+                    bool aktiv = selectedGroupObject.Value<bool>("Aktiv");
+                    selectedGroupObject["Aktiv"] = !aktiv;
+                    File.WriteAllText(filePath, jsonObject.ToString());
+                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"{selectedGroup} wurde auf {!aktiv} geändert\"");
+                    LoadGroups();
+                }
+            }
+            catch (Exception ex)
+            {
+                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim aktiviern/deaktiviern der Grupe: {ex.Message}");
+            }
+        }
+        
+        public string getConfig(string key, int num)
+        {
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json"); // JSON-Datei mit den Gruppen
+
+            try
+            {
+                // Überprüfe, ob die Datei existiert
+                if (!File.Exists(filePath))
+                {
+                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
+                    return null;
+                }
+
+                // Lese den Inhalt der JSON-Datei
+                string jsonContent = File.ReadAllText(filePath);
+
+                switch (key)
+                {
+                    case ("c"):
+                        return jsonContent;
+                    case ("a"):
+                        return "";
+                    default:
+                        return "";
+                }
+            }
+            catch (Exception ex)
+            {
+                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Speichern der Datei: {ex.Message}");
+                return "";
+            }
         }
     }
 }

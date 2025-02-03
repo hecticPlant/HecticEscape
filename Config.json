@@ -1,16 +1,15 @@
 {
     "Gruppe 1": {
-        "Date": "2025-01-31",
+        "Date": "2025-02-02",
+        "Aktiv": true,
         "Apps": [
             {
-                "Name": "Spotify",
-                "HeuteOeffnungen": false
+                "Name": "Spotify"
             }
         ],
         "Websites": [
             {
-                "Name": "youtube",
-                "Blockiert": false
+                "Name": "youtube"
             }
         ]
     }

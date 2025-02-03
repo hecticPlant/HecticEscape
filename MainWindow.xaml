@@ -33,7 +33,7 @@
             <Button Content="Force Break" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ForceBreak_Click"/>
             <Button Content="End Break" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="EndBreak_Click"/>
             <Button Content="Block Apps" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="BlockApps_Click"/>
-            <Button Content="Lebt timerCheck?" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="timerCheckalive_Click"/>
+            <Button Content="Toggle Overlay" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ToggleOverlayClick"/>
         </StackPanel>
 
         <!-- Status Zeile -->
@@ -64,7 +64,8 @@
             <ComboBox Name="GroupComboBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Width="200"/>
             <Button Content="Neue Gruppe Erstellen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="CreateNewGroupButton_Click"/>
             <Button Content="Gruppe Löschen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeleteGroupButton_Click"/>
-
+            <Button Content="Toggle Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ToggleGroupButton_Click"/>
+           
             <!-- Panel Row -->
         </StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3">

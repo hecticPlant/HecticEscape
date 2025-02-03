@@ -9,7 +9,7 @@ namespace ScreenZen
     /// </summary>
     public partial class App : Application
     {
-        Program program = new Program();
+        MainSZ program = new MainSZ();
     }
 
 }

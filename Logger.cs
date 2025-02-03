@@ -1,42 +1,46 @@
-﻿using System.IO;
+﻿using System.Diagnostics;
+using System.IO;
+using System.Windows;
+
 
 namespace ScreenZen
 {
+ 
+    /// <summary>
+    /// Diese Klasse verwaltet das Logging in eine .log Datei
+    /// </summary>
     public class Logger
     {
-        // Pfad der Logdatei. Sie können diesen Pfad auch über einen Konstruktorparameter konfigurieren.
         private readonly string logFilePath = "app.log";
 
-        // Singleton-Instanz (optional, falls Sie einen globalen Logger möchten)
         private static Logger instance;
         public static Logger Instance => instance ?? (instance = new Logger());
 
-        // Event, das Log-Nachrichten an Abonnenten sendet (z.B. an die UI)
         public event Action<string> LogMessageReceived;
 
-        private Logger()
+        public Logger()
         {
-            // Optional: Logdatei beim Start leeren oder einen Header schreiben.
             File.WriteAllText(logFilePath, $"Log gestartet: {DateTime.Now}{Environment.NewLine}");
         }
-
-        // Hauptmethode, um Log-Nachrichten zu schreiben
-        public void Log(string message)
+    public void Log(string message)
         {
-            string fullMessage = $"{DateTime.Now:dd.MM.yyyy HH:mm:ss} - {message}";
+            // Hole die aktuelle Methode und Klasse
+            var stackTrace = new StackTrace(true);
+            var frame = stackTrace.GetFrame(1); // Der Frame 1 ist der Aufrufer der Methode
+            string methodName = frame.GetMethod().Name;
+            string className = frame.GetMethod().DeclaringType.Name;
 
-            // Schreibe in die Datei (asynchron möglich, wenn gewünscht)
+            string fullMessage = $"{DateTime.Now:dd.MM.yyyy HH:mm:ss} - {className}.{methodName} - {message}";
+
             try
             {
                 File.AppendAllText(logFilePath, fullMessage + Environment.NewLine);
             }
             catch (Exception ex)
             {
-                // Falls das Schreiben in die Logdatei fehlschlägt, können Sie hier reagieren
-                // z.B. eine Exception loggen oder in Debug-Ausgaben schreiben.
+                Console.WriteLine($"Fehler: '{ex}'");
             }
 
-            // Lösen Sie das Event aus, damit Abonnenten (z.B. die UI) informiert werden.
             LogMessageReceived?.Invoke(fullMessage);
         }
     }
