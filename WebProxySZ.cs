@@ -13,34 +13,45 @@ namespace ScreenZen
         private static List<string> blockedDomains = new List<string>();
 
         private ProxyServer proxy;
+        private bool isProxyRunning;
 
         public WebProxySZ()
         {
             proxy = new ProxyServer();
+            isProxyRunning = false;
         }
 
         public async Task StartProxy()
         {
-            // Lese die geblockten Domains aus der Datei
-            await Task.Run(() => ReadBlockedDomains()); // Hier wird das Lesen der Datei asynchron gemacht
+            if (isProxyRunning)
+            {
+                // Lese die geblockten Domains aus der Datei
+                await Task.Run(() => ReadBlockedDomains()); // Hier wird das Lesen der Datei asynchron gemacht
 
-            // Endpunkt für den Proxy (Port 8888)
-            var proxyEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, 8888, true);
-            proxy.AddEndPoint(proxyEndPoint);
+                // Endpunkt für den Proxy (Port 8888)
+                var proxyEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, 8888, true);
+                proxy.AddEndPoint(proxyEndPoint);
 
-            // Event-Handler für eingehende Anfragen
-            proxy.BeforeRequest += OnRequestAsync;
+                // Event-Handler für eingehende Anfragen
+                proxy.BeforeRequest += OnRequestAsync;
 
-            // Starte den Proxy
-            await Task.Run(() => proxy.Start()); // Auch das Starten des Proxys asynchron ausführen
-            proxy.SetAsSystemProxy(proxyEndPoint, ProxyProtocolType.AllHttp);
+                // Starte den Proxy
+                await Task.Run(() => proxy.Start()); // Auch das Starten des Proxys asynchron ausführen
+                proxy.SetAsSystemProxy(proxyEndPoint, ProxyProtocolType.AllHttp);
 
-            Console.WriteLine("Proxy läuft auf Port 8888...");
+                Logger.Instance.Log("Proxy läuft auf Port 8888...");
+                isProxyRunning = true;
+            }
+            else
+            {
+                Logger.Instance.Log("Proxy läuft bereits");
+            }
         }
 
         public async Task StopProxy()
         {
             Task.Run(() => proxy.Stop());
+            isProxyRunning= false;
         }
 
 

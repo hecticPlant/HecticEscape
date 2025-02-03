@@ -1,8 +1,4 @@
-﻿using System.IO;
-using System.Windows;
-using Newtonsoft.Json.Linq;
-
-namespace ScreenZen
+﻿namespace ScreenZen
 {
     /// <summary>
     /// Verwaltet die Websites

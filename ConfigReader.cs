@@ -3,7 +3,6 @@ using System.IO;
 using System.Text.Json;
 using Newtonsoft.Json.Linq;
 using System.Windows;
-using System.Text.RegularExpressions;
 
 namespace ScreenZen
 {
