@@ -30,10 +30,11 @@ namespace ScreenZen
             container.Register(() => new TimeManagement(
                 container.Resolve<ConfigReader>(),
                 container.Resolve<AppManager>(),
-                container.Resolve<WebProxySZ>()  
+                container.Resolve<WebManager>()  
             ));
             container.Register(() => new WebManager(
-                           container.Resolve<ConfigReader>()
+                           container.Resolve<ConfigReader>(),
+                           container.Resolve<WebProxySZ>()
                        ));
             container.Register<WebProxySZ>();
             container.Register(() => new MainWindow(

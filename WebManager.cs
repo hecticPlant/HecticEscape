@@ -1,17 +1,22 @@
-﻿namespace ScreenZen
+﻿using System.Text.Json.Nodes;
+
+namespace ScreenZen
 {
     /// <summary>
-    /// Verwaltet die Websites
+    /// Verwaltet die Websites und den Proxy
     /// </summary>
     public class WebManager
     {
         private ConfigReader configReader;
+        private WebProxySZ webProxy;
 
-        public WebManager(ConfigReader configReader)
+        public WebManager(ConfigReader configReader, WebProxySZ webProxy)
         {
             this.configReader = configReader;
+            this.webProxy = webProxy;
 
         }
+
         /// <summary>
         /// Speichert eine Website
         /// </summary>
@@ -32,5 +37,38 @@
             configReader.RemoveFromConfig(selectedGroup, "w", websiteName);
 
         }
+
+        /// <summary>
+        ///Startet den Proxy 
+        /// </summary>
+        public void StartProxy()
+        {
+            webProxy.StartProxy();
+        }
+
+        /// <summary>
+        /// Stoppe den Proxy
+        /// </summary>
+        public void StopProxy()
+        {
+            webProxy.StopProxy();
+
+        }
+        
+        /// <summary>
+        ///         Setzt die List der geblockten Domains
+        /// </summary
+        public void setBlockedList()
+        {
+            List<string> blockedDomains = new List<string>();
+            JsonNode jsonNode = configReader.GetAktiveGroups();
+            if (jsonNode is JsonArray jsonArray)
+            {
+                string[] domains = jsonArray.Select(node => node.ToString()).ToArray();
+                blockedDomains.AddRange(domains);
+                webProxy.setBlockedDomains(blockedDomains);
+            }
+        }
+
     }
 }

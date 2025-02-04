@@ -25,14 +25,14 @@
         private System.Timers.Timer timerCheck;
 
         private AppManager appManager;
-        private WebProxySZ webProxy;
+        private WebProxySZ webManager;
         private ConfigReader configReader;
         private bool isBreakActive = false;
 
         // Konstruktor-Injektion von ProcessManager
-        public TimeManagement(ConfigReader configReader, AppManager appManager, WebProxySZ webProxy)
+        public TimeManagement(ConfigReader configReader, AppManager appManager, WebManager webManager)
         {
-            this.webProxy = webProxy;
+            this.webManager = this.webManager;
             this.appManager = appManager;
             this.configReader = configReader;
 
@@ -82,7 +82,7 @@
             isBreakActive = true;
             StatusChanged?.Invoke("Momentan Pause");
             timerBreak.Start();
-            await Task.Run(() => webProxy.StartProxy());
+            await Task.Run(() => webManager.StartProxy());
         }
 
         /// <summary>
@@ -95,7 +95,7 @@
             isBreakActive = false;
             StatusChanged?.Invoke("Momentan freie Zeit");
             timerFree.Start();
-            await webProxy.StopProxy();
+            await webManager.StopProxy();
         }
 
         /// <summary>
@@ -110,13 +110,19 @@
             }
         }
 
+        /// <summary>
+        /// DEBUG: Erzwinge ein Pause
+        /// </summary>
         public void ForceBreak()
         {
-            Logger.Instance.Log("TimeManagement: ForceBreak");
+            Logger.Instance.Log(" ");
             timerFree.Stop();
             SwitchToBreakAsync();
         }
 
+        /// <summary>
+        /// DEBUG: Erzwinge das beenden eine Pause
+        /// </summary>
         public void EndBreak()
         {
             Logger.Instance.Log("TimeManagement: EndBreak");
