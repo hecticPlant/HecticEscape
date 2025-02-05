@@ -3,28 +3,31 @@ using System.Windows.Controls;
 using System.Diagnostics;
 using System.IO;
 using Newtonsoft.Json.Linq;
+using System.Text.Json.Nodes;
 
 namespace ScreenZen
 {
     public partial class MainWindow : Window
     {
         private TimeManagement timeManager;
-        private AppManager processManager;
+        private AppManager appManager;
         private WebManager webManager;
         private WebProxySZ webProxy;
         private Overlay overlay;
+        private ConfigReader configReader;
         private readonly TimeManagement _timeManagement;
 
         // Der Konstruktor nimmt die Abhängigkeiten entgegen:
-        public MainWindow(TimeManagement timeManager, AppManager processManager, WebManager webManager, WebProxySZ webProxy, Overlay overlay)
+        public MainWindow(TimeManagement timeManager, AppManager appManager, WebManager webManager, WebProxySZ webProxy, Overlay overlay, ConfigReader configReader)
         {
             InitializeComponent();
 
             this.timeManager = timeManager;
-            this.processManager = processManager;
+            this.appManager = appManager;
             this.webManager = webManager;
             this.webProxy = webProxy;
             this.overlay = overlay;
+            this.configReader = configReader;
 
             this.timeManager.StatusChanged += OnStatusChanged;
             LoadGroups();
@@ -34,6 +37,10 @@ namespace ScreenZen
             _timeManagement.OverlayToggleRequested += ToggleOverlay;
         }
 
+        /// <summary>
+        /// Aktualisiert den Status-Text im UI-Thread.
+        /// </summary>
+        /// <param name="newStatus"></param>
         private void OnStatusChanged(string newStatus)
         {
             Dispatcher.BeginInvoke(new System.Action(() =>
@@ -42,25 +49,35 @@ namespace ScreenZen
                 StatusPauseTextBlock.Text = newStatus;
             }));
         }
-
-        private async void StartButton_Click(object sender, RoutedEventArgs e)
+        
+        /// <summary>
+        /// DEBUG: Startet den Proxy
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void StartProxy_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                // Startet den Proxy
-                await webProxy.StartProxy();
-                StatusProxyTextBlock.Text = "Status: Proxy aktiv";
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Starten des Proxys: {ex.Message}");
-            }
+           timeManager.Start();
         }
 
+        /// <summary>
+        /// DEBUG: stoppt den Proxy
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void StopProxy_Click(object sender, RoutedEventArgs e)
+        {
+            timeManager.Stop(); 
+        }
+
+        /// <summary>
+        /// Läd die laufenden Prozesse in ProcessListBox
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ListProcessButton_Click(object sender, RoutedEventArgs e)
         {
-            processManager.UpdateRunningProcesses();
-            Process[] processes = processManager.GetRunningProcesses();
+            Process[] processes = appManager.GetRunningProcesses();
 
             ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
@@ -70,202 +87,79 @@ namespace ScreenZen
             }
         }
 
-        // Event-Handler für den Stop-Button (falls du ihn auch hinzufügst)
-        private void StopButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                webProxy.StopProxy();
-                StatusProxyTextBlock.Text = "Status: Proxy inaktiv";
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Stoppen des Proxys: {ex.Message}");
-            }
-        }
-
-        //JSON 
-        //Methode zum Laden der bestehenden Gruppen aus der JSON-Datei
+        /// <summary>
+        /// Lädt alle Gruppen in die GroupComboBox.
+        /// </summary>
         private void LoadGroups()
         {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
+            JsonNode allGroups = configReader.ReadConfig();
 
-            // Überprüfen, ob die Datei existiert
-            if (File.Exists(filePath))
+            // Prüfe, ob das gelesene JSON ein Objekt ist
+            if (allGroups is JsonObject groupsObject)
             {
-                try
+                foreach (var groupProperty in groupsObject)
                 {
-                    // Lese den Inhalt der JSON-Datei
-                    string jsonContent = File.ReadAllText(filePath);
-                    JObject jsonObject = JObject.Parse(jsonContent);
-
-                    // Falls die JSON-Datei gültig ist und Gruppen enthält
-                    if (jsonObject.Count > 0)
-                    {
-                        GroupComboBox.Items.Clear();
-
-                        foreach (var group in jsonObject.Properties())
-                        {
-                            string str = group.Name;
-                            string aktivValue = group.Value.Value<string>("Aktiv");
-                            str += $" ( {aktivValue})";
-                            GroupComboBox.Items.Add(str);
-                        }
-
-                        // Falls keine Gruppen gefunden wurden
-                        if (GroupComboBox.Items.Count == 0)
-                        {
-                            Logger.Instance.Log("Keine Gruppen in der JSON-Datei gefunden.");
-                        }
-                    }
-                    else
-                    {
-                        Logger.Instance.Log("Das JSON-Dokument ist leer oder ungültig.");
-                    }
+                    GroupComboBox.Items.Add(groupProperty.Key);
                 }
-                catch (Exception ex)
-                {
-                    Logger.Instance.Log($"Fehler beim Laden der Gruppen: {ex.Message}");
-                }
-            }
-            else
-            {
-                Logger.Instance.Log($"Die Datei '{filePath}' wurde nicht gefunden.");
             }
         }
 
-        //JSON Methode zum Erstellen einer neuen Gruppe
+        /// <summary>
+        /// Erstellt eine neue Gruppe
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void CreateNewGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                // Pfad zur JSON-Datei
-                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
-
-                // Falls die Datei nicht existiert, erstelle sie
-                if (!File.Exists(filePath))
-                {
-                    File.WriteAllText(filePath, "{}"); // Leere JSON-Struktur erstellen
-                }
-
-                // Lade die bestehende JSON-Datei
-                string jsonContent = File.ReadAllText(filePath);
-                JObject jsonObject = string.IsNullOrEmpty(jsonContent) ? new JObject() : JObject.Parse(jsonContent);
-
-                // Finde einen eindeutigen Gruppennamen
-                int groupNumber = 1;
-                string newGroupName;
-                do
-                {
-                    newGroupName = "Gruppe " + groupNumber;
-                    groupNumber++;
-                } while (jsonObject.ContainsKey(newGroupName));
-
-                // Neue Gruppe erstellen mit aktueller Struktur
-                JObject newGroup = new JObject
-                {
-                    ["Date"] = DateTime.Now.ToString("yyyy-MM-dd"), // Setzt das heutige Datum
-                    ["Aktiv"] = false,
-                    ["Apps"] = new JArray(), // Leere App-Liste
-                    ["Websites"] = new JArray() // Leere Website-Liste
-                };
-
-                // Neue Gruppe zum JSON hinzufügen
-                jsonObject[newGroupName] = newGroup;
-
-                // Aktualisierte JSON-Datei speichern
-                File.WriteAllText(filePath, jsonObject.ToString());
-
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Neue Gruppe '{newGroupName}' wurde erfolgreich erstellt.");
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Erstellen der neuen Gruppe: {ex.Message}");
-            }
+            configReader.CreateNewGroup();
             LoadGroups();
         }
 
+        /// <summary>
+        /// Löscht eine ausgewählte Gruppe
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                // Pfad zur JSON-Datei
-                string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
-
-                // Falls die Datei nicht existiert, kann keine Gruppe gelöscht werden
-                if (!File.Exists(filePath))
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole("Die Konfigurationsdatei existiert nicht.");
-                    return;
-                }
-
-                // Lade die bestehende JSON-Datei
-                string jsonContent = File.ReadAllText(filePath);
-                JObject jsonObject = string.IsNullOrEmpty(jsonContent) ? new JObject() : JObject.Parse(jsonContent);
-
-                string groupNameToDelete = GroupComboBox.SelectedItem as string;
-                groupNameToDelete = CleanGroupName(groupNameToDelete);
-
-                // Überprüfen, ob die Gruppe existiert
-                if (jsonObject.ContainsKey(groupNameToDelete))
-                {
-                    // Gruppe aus dem JSON-Objekt entfernen
-                    jsonObject.Remove(groupNameToDelete);
-
-                    // Aktualisierte JSON-Datei speichern
-                    File.WriteAllText(filePath, jsonObject.ToString());
-
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Gruppe '{groupNameToDelete}' wurde erfolgreich gelöscht.");
-                }
-                else
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Gruppe '{groupNameToDelete}' existiert nicht.");
-                }
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Löschen der Gruppe: {ex.Message}");
-            }
+            string groupNameToDelete = GroupComboBox.SelectedItem as string;
+            groupNameToDelete = CleanGroupName(groupNameToDelete);
+            configReader.RemoveFromConfig(groupNameToDelete, "g", null);
             LoadGroups();
+
         }
 
+        /// <summary>
+        /// Speichert den ausgewähten Prozess in die Config
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void SaveProcessButton_Click(object sender, RoutedEventArgs e)
-        {
-            try
-            {
-                string selectedGroup = GroupComboBox.SelectedItem as string;
-                selectedGroup = CleanGroupName(selectedGroup);
-                string selectedProcess = ProcessListBox.SelectedItem as string;
-
-                if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess))
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole("Bitte wählen Sie eine Gruppe aus.");
-                    return;
-                }
-                processManager.SaveSelectedProcessesToFile(selectedGroup, selectedProcess);
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler: {ex.Message}");
-            }
-        }
-
-        private void BlockApps_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
             selectedGroup = CleanGroupName(selectedGroup);
-            processManager.BlockAppsFromGroup(selectedGroup);
-            StatusPauseTextBlock.Text = "Momentan Pause";
+            string selectedProcess = ProcessListBox.SelectedItem as string;
+            configReader.AppendToConfig(selectedGroup, "a", selectedProcess);    
         }
 
+        /// <summary>
+        /// Löscht den ausgwählten Prozess aus der Config
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void RemoveProcessFromFile_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
             selectedGroup = CleanGroupName(selectedGroup);
             string selectedProcess = ProcessListBox.SelectedItem as string;
-            processManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
+            appManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
         }
 
+        /// <summary>
+        /// Löscht die ausgewählte Domain von der Liste
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void RemoveDomainFromFile_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
@@ -274,106 +168,63 @@ namespace ScreenZen
             webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedProcess);
         }
 
+        /// <summary>
+        /// DEBUG: Startet die Timer timerCheck und timerFree
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void StartTimer_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                timeManager.Start(); // Starte den Timer
-                StatuTimersTextBlock.Text = "Status: Timer läuft";
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Starten des Timers: {ex.Message}");
-            }
+            timeManager.Start();
         }
 
+        /// <summary>
+        /// DEBUG: Stoppt alle Timer
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void StopTimer_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                timeManager.Stop(); // Starte den Timer
-                StatuTimersTextBlock.Text = "Status: Timer inaktiv";
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Starten des Timers: {ex.Message}");
-            }
+            timeManager.Stop();
         }
 
+        /// <summary>
+        /// DEBUG: Erzwingt eine Paus
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void ForceBreak_Click(object sender, RoutedEventArgs e)
         {
             timeManager.ForceBreak();
         }
 
+        /// <summary>
+        /// DEBUG: Beendet eine Paus
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void EndBreak_Click(object sender, RoutedEventArgs e)
         {
             timeManager.EndBreak();
         }
 
-        //JASON 
+        /// <summary>
+        /// Listet alle Blockierten Apps in GroupComboBox
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>        
         private async void ListBlockedApps_Click(object sender, RoutedEventArgs e)
-        {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
+         {      
+            string groupID = GroupComboBox.SelectedItem as string;
+            JsonNode apps= configReader.ReadConfig(groupID, "a");
+            ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
-            // Überprüfen, ob die Datei existiert
-            if (File.Exists(filePath))
+            if (apps is JsonObject groupsObject)
             {
-                try
+                foreach (var groupProperty in groupsObject)
                 {
-                    // Lese den Inhalt der JSON-Datei
-                    string jsonContent = await File.ReadAllTextAsync(filePath);
-                    JObject jsonObject = JObject.Parse(jsonContent);
-
-                    // Wenn der Benutzer eine Gruppe auswählt
-                    string selectedGroup = GroupComboBox.SelectedItem as string;
-                    selectedGroup = CleanGroupName(selectedGroup);
-
-                    if (string.IsNullOrEmpty(selectedGroup))
-                    {
-                        ((MainWindow)Application.Current.MainWindow).AppendToConsole("Bitte wählen Sie eine Gruppe aus.");
-                        return;
-                    }
-
-                    // Überprüfen, ob die Gruppe in der JSON-Datei existiert
-                    if (jsonObject.TryGetValue(selectedGroup, out JToken groupToken) && groupToken is JObject selectedGroupObject)
-                    {
-                        // Hole die "Apps"-Liste der ausgewählten Gruppe
-                        if (selectedGroupObject.TryGetValue("Apps", out JToken appsToken) && appsToken is JArray apps)
-                        {
-                            // Wenn Apps vorhanden sind, zeige nur die Namen an
-                            ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
-
-                            foreach (JObject app in apps)
-                            {
-                                if (app.TryGetValue("Name", out JToken nameToken))
-                                {
-                                    ProcessListBox.Items.Add(nameToken.ToString());
-                                }
-                            }
-
-                            if (ProcessListBox.Items.Count == 0)
-                            {
-                                ((MainWindow)Application.Current.MainWindow).AppendToConsole("Es wurden keine blockierten Apps gefunden.");
-                            }
-                        }
-                        else
-                        {
-                            ((MainWindow)Application.Current.MainWindow).AppendToConsole("Die Gruppe enthält keine Apps.");
-                        }
-                    }
-                    else
-                    {
-                        ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Gruppe '{selectedGroup}' existiert nicht.");
-                    }
+                    GroupComboBox.Items.Add(groupProperty.Key);
                 }
-                catch (Exception ex)
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Laden der Datei: {ex.Message}");
-                }
-            }
-            else
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
             }
         }
 

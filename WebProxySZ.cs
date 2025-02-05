@@ -20,6 +20,7 @@ namespace ScreenZen
         private ExplicitProxyEndPoint proxyEndPoint;
         private ProxyServer proxy;
         private bool isProxyRunning;
+        public event Action<bool> ProxyStatusChanged;
 
         public WebProxySZ()
         {
@@ -27,6 +28,23 @@ namespace ScreenZen
             isProxyRunning = false;
             proxyEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, 8888, true);
             proxy.AddEndPoint(proxyEndPoint);
+        }
+
+        /// <summary>
+        /// Gibt an, ob der Proxy aktuell läuft. 
+        /// Beim Ändern des Werts wird das ProxyStatusChanged-Event ausgelöst. 
+        /// </summary>
+        public bool IsProxyRunning
+        {
+            get => isProxyRunning;
+            private set
+            {
+                if (isProxyRunning != value)
+                {
+                    isProxyRunning = value;
+                    ProxyStatusChanged?.Invoke(isProxyRunning);  // Event auslösen
+                }
+            }
         }
 
         /// <summary>

@@ -28,7 +28,6 @@ namespace ScreenZen
                            container.Resolve<ConfigReader>()
                        ));
             container.Register(() => new TimeManagement(
-                container.Resolve<ConfigReader>(),
                 container.Resolve<AppManager>(),
                 container.Resolve<WebManager>()  
             ));

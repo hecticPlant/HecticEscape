@@ -9,11 +9,18 @@ namespace ScreenZen
     {
         private ConfigReader configReader;
         private WebProxySZ webProxy;
+        public bool IsProxyRunning => webProxy.IsProxyRunning;
+        public event Action<bool> ProxyStatusChanged;
 
         public WebManager(ConfigReader configReader, WebProxySZ webProxy)
         {
             this.configReader = configReader;
             this.webProxy = webProxy;
+            
+            webProxy.ProxyStatusChanged += (status) =>
+            {
+                ProxyStatusChanged?.Invoke(status);
+            };
 
         }
 

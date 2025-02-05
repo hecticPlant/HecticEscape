@@ -32,11 +32,12 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Gibt die laufenden Prozesse zurück
+        /// Aktualisiert die Liste der laufenden Prozesse und gibt sie zurück
         /// </summary>
         /// <returns>Process[] ded laufende Prozesse</returns>
-        private Process[] GetRunningProcesses()
+        public Process[] GetRunningProcesses()
         {
+            UpdateRunningProcesses ();
             return runningProcesses;
         }
 

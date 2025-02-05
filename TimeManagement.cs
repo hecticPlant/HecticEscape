@@ -1,4 +1,6 @@
-﻿namespace ScreenZen
+﻿using System.Net;
+
+namespace ScreenZen
 {
     /// <summary>
     /// Verwaltet die Timer
@@ -25,16 +27,14 @@
         private System.Timers.Timer timerCheck;
 
         private AppManager appManager;
-        private WebProxySZ webManager;
-        private ConfigReader configReader;
+        private WebManager webManager;
         private bool isBreakActive = false;
 
         // Konstruktor-Injektion von ProcessManager
-        public TimeManagement(ConfigReader configReader, AppManager appManager, WebManager webManager)
+        public TimeManagement(AppManager appManager, WebManager webManager)
         {
-            this.webManager = this.webManager;
+            this.webManager = webManager;
             this.appManager = appManager;
-            this.configReader = configReader;
 
             // Timer-Initialisierung:
             timerFree = new System.Timers.Timer(intervall_Free);
@@ -48,6 +48,13 @@
             timerBreak = new System.Timers.Timer(intervall_Break);
             timerBreak.Elapsed += (sender, e) => SwitchToFree();
             timerBreak.AutoReset = false;
+
+            webManager.ProxyStatusChanged += OnProxyStatusChanged;
+        }
+
+        private void OnProxyStatusChanged(bool isRunning)
+        {
+            Logger.Instance.Log(isRunning ? "Proxy gestartet." : "Proxy gestoppt.");
         }
 
         /// <summary>
@@ -73,29 +80,49 @@
         }
 
         /// <summary>
-        /// Startet eine Pause
+        /// Startet eine Pause, wenn der Proxy nicht bereits aktiv ist.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Eine asynchrone Task, die den Start der Pause verwaltet.</returns>
         private async Task SwitchToBreakAsync()
         {
             Logger.Instance.Log("Pause wird gestartet");
             isBreakActive = true;
             StatusChanged?.Invoke("Momentan Pause");
             timerBreak.Start();
-            await Task.Run(() => webManager.StartProxy());
+
+            // Proxy nur starten, wenn er nicht bereits läuft
+            if (!webManager.IsProxyRunning)
+            {
+                await Task.Run(() => webManager.StartProxy());
+                Logger.Instance.Log("Proxy wurde gestartet.");
+            }
+            else
+            {
+                Logger.Instance.Log("Proxy läuft bereits.");
+            }
         }
 
         /// <summary>
-        /// Beendet eine Pause
+        /// Beendet eine Pause, wenn der Proxy aktiv ist.
         /// </summary>
-        /// <returns></returns>
+        /// <returns>Eine asynchrone Task, die das Ende der Pause verwaltet.</returns>
         private async Task SwitchToFree()
         {
             Logger.Instance.Log("Pause wird beendet");
             isBreakActive = false;
             StatusChanged?.Invoke("Momentan freie Zeit");
             timerFree.Start();
-            await webManager.StopProxy();
+
+            // Proxy nur stoppen, wenn er aktuell läuft
+            if (webManager.IsProxyRunning)
+            {
+                await Task.Run(() => webManager.StopProxy());
+                Logger.Instance.Log("Proxy wurde gestoppt.");
+            }
+            else
+            {
+                Logger.Instance.Log("Proxy war bereits gestoppt.");
+            }
         }
 
         /// <summary>

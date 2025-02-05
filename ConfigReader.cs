@@ -49,7 +49,7 @@ namespace ScreenZen
         /// <summary>
         /// Erstelle eine Neue Gruppe
         /// </summary>
-        private void CreateNewGroup()
+        public void CreateNewGroup()
         {
             try
             {
@@ -226,14 +226,16 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Entfernt einen Wert aus einem Attribut
+        /// Entfernt einen Wert aus einem Attribut oder löscht eine ganze Gruppe
         /// </summary>
         /// <param name="groupId">Gruppen Name</param>
-        /// <param name="attribute">Attribut Name
+        /// <param name="attribute">
+        /// Attribut Name:
         ///     a: Apps
         ///     w: Websites
+        ///     g: Ganze Gruppe löschen
         /// </param>
-        /// <param name="valueToRemove">Wert, der entfernt werden soll</param>
+        /// <param name="valueToRemove">Wert, der entfernt werden soll (wird nicht benötigt, wenn eine ganze Gruppe gelöscht wird)</param>
         public void RemoveFromConfig(string groupId, string attribute, string valueToRemove)
         {
             string groupKey = $"Gruppe {groupId}";
@@ -282,8 +284,14 @@ namespace ScreenZen
                     }
                     break;
 
+                case "g":  // Ganze Gruppe löschen
+                    config.Remove(groupKey);
+                    SaveConfig();
+                    Logger.Instance.Log($"Gruppe '{groupId}' wurde gelöscht.");
+                    break;
+
                 default:
-                    Logger.Instance.Log($"Ungültiges Attribut. Verwende 'a' für Apps oder 'w' für Websites. Wert: {attribute}");
+                    Logger.Instance.Log($"Ungültiges Attribut. Verwende 'a' für Apps, 'w' für Websites oder 'g' für das Löschen der gesamten Gruppe. Wert: {attribute}");
                     return;
             }
         }

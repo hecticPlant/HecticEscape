@@ -26,13 +26,12 @@
 
         <!-- Control Zeile -->
         <StackPanel Orientation="Horizontal" Margin="0,10,0,41" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2">
-            <Button Content="Start Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartButton_Click"/>
-            <Button Content="Stop Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopButton_Click"/>
+            <Button Content="Start Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartProxy_Click"/>
+            <Button Content="Stop Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopProxy_Click"/>
             <Button Content="Starte Timer" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartTimer_Click"/>
             <Button Content="Stop Timer" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopTimer_Click"/>
             <Button Content="Force Break" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ForceBreak_Click"/>
             <Button Content="End Break" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="EndBreak_Click"/>
-            <Button Content="Block Apps" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="BlockApps_Click"/>
             <Button Content="Toggle Overlay" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ToggleOverlayClick"/>
         </StackPanel>
 
