@@ -40,8 +40,8 @@ namespace ScreenZen
                 container.Resolve<TimeManagement>(),
                 container.Resolve<AppManager>(),
                 container.Resolve<WebManager>(),
-                container.Resolve<WebProxySZ>(),
-                container.Resolve<Overlay>()
+                container.Resolve<Overlay>(),
+                container.Resolve<ConfigReader>()
             ));
 
             var mainWindow = container.Resolve<MainWindow>();

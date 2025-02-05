@@ -12,20 +12,18 @@ namespace ScreenZen
         private TimeManagement timeManager;
         private AppManager appManager;
         private WebManager webManager;
-        private WebProxySZ webProxy;
         private Overlay overlay;
         private ConfigReader configReader;
         private readonly TimeManagement _timeManagement;
 
         // Der Konstruktor nimmt die Abhängigkeiten entgegen:
-        public MainWindow(TimeManagement timeManager, AppManager appManager, WebManager webManager, WebProxySZ webProxy, Overlay overlay, ConfigReader configReader)
+        public MainWindow(TimeManagement timeManager, AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader)
         {
             InitializeComponent();
 
             this.timeManager = timeManager;
             this.appManager = appManager;
             this.webManager = webManager;
-            this.webProxy = webProxy;
             this.overlay = overlay;
             this.configReader = configReader;
 
