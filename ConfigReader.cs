@@ -3,6 +3,7 @@ using System.IO;
 using System.Text.Json;
 using Newtonsoft.Json.Linq;
 using System.Windows;
+using System.Text.RegularExpressions;
 
 namespace ScreenZen
 {
@@ -16,12 +17,7 @@ namespace ScreenZen
 
         public ConfigReader()
         {
-            if (!File.Exists(filePath))
-            {
-                CreateDefaultConfig();
-            }
-            string jsonString = File.ReadAllText(filePath);
-            config = JsonNode.Parse(jsonString).AsObject();
+            UpdateConfig();
         }
 
         /// <summary>
@@ -53,12 +49,7 @@ namespace ScreenZen
         {
             try
             {
-                // Falls die Datei nicht existiert, erstelle sie
-                if (!File.Exists(filePath))
-                {
-                    File.WriteAllText(filePath, "{}"); // Leere JSON-Struktur erstellen
-                }
-                JsonObject jsonObject = config;
+                JsonObject newConfig = config;
 
                 // Finde einen eindeutigen Gruppennamen
                 int groupNumber = 1;
@@ -67,28 +58,27 @@ namespace ScreenZen
                 {
                     newGroupName = "Gruppe " + groupNumber;
                     groupNumber++;
-                } while (jsonObject.ContainsKey(newGroupName));
+                } while (newConfig.ContainsKey(newGroupName));
 
-                // Neue Gruppe erstellen mit aktueller Struktur
-                JObject newGroup = new JObject
+                var newGroup = new JsonObject
                 {
                     ["Date"] = DateTime.Now.ToString("yyyy-MM-dd"), // Setzt das heutige Datum
                     ["Aktiv"] = false,
-                    ["Apps"] = new JArray(), // Leere App-Liste
-                    ["Websites"] = new JArray() // Leere Website-Liste
+                    ["Apps"] = new JsonArray(), // Leere App-Liste
+                    ["Websites"] = new JsonArray() // Leere Website-Liste
                 };
 
                 // Neue Gruppe zum JSON hinzufügen
-                jsonObject[newGroupName] = newGroupName;
+                newConfig[newGroupName] = newGroup;
 
                 // Aktualisierte JSON-Datei speichern
-                SaveConfig();
+                SaveConfig(newConfig);
 
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Neue Gruppe '{newGroupName}' wurde erfolgreich erstellt.");
+                Logger.Instance.Log($"Neue Gruppe '{newGroupName}' wurde erfolgreich erstellt.");
             }
             catch (Exception ex)
             {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Erstellen der neuen Gruppe: {ex.Message}");
+                Logger.Instance.Log($"Fehler beim Erstellen der neuen Gruppe: {ex.Message}");
             }
         }
 
@@ -115,53 +105,54 @@ namespace ScreenZen
             return aktiveGroups;
         }
 
-        ///<summary>Gibt die Komplette Gruppe oder Elemente aus der Gruppe zurück</summary>
-        /// <param name= "groupId">Gruppen Name. Z.B. Gruppe 1</param>
-        /// <param name="attribute">Attribu das geladen werden soll
-        /// a gibt Apps zurück
-        /// w: Websites
-        /// d: Date
-        /// s: Status
-        ///</param>
-        public JsonNode ReadConfig(string ?groupId = null, string ?attribute = null)
+        /// <summary>
+        /// Gibt die komplette Gruppe oder ein bestimmtes Element als JsonObject zurück.
+        /// </summary>
+        /// <param name="groupId">Gruppenname, z. B. "Gruppe 1".</param>
+        /// <param name="attribute">Attribut, das geladen werden soll:
+        ///   "a" gibt Apps zurück,
+        ///   "w" gibt Websites zurück,
+        ///   "d" gibt das Datum zurück,
+        ///   "s" gibt den Aktivstatus zurück.
+        /// </param>
+        /// <returns>Die gesamte Gruppe oder das gewünschte Attribut als JsonObject.</returns>
+        public JsonObject ReadConfig(string? groupId = null, string? attribute = null)
         {
-            if(groupId == null)
+            if (groupId == null)
             {
-                return config;
-            }
-            string groupKey = $"Gruppe {groupId}";
-
-            if (!config.ContainsKey(groupKey))
-            {
-                Console.WriteLine($"Gruppe {groupId} nicht gefunden.");
-                return null;
+                return config; // Gesamte Konfiguration zurückgeben
             }
 
-            var groupData = config[groupKey];
+            if (!config.ContainsKey(groupId))
+            {
+                Logger.Instance.Log($"Gruppe {groupId} nicht gefunden.");
+                return new JsonObject(); // Leeres Objekt statt null zurückgeben
+            }
+
+            JsonObject groupData = config[groupId].AsObject();
 
             if (attribute == null)
             {
-                // Ganze Gruppe zurückgeben
-                return groupData;
+                return groupData; // Ganze Gruppe zurückgeben
             }
-            else
+
+            // Ein bestimmtes Attribut abrufen und in ein JsonObject packen
+            JsonNode? value = attribute.ToLower() switch
             {
-                // Attribute abrufen
-                switch (attribute.ToLower())
-                {
-                    case "a": // Apps
-                        return groupData["Apps"];
-                    case "w": // Websites
-                        return groupData["Websites"];
-                    case "d": // Datum
-                        return groupData["Date"];
-                    case "s": // Aktivstatus
-                        return groupData["Aktiv"];
-                    default:
-                        Console.WriteLine("Ungültiges Attribut. Verwende 'a' für Apps, 'w' für Websites, 'Date' für Datum oder 'Aktiv' für Aktivstatus.");
-                        return null;
-                }
+                "a" => groupData["Apps"],
+                "w" => groupData["Websites"],
+                "d" => groupData["Date"],
+                "s" => groupData["Aktiv"],
+                _ => null
+            };
+
+            if (value == null)
+            {
+                Logger.Instance.Log($"Ungültiges Attribut '{attribute}'. Verwende 'a' für Apps, 'w' für Websites, 'd' für Datum oder 's' für Aktivstatus.");
+                return new JsonObject();
             }
+
+            return new JsonObject { [attribute] = value };
         }
 
         /// <summary>
@@ -175,15 +166,14 @@ namespace ScreenZen
         /// <param name="newValue">Wert, der hinzugefügt werden soll</param>
         public void AppendToConfig(string groupId, string attribute, string newValue)
         {
-            string groupKey = $"Gruppe {groupId}";
-
-            if (!config.ContainsKey(groupKey))
+            if (!config.ContainsKey(groupId))
             {
                 Logger.Instance.Log($"Gruppe {groupId} nicht gefunden.");
                 return;
             }
 
-            var groupData = config[groupKey];
+            JsonObject newConfig = config;
+            var groupData = newConfig[groupId];
 
             switch (attribute.ToLower())
             {
@@ -199,8 +189,10 @@ namespace ScreenZen
                         return;
                     }
 
-                    apps.Add(newValue);
-                    SaveConfig();
+                    JsonObject newApp = new JsonObject { ["Name"] = newValue };
+                    apps.Add(newApp);
+                    Logger.Instance.Log($"'{newValue}' wurde den Apps der Gruppe '{groupId}' hizugefügt");
+                    SaveConfig(newConfig);
                     break;
 
                 case "w":  // Websites aktualisieren
@@ -215,8 +207,9 @@ namespace ScreenZen
                         return;
                     }
 
-                    websites.Add(newValue);
-                    SaveConfig();
+                    JsonObject newWebsite = new JsonObject { ["Name"] = newValue };
+                    websites.Add(newWebsite);
+                    SaveConfig(newConfig);
                     break;
 
                 default:
@@ -238,7 +231,7 @@ namespace ScreenZen
         /// <param name="valueToRemove">Wert, der entfernt werden soll (wird nicht benötigt, wenn eine ganze Gruppe gelöscht wird)</param>
         public void RemoveFromConfig(string groupId, string attribute, string valueToRemove)
         {
-            string groupKey = $"Gruppe {groupId}";
+            string groupKey = groupId;
 
             if (!config.ContainsKey(groupKey))
             {
@@ -246,7 +239,8 @@ namespace ScreenZen
                 return;
             }
 
-            var groupData = config[groupKey];
+            JsonObject newConfig = config;
+            var groupData = newConfig[groupKey];
 
             switch (attribute.ToLower())
             {
@@ -259,7 +253,7 @@ namespace ScreenZen
                     if (appToRemove != null)
                     {
                         apps.Remove(appToRemove);
-                        SaveConfig();
+                        SaveConfig(newConfig);
                     }
                     else
                     {
@@ -276,7 +270,7 @@ namespace ScreenZen
                     if (websiteToRemove != null)
                     {
                         websites.Remove(websiteToRemove);
-                        SaveConfig();
+                        SaveConfig(newConfig);
                     }
                     else
                     {
@@ -286,7 +280,7 @@ namespace ScreenZen
 
                 case "g":  // Ganze Gruppe löschen
                     config.Remove(groupKey);
-                    SaveConfig();
+                    SaveConfig(newConfig);
                     Logger.Instance.Log($"Gruppe '{groupId}' wurde gelöscht.");
                     break;
 
@@ -299,11 +293,65 @@ namespace ScreenZen
         /// <summary>
         /// Schreibt in die Config.json Datei. 
         /// </summary>
-        private void SaveConfig()
+        private void SaveConfig(JsonObject newConfig)
         {
             var options = new JsonSerializerOptions { WriteIndented = true };
-            File.WriteAllText(filePath, config.ToJsonString(options));
+            File.WriteAllText(filePath, newConfig.ToJsonString(options));
+            Logger.Instance.Log("Saving to file");
 
+        }
+
+        /// <summary>
+        /// Togglet den Aktivitätsstatus einer Gruppe anhand des Schlüssels.
+        /// </summary>
+        /// <param name="groupKey">Der Schlüssel der Gruppe</param>
+        public void ToggleGroup(string groupKey)
+        {
+            JsonObject newConfig = config;
+            newConfig = ReadConfig();
+            JsonNode? groups = config?["Gruppen"];
+            if (groups == null)
+            {
+                return;
+            }
+            JsonNode? group = groups[groupKey];
+            if (group == null)
+            {
+                return;
+            }
+            if (group["Aktiv"] is JsonValue aktivValue && aktivValue.TryGetValue<bool>(out bool aktiv))
+            {
+                group["Aktiv"] = !aktiv;
+
+                SaveConfig(newConfig);
+            }
+            else
+            {
+                group["Aktiv"] = true;
+
+                SaveConfig(newConfig);
+            }
+        }
+
+        /// <summary>
+        /// Updatet die Config
+        /// </summary>
+        private void UpdateConfig()
+        {
+            if (!File.Exists(filePath) || new FileInfo(filePath).Length == 0)
+            {
+                CreateDefaultConfig();
+                return;
+            }
+
+            string jsonString = File.ReadAllText(filePath);
+            if (string.IsNullOrWhiteSpace(jsonString))
+            {
+                CreateDefaultConfig();
+                return;
+            }
+
+            config = JsonNode.Parse(jsonString).AsObject();
         }
     }
 }

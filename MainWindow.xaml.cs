@@ -91,6 +91,7 @@ namespace ScreenZen
         private void LoadGroups()
         {
             JsonNode allGroups = configReader.ReadConfig();
+            GroupComboBox.Items.Clear();  
 
             // Prüfe, ob das gelesene JSON ein Objekt ist
             if (allGroups is JsonObject groupsObject)
@@ -121,7 +122,6 @@ namespace ScreenZen
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string groupNameToDelete = GroupComboBox.SelectedItem as string;
-            groupNameToDelete = CleanGroupName(groupNameToDelete);
             configReader.RemoveFromConfig(groupNameToDelete, "g", null);
             LoadGroups();
 
@@ -135,7 +135,6 @@ namespace ScreenZen
         private void SaveProcessButton_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
-            selectedGroup = CleanGroupName(selectedGroup);
             string selectedProcess = ProcessListBox.SelectedItem as string;
             configReader.AppendToConfig(selectedGroup, "a", selectedProcess);    
         }
@@ -148,7 +147,6 @@ namespace ScreenZen
         private void RemoveProcessFromFile_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
-            selectedGroup = CleanGroupName(selectedGroup);
             string selectedProcess = ProcessListBox.SelectedItem as string;
             appManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
         }
@@ -161,7 +159,6 @@ namespace ScreenZen
         private void RemoveDomainFromFile_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
-            selectedGroup = CleanGroupName(selectedGroup);
             string selectedProcess = ProcessListBox.SelectedItem as string;
             webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedProcess);
         }
@@ -226,130 +223,39 @@ namespace ScreenZen
             }
         }
 
-        //JASON 
+        /// <summary>
+        /// Listet alle blockierten Websites in GroupComboBox
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private async void ListBlockedDomains_Click(object sender, RoutedEventArgs e)
         {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
+            string domain = GroupComboBox.SelectedItem as string;
+            JsonNode domains = configReader.ReadConfig(domain, "w");
+            ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
-            // Überprüfen, ob die Datei existiert
-            if (File.Exists(filePath))
+            if (domains is JsonObject groupsObject)
             {
-                try
+                foreach (var groupProperty in groupsObject)
                 {
-                    // Lese den Inhalt der JSON-Datei asynchron
-                    string jsonContent = await File.ReadAllTextAsync(filePath);
-                    JObject jsonObject = JObject.Parse(jsonContent);
-
-                    // Wenn der Benutzer eine Gruppe auswählt
-                    string selectedGroup = GroupComboBox.SelectedItem as string;
-                    selectedGroup = CleanGroupName(selectedGroup);
-
-                    if (string.IsNullOrEmpty(selectedGroup))
-                    {
-                        ((MainWindow)Application.Current.MainWindow).AppendToConsole("Bitte wählen Sie eine Gruppe aus.");
-                        return;
-                    }
-
-                    // Überprüfen, ob die Gruppe in der JSON-Datei existiert
-                    if (jsonObject.TryGetValue(selectedGroup, out JToken groupToken) && groupToken is JObject selectedGroupObject)
-                    {
-                        // Hole die "Websites"-Liste der ausgewählten Gruppe
-                        if (selectedGroupObject.TryGetValue("Websites", out JToken websitesToken) && websitesToken is JArray websites)
-                        {
-                            // Vorherige Einträge löschen
-                            ProcessListBox.Items.Clear();
-
-                            foreach (JObject website in websites)
-                            {
-                                if (website.TryGetValue("Name", out JToken nameToken))
-                                {
-                                    ProcessListBox.Items.Add(nameToken.ToString());
-                                }
-                            }
-
-                            if (ProcessListBox.Items.Count == 0)
-                            {
-                                ((MainWindow)Application.Current.MainWindow).AppendToConsole("Es wurden keine blockierten Websites gefunden.");
-                            }
-                        }
-                        else
-                        {
-                            ((MainWindow)Application.Current.MainWindow).AppendToConsole("Die Gruppe enthält keine Websites.");
-                        }
-                    }
-                    else
-                    {
-                        ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Gruppe '{selectedGroup}' existiert nicht.");
-                    }
+                    GroupComboBox.Items.Add(groupProperty.Key);
                 }
-                catch (Exception ex)
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Laden der Datei: {ex.Message}");
-                }
-            }
-            else
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
             }
         }
 
+        /// <summary>
+        /// Fügt die ausgewählte Website hinzu
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
         private void AddWebsiteToBlocklist_Click(object sender, RoutedEventArgs e)
         {
             string websiteName = WebsiteTextBox.Text.Trim();
             string selectedGroup = GroupComboBox.SelectedItem as string;
-            selectedGroup = CleanGroupName(selectedGroup);
 
-            if (string.IsNullOrWhiteSpace(websiteName))
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole("Bitte geben Sie eine gültige Website an.");
-                return;
-            }
-
-            try
-            {
-                // Aufruf der Methode ohne die zusätzliche Klammer
-                webManager.SaveSelectedWebsiteToFile(selectedGroup, websiteName);
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler: {ex.Message}");
-            }
-
+            configReader.AppendToConfig(selectedGroup, "w", websiteName);
             // Leere das Textfeld nach dem Hinzufügen
             WebsiteTextBox.Clear();
-        }
-
-        private readonly Queue<string> logQueue = new Queue<string>();
-        private bool isProcessing = false;
-
-        public void AppendToConsole(string message)
-        {
-            logQueue.Enqueue(message);
-
-            if (!isProcessing)
-            {
-                isProcessing = true;
-
-                Task.Run(() =>
-                {
-                    while (logQueue.Any())
-                    {
-                        string logMessage = logQueue.Dequeue();
-
-                        Dispatcher.Invoke(() =>
-                        {
-                            if (ConsoleOutputTextBox.Text.Length > 5000)
-                                ConsoleOutputTextBox.Clear();
-
-                            ConsoleOutputTextBox.AppendText(logMessage + Environment.NewLine);
-                            Logger.Instance.Log(logMessage);
-                            ConsoleOutputTextBox.ScrollToEnd();
-                        });
-                    }
-
-                    isProcessing = false;
-                });
-            }
         }
 
         private bool isOvelay = false;
@@ -372,19 +278,10 @@ namespace ScreenZen
             }
         }
 
-        private void ConsoleOutputTextBox_TextChanged(object sender, TextChangedEventArgs e)
-        {
-
-        }
-
         private void ToggleGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
-            selectedGroup = CleanGroupName(selectedGroup);
-            if (selectedGroup != null)
-            {
-                ToggleGroup(selectedGroup);
-            }
+            configReader.ToggleGroup(selectedGroup);
         }
 
         public string CleanGroupName(string input)
@@ -403,45 +300,6 @@ namespace ScreenZen
                 return input; // Rückgabe des Original-Strings, wenn kein Suffix gefunden wurde
             }
         }
-
-        public void ToggleGroup(string selectedGroup)
-        {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");  // Die Datei, in der die Gruppen gespeichert sind
-
-            try
-            {
-                // Überprüfe, ob die Datei existiert
-                if (!File.Exists(filePath))
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
-                    return;
-                }
-
-                // Lese den Inhalt der JSON-Datei
-                string jsonContent = File.ReadAllText(filePath);
-                JObject jsonObject = JObject.Parse(jsonContent);
-
-                // Überprüfen, ob die angegebene Gruppe existiert
-                if (!jsonObject.ContainsKey(selectedGroup))
-                {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Gruppe '{selectedGroup}' existiert nicht.");
-                    return;
-                }
-                else
-                {
-                    JObject selectedGroupObject = (JObject)jsonObject[selectedGroup];
-                    bool aktiv = selectedGroupObject.Value<bool>("Aktiv");
-                    selectedGroupObject["Aktiv"] = !aktiv;
-                    File.WriteAllText(filePath, jsonObject.ToString());
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"{selectedGroup} wurde auf {!aktiv} geändert\"");
-                    LoadGroups();
-                }
-            }
-            catch (Exception ex)
-            {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim aktiviern/deaktiviern der Grupe: {ex.Message}");
-            }
-        }
         
         public string getConfig(string key, int num)
         {
@@ -452,7 +310,7 @@ namespace ScreenZen
                 // Überprüfe, ob die Datei existiert
                 if (!File.Exists(filePath))
                 {
-                    ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Die Datei '{filePath}' wurde nicht gefunden.");
+                    Logger.Instance.Log($"Die Datei '{filePath}' wurde nicht gefunden.");
                     return null;
                 }
 
@@ -471,7 +329,7 @@ namespace ScreenZen
             }
             catch (Exception ex)
             {
-                ((MainWindow)Application.Current.MainWindow).AppendToConsole($"Fehler beim Speichern der Datei: {ex.Message}");
+                Logger.Instance.Log($"Fehler beim Speichern der Datei: {ex.Message}");
                 return "";
             }
         }

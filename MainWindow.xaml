@@ -70,6 +70,5 @@
         <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3">
             <ListBox Name="ProcessListBox" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="300" Margin="10" Width="200" d:ItemsSource="{d:SampleData ItemCount=5}"/>
         </StackPanel>
-        <TextBox Name="ConsoleOutputTextBox" Grid.Column="1" HorizontalAlignment="Left" Margin="223,34,0,0" Grid.Row="4" TextWrapping="Wrap" Text="" VerticalAlignment="Top" Width="200" Height="294" Grid.ColumnSpan="3" TextChanged="ConsoleOutputTextBox_TextChanged"/>
     </Grid>
 </Window>
