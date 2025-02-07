@@ -18,7 +18,7 @@ namespace ScreenZen
             Topmost = true; // Stellt sicher, dass das Fenster immer oben bleibt
             AllowsTransparency = true;
             ShowInTaskbar = false;
-      
+
             // Optional: Fenstergröße und Position setzen (z.B. auf gesamten Bildschirm)
             Width = SystemParameters.PrimaryScreenWidth;
             Height = SystemParameters.PrimaryScreenHeight;

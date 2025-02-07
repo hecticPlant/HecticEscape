@@ -1,6 +1,4 @@
-﻿using System.Net;
-
-namespace ScreenZen
+﻿namespace ScreenZen
 {
     /// <summary>
     /// Verwaltet die Timer

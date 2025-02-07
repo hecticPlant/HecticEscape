@@ -1,10 +1,7 @@
 ﻿using System.Text;
-using System.IO;
 using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
-using Newtonsoft.Json.Linq;
-using System.Windows.Documents;
 
 namespace ScreenZen
 {
@@ -55,14 +52,14 @@ namespace ScreenZen
         {
             this.isProxyRunning = isProxyRunning;
         }
-        
+
         /// <summary>
         /// Gibt den Wert von isProxyRunning zurück
         /// </summary>
         /// <returns></returns>
         public bool getIsProxyRunning()
         {
-            return isProxyRunning; 
+            return isProxyRunning;
         }
 
         /// <summary>

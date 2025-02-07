@@ -7,8 +7,8 @@ namespace ScreenZen
     /// </summary>
     class MainSZ
     {
-        public MainSZ() 
-        { 
+        public MainSZ()
+        {
             Start();
         }
         /// <summary>

@@ -1,7 +1,6 @@
-﻿using System.Windows;
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO;
-using System.Text.Json.Nodes;
+using System.Windows;
 
 namespace ScreenZen
 {
@@ -45,7 +44,7 @@ namespace ScreenZen
                 StatusPauseTextBlock.Text = newStatus;
             }));
         }
-        
+
         /// <summary>
         /// DEBUG: Startet den Proxy
         /// </summary>
@@ -53,7 +52,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void StartProxy_Click(object sender, RoutedEventArgs e)
         {
-           timeManager.Start();
+            timeManager.Start();
         }
 
         /// <summary>
@@ -63,7 +62,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void StopProxy_Click(object sender, RoutedEventArgs e)
         {
-            timeManager.Stop(); 
+            timeManager.Stop();
         }
 
         /// <summary>
@@ -262,7 +261,7 @@ namespace ScreenZen
             string websiteName = WebsiteTextBox.Text.Trim();
             string selectedGroup = GroupComboBox.SelectedItem as string;
 
-            configReader.AddWebsiteToGroup(selectedGroup,websiteName);
+            configReader.AddWebsiteToGroup(selectedGroup, websiteName);
             // Leere das Textfeld nach dem Hinzufügen
             WebsiteTextBox.Clear();
             ListBlockedDomains_Click(sender, e);
@@ -332,7 +331,7 @@ namespace ScreenZen
                 return input; // Rückgabe des Original-Strings, wenn kein Suffix gefunden wurde
             }
         }
-        
+
         public string getConfig(string key, int num)
         {
             string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json"); // JSON-Datei mit den Gruppen

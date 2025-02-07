@@ -1,6 +1,6 @@
 ﻿using System.Diagnostics;
-using System.Text.RegularExpressions;
 using System.Text.Json.Nodes;
+using System.Text.RegularExpressions;
 
 namespace ScreenZen
 {
@@ -15,7 +15,7 @@ namespace ScreenZen
         /// Liste mit allen Apps
         /// </summary>
         private List<string> blockedApps = new List<string>();
-        private ConfigReader configReader; 
+        private ConfigReader configReader;
 
         public AppManager(ConfigReader configReader)
         {
@@ -37,7 +37,7 @@ namespace ScreenZen
         /// <returns>Process[] ded laufende Prozesse</returns>
         public Process[] GetRunningProcesses()
         {
-            UpdateRunningProcesses ();
+            UpdateRunningProcesses();
             return runningProcesses;
         }
 
@@ -75,7 +75,7 @@ namespace ScreenZen
                 blockedApps.AddRange(apps); // Richtige Methode für das Hinzufügen einer Liste
             }
         }
-        
+
         /// <summary>
         /// Beendet alle Apps einer Gruppe
         /// </summary>
@@ -89,7 +89,7 @@ namespace ScreenZen
             }
 
         }
-       
+
         /// <summary>
         /// Beendet einen Prozess
         /// </summary>

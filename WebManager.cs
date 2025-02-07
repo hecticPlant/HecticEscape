@@ -16,7 +16,7 @@ namespace ScreenZen
         {
             this.configReader = configReader;
             this.webProxy = webProxy;
-            
+
             webProxy.ProxyStatusChanged += (status) =>
             {
                 ProxyStatusChanged?.Invoke(status);
@@ -61,7 +61,7 @@ namespace ScreenZen
             webProxy.StopProxy();
 
         }
-        
+
         /// <summary>
         ///         Setzt die List der geblockten Domains
         /// </summary
