@@ -118,14 +118,18 @@ namespace ScreenZen
         /// <summary>
         /// Löscht eine ausgewählte Gruppe
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string groupNameToDelete = GroupComboBox.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(groupNameToDelete))
+            {
+                MessageBox.Show("Bitte wählen Sie eine Gruppe zum Löschen aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             configReader.DeleteGroup(groupNameToDelete);
             LoadGroups();
-
         }
 
         /// <summary>
@@ -137,7 +141,8 @@ namespace ScreenZen
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
             string selectedProcess = ProcessListBox.SelectedItem as string;
-            configReader.AddAppToGroup(selectedGroup, selectedProcess);    
+            configReader.AddAppToGroup(selectedGroup, selectedProcess);
+            ListBlockedApps_Click(sender, e);
         }
 
         /// <summary>
@@ -150,6 +155,7 @@ namespace ScreenZen
             string selectedGroup = GroupComboBox.SelectedItem as string;
             string selectedProcess = ProcessListBox.SelectedItem as string;
             appManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
+            ListBlockedApps_Click(sender, e);
         }
 
         /// <summary>
@@ -162,6 +168,7 @@ namespace ScreenZen
             string selectedGroup = GroupComboBox.SelectedItem as string;
             string selectedProcess = ProcessListBox.SelectedItem as string;
             webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedProcess);
+            ListBlockedDomains_Click(sender, e);
         }
 
         /// <summary>
@@ -205,44 +212,45 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Listet alle Blockierten Apps in GroupComboBox
+        /// Listet alle blockierten Apps in ProcessListBox
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>        
-        private async void ListBlockedApps_Click(object sender, RoutedEventArgs e)
-         {      
+        private void ListBlockedApps_Click(object sender, RoutedEventArgs e)
+        {
             string groupID = GroupComboBox.SelectedItem as string;
-            JsonNode apps= configReader.GetAppsFromGroup(groupID);
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            string apps = configReader.GetAppsFromGroup(groupID);
             ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
-            if (apps is JsonObject groupsObject)
+            if (!string.IsNullOrEmpty(apps))
             {
-                foreach (var groupProperty in groupsObject)
+                foreach (var app in apps.Split(", "))
                 {
-                    GroupComboBox.Items.Add(groupProperty.Key);
+                    ProcessListBox.Items.Add(app);
                 }
             }
         }
 
         /// <summary>
-        /// Listet alle blockierten Websites in GroupComboBox
+        /// Listet alle blockierten Websites in ProcessListBox
         /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private async void ListBlockedDomains_Click(object sender, RoutedEventArgs e)
+        private void ListBlockedDomains_Click(object sender, RoutedEventArgs e)
         {
-            string group = GroupComboBox.SelectedItem as string;
-            JsonNode domains = configReader.GetWebsitesFromGroup(group);
+            string groupID = GroupComboBox.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            string domains = configReader.GetWebsitesFromGroup(groupID);
             ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
-            if (domains is JsonObject groupsObject)
+            if (!string.IsNullOrEmpty(domains))
             {
-                foreach (var groupProperty in groupsObject)
+                foreach (var domain in domains.Split(", "))
                 {
-                    GroupComboBox.Items.Add(groupProperty.Key);
+                    ProcessListBox.Items.Add(domain);
                 }
             }
         }
+
 
         /// <summary>
         /// Fügt die ausgewählte Website hinzu
@@ -257,6 +265,7 @@ namespace ScreenZen
             configReader.AddWebsiteToGroup(selectedGroup,websiteName);
             // Leere das Textfeld nach dem Hinzufügen
             WebsiteTextBox.Clear();
+            ListBlockedDomains_Click(sender, e);
         }
 
         private bool isOvelay = false;
@@ -282,13 +291,29 @@ namespace ScreenZen
         private void ActivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(selectedGroup))
+            {
+                MessageBox.Show("Bitte wählen Sie eine Gruppe zum Aktivieren aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             configReader.SetActiveStatus(selectedGroup, true);
+            MessageBox.Show($"Die Gruppe '{selectedGroup}' wurde aktiviert.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void DeactivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
+
+            if (string.IsNullOrEmpty(selectedGroup))
+            {
+                MessageBox.Show("Bitte wählen Sie eine Gruppe zum Deaktivieren aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
             configReader.SetActiveStatus(selectedGroup, false);
+            MessageBox.Show($"Die Gruppe '{selectedGroup}' wurde deaktiviert.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         public string CleanGroupName(string input)

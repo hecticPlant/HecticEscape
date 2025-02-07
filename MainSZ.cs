@@ -19,22 +19,24 @@ namespace ScreenZen
         {
             var container = new ContainerSZ();
 
-            // Registriere die Komponenten:
-            
+            // Registriere die Komponenten als Singleton
+            var configReader = new ConfigReader();
+            container.RegisterSingleton(configReader); // Als Singleton registrieren
+
             container.Register<Logger>();
             container.Register<Overlay>();
-            container.Register<ConfigReader>();
+
             container.Register(() => new AppManager(
-                           container.Resolve<ConfigReader>()
-                       ));
+                       container.Resolve<ConfigReader>()
+                   ));
             container.Register(() => new TimeManagement(
                 container.Resolve<AppManager>(),
-                container.Resolve<WebManager>()  
+                container.Resolve<WebManager>()
             ));
             container.Register(() => new WebManager(
-                           container.Resolve<ConfigReader>(),
-                           container.Resolve<WebProxySZ>()
-                       ));
+                       container.Resolve<ConfigReader>(),
+                       container.Resolve<WebProxySZ>()
+                   ));
             container.Register<WebProxySZ>();
             container.Register(() => new MainWindow(
                 container.Resolve<TimeManagement>(),
