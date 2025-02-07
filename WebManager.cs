@@ -31,7 +31,7 @@ namespace ScreenZen
         /// <param name="websiteName">Name der Website</param>
         public void SaveSelectedWebsiteToFile(string selectedGroup, string websiteName)
         {
-            configReader.AppendToConfig(selectedGroup, "w", websiteName);
+            configReader.AddWebsiteToGroup(selectedGroup, websiteName);
         }
 
         /// <summary>
@@ -41,7 +41,7 @@ namespace ScreenZen
         /// <param name="websiteName">Website Name</param>
         public void RemoveSelectedWebsiteFromFile(string selectedGroup, string websiteName)
         {
-            configReader.RemoveFromConfig(selectedGroup, "w", websiteName);
+            configReader.DeleteWebsiteFromGroup(selectedGroup, websiteName);
 
         }
 
@@ -68,7 +68,7 @@ namespace ScreenZen
         public void setBlockedList()
         {
             List<string> blockedDomains = new List<string>();
-            JsonNode jsonNode = configReader.GetAktiveGroups();
+            JsonNode jsonNode = configReader.GetActiveGroups();
             if (jsonNode is JsonArray jsonArray)
             {
                 string[] domains = jsonArray.Select(node => node.ToString()).ToArray();

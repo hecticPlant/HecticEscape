@@ -63,8 +63,9 @@
             <ComboBox Name="GroupComboBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Width="200"/>
             <Button Content="Neue Gruppe Erstellen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="CreateNewGroupButton_Click"/>
             <Button Content="Gruppe Löschen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeleteGroupButton_Click"/>
-            <Button Content="Toggle Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ToggleGroupButton_Click"/>
-           
+            <Button Content="Aktiviere Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ActivateGroupButton_Click"/>
+            <Button Content="Deaktiviere Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeactivateGroupButton_Click"/>
+
             <!-- Panel Row -->
         </StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="4" Grid.Column="1" Grid.ColumnSpan="3">

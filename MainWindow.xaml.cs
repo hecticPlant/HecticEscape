@@ -1,8 +1,6 @@
 ﻿using System.Windows;
-using System.Windows.Controls;
 using System.Diagnostics;
 using System.IO;
-using Newtonsoft.Json.Linq;
 using System.Text.Json.Nodes;
 
 namespace ScreenZen
@@ -90,15 +88,18 @@ namespace ScreenZen
         /// </summary>
         private void LoadGroups()
         {
-            JsonNode allGroups = configReader.ReadConfig();
-            GroupComboBox.Items.Clear();  
+            // Holen der Gruppennamen als durch Kommas getrennte Liste
+            string allGroups = configReader.GetAllGroups();
+            GroupComboBox.Items.Clear();
 
-            // Prüfe, ob das gelesene JSON ein Objekt ist
-            if (allGroups is JsonObject groupsObject)
+            // Sicherstellen, dass Gruppen vorhanden sind
+            if (!string.IsNullOrEmpty(allGroups))
             {
-                foreach (var groupProperty in groupsObject)
+                // Gruppen in die ComboBox hinzufügen (nehmen wir an, dass allGroups eine durch Kommas getrennte Liste ist)
+                var groups = allGroups.Split(new[] { ", " }, StringSplitOptions.None);
+                foreach (var group in groups)
                 {
-                    GroupComboBox.Items.Add(groupProperty.Key);
+                    GroupComboBox.Items.Add(group);
                 }
             }
         }
@@ -110,7 +111,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void CreateNewGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            configReader.CreateNewGroup();
+            configReader.CreateGroup();
             LoadGroups();
         }
 
@@ -122,7 +123,7 @@ namespace ScreenZen
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string groupNameToDelete = GroupComboBox.SelectedItem as string;
-            configReader.RemoveFromConfig(groupNameToDelete, "g", null);
+            configReader.DeleteGroup(groupNameToDelete);
             LoadGroups();
 
         }
@@ -136,7 +137,7 @@ namespace ScreenZen
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
             string selectedProcess = ProcessListBox.SelectedItem as string;
-            configReader.AppendToConfig(selectedGroup, "a", selectedProcess);    
+            configReader.AddAppToGroup(selectedGroup, selectedProcess);    
         }
 
         /// <summary>
@@ -211,7 +212,7 @@ namespace ScreenZen
         private async void ListBlockedApps_Click(object sender, RoutedEventArgs e)
          {      
             string groupID = GroupComboBox.SelectedItem as string;
-            JsonNode apps= configReader.ReadConfig(groupID, "a");
+            JsonNode apps= configReader.GetAppsFromGroup(groupID);
             ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
             if (apps is JsonObject groupsObject)
@@ -230,8 +231,8 @@ namespace ScreenZen
         /// <param name="e"></param>
         private async void ListBlockedDomains_Click(object sender, RoutedEventArgs e)
         {
-            string domain = GroupComboBox.SelectedItem as string;
-            JsonNode domains = configReader.ReadConfig(domain, "w");
+            string group = GroupComboBox.SelectedItem as string;
+            JsonNode domains = configReader.GetWebsitesFromGroup(group);
             ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
 
             if (domains is JsonObject groupsObject)
@@ -253,7 +254,7 @@ namespace ScreenZen
             string websiteName = WebsiteTextBox.Text.Trim();
             string selectedGroup = GroupComboBox.SelectedItem as string;
 
-            configReader.AppendToConfig(selectedGroup, "w", websiteName);
+            configReader.AddWebsiteToGroup(selectedGroup,websiteName);
             // Leere das Textfeld nach dem Hinzufügen
             WebsiteTextBox.Clear();
         }
@@ -278,10 +279,16 @@ namespace ScreenZen
             }
         }
 
-        private void ToggleGroupButton_Click(object sender, RoutedEventArgs e)
+        private void ActivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
-            configReader.ToggleGroup(selectedGroup);
+            configReader.SetActiveStatus(selectedGroup, true);
+        }
+
+        private void DeactivateGroupButton_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedGroup = GroupComboBox.SelectedItem as string;
+            configReader.SetActiveStatus(selectedGroup, false);
         }
 
         public string CleanGroupName(string input)
@@ -333,5 +340,6 @@ namespace ScreenZen
                 return "";
             }
         }
+
     }
 }

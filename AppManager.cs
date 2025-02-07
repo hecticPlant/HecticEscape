@@ -48,7 +48,7 @@ namespace ScreenZen
         /// <param name="processName">Prozess Name</param>
         public void SaveSelectedProcessesToFile(string selectedGroup, string processName)
         {
-            configReader.AppendToConfig(CleanProcessName(selectedGroup), "a", processName);
+            configReader.AddAppToGroup(selectedGroup, processName);
         }
 
         /// <summary>
@@ -68,7 +68,7 @@ namespace ScreenZen
         /// </summary>
         private void UpdateAppList()
         {
-            JsonNode jsonNode = configReader.GetAktiveGroups();
+            JsonNode jsonNode = configReader.GetActiveGroups();
             if (jsonNode is JsonArray jsonArray)
             {
                 string[] apps = jsonArray.Select(node => node.ToString()).ToArray();
@@ -125,7 +125,7 @@ namespace ScreenZen
         ///<param name="selectedGroup">Name der Gruppe</param>
         public void RemoveSelectedProcessesFromFile(string selectedGroup, string processName)
         {
-            configReader.RemoveFromConfig(selectedGroup, "a", processName);
+            configReader.DeleteAppFromGroup(selectedGroup, processName);
         }
     }
 }

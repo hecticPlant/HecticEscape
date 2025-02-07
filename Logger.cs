@@ -38,7 +38,7 @@ namespace ScreenZen
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fehler: '{ex}'");
+                Logger.Instance.Log($"Fehler: '{ex}'");
             }
 
             LogMessageReceived?.Invoke(fullMessage);

@@ -123,12 +123,12 @@ namespace ScreenZen
             try
             {
                 var requestUrl = e.HttpClient.Request.Url;
-                Console.WriteLine($"Anfrage erhalten: {requestUrl}");
+                Logger.Instance.Log($"Anfrage erhalten: {requestUrl}");
 
                 // Extrahiere den Hostnamen aus der URL
                 if (!Uri.TryCreate(requestUrl, UriKind.Absolute, out var uri))
                 {
-                    Console.WriteLine($"Ungültige URL: {requestUrl}");
+                    Logger.Instance.Log($"Ungültige URL: {requestUrl}");
                     return;
                 }
 
@@ -139,7 +139,7 @@ namespace ScreenZen
                 {
                     if (requestHost.EndsWith(domain.ToLowerInvariant()))
                     {
-                        Console.WriteLine($"Blockiere {requestUrl}");
+                        Logger.Instance.Log($"Blockiere {requestUrl}");
 
                         // Sende eine 403-Fehlermeldung zurück
                         var blockMessage = "Zugriff auf diese Website ist blockiert.";
@@ -157,7 +157,7 @@ namespace ScreenZen
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"Fehler bei der Verarbeitung der Anfrage: {ex.Message}");
+                Logger.Instance.Log($"Fehler bei der Verarbeitung der Anfrage: {ex.Message}");
             }
         }
 
