@@ -1,7 +1,8 @@
 ﻿using System.Text;
-using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
+using Titanium.Web.Proxy;
+using System.Diagnostics;
 
 namespace ScreenZen
 {
@@ -19,62 +20,53 @@ namespace ScreenZen
         private bool isProxyRunning;
         public event Action<bool> ProxyStatusChanged;
 
+        /// <summary>
+        /// Konstruktor für WebProxySZ. Initialisiert den Proxy und fügt den Endpunkt hinzu.
+        /// </summary>
         public WebProxySZ()
         {
             proxy = new ProxyServer();
-            isProxyRunning = false;
             proxyEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, 8888, true);
             proxy.AddEndPoint(proxyEndPoint);
+
+            proxy.BeforeRequest += OnRequestAsync;
+            isProxyRunning = false;
         }
 
         /// <summary>
-        /// Gibt an, ob der Proxy aktuell läuft. 
-        /// Beim Ändern des Werts wird das ProxyStatusChanged-Event ausgelöst. 
+        /// Gibt den aktuellen Status des Proxys zurück.
         /// </summary>
         public bool IsProxyRunning
         {
-            get => isProxyRunning;
+            get
+            {
+                return isProxyRunning;
+            }
             private set
             {
                 if (isProxyRunning != value)
                 {
                     isProxyRunning = value;
                     ProxyStatusChanged?.Invoke(isProxyRunning);  // Event auslösen
+                    Logger.Instance.Log($"IsProxyRunning geändert: {isProxyRunning}");
                 }
             }
         }
 
         /// <summary>
-        /// Setzt isProxyRunning
+        /// Startet den Proxy, falls er noch nicht läuft. Setzt den System-Proxy auf den lokalen Proxy.
         /// </summary>
-        /// <param name="isProxyRunning"></param>
-        public void setIsProxyRunnin(bool isProxyRunning)
-        {
-            this.isProxyRunning = isProxyRunning;
-        }
-
-        /// <summary>
-        /// Gibt den Wert von isProxyRunning zurück
-        /// </summary>
-        /// <returns></returns>
-        public bool getIsProxyRunning()
-        {
-            return isProxyRunning;
-        }
-
-        /// <summary>
-        /// Startet den Proxy-Server, richtet einen Endpunkt auf Port 8888 ein und 
-        /// registriert einen Event-Handler, um eingehende Anfragen zu überprüfen und gegebenenfalls zu blockieren.
-        /// </summary>
-        /// <returns>Ein asynchroner Task, der den Startvorgang des Proxy-Servers repräsentiert.</returns>
         public async Task StartProxy()
         {
             if (!isProxyRunning)
             {
                 try
                 {
+                    Logger.Instance.Log("Starte Proxy und setze System-Proxy.");
+                    // Setze den System-Proxy auf den lokalen Proxy
+                    SetSystemProxy();
+
                     await Task.Run(() => proxy.Start());
-                    proxy.SetAsSystemProxy(proxyEndPoint, ProxyProtocolType.AllHttp);
                     Logger.Instance.Log("Proxy läuft auf Port 8888...");
                     isProxyRunning = true;
                 }
@@ -87,19 +79,23 @@ namespace ScreenZen
             {
                 Logger.Instance.Log("Proxy läuft bereits");
             }
+            Logger.Instance.Log("StartProxy abgeschlossen.");
         }
 
         /// <summary>
-        /// Stoppt den Proxy-Server und entfernt die System-Proxy-Einstellungen.
+        /// Stoppt den Proxy und setzt den System-Proxy zurück.
         /// </summary>
-        /// <returns>Ein asynchroner Task, der den Stoppvorgang des Proxy-Servers repräsentiert.</returns>
         public async Task StopProxy()
         {
             if (isProxyRunning)
             {
                 await Task.Run(() => proxy.Stop());
+
+                // Setze den System-Proxy zurück
+                ResetSystemProxy();
+
                 isProxyRunning = false;
-                Logger.Instance.Log("Proxy wurde gestoppt.");
+                Logger.Instance.Log("Proxy wurde gestoppt und System-Proxy zurückgesetzt.");
             }
             else
             {
@@ -112,9 +108,6 @@ namespace ScreenZen
         /// die in der Liste der geblockten Domains enthalten sind. 
         /// Wenn eine blockierte Domain erkannt wird, wird eine 403-Fehlermeldung zurückgegeben.
         /// </summary>
-        /// <param name="sender">Das Objekt, das das Event ausgelöst hat (in diesem Fall der Proxy-Server).</param>
-        /// <param name="e">Die Event-Argumente, die Informationen über die HTTP-Anfrage enthalten.</param>
-        /// <returns>Ein asynchroner Task, der die Verarbeitung der Anfrage steuert.</returns>
         private async Task OnRequestAsync(object sender, SessionEventArgs e)
         {
             try
@@ -134,7 +127,7 @@ namespace ScreenZen
                 // Überprüfe, ob der Host mit einer der geblockten Domains übereinstimmt
                 foreach (var domain in blockedDomains)
                 {
-                    if (requestHost.EndsWith(domain.ToLowerInvariant()))
+                    if (requestHost.EndsWith(domain.ToLowerInvariant()) || requestHost.Contains(domain.ToLowerInvariant()))
                     {
                         Logger.Instance.Log($"Blockiere {requestUrl}");
 
@@ -159,16 +152,46 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Setzt die List der geblockten Domains 
+        /// Setzt den System-Proxy auf den lokalen Proxy, um den Netzwerkverkehr durch den Proxy zu leiten.
         /// </summary>
-        /// <param name="blockedDomains">Liste der geblockten Domains</param>
+        private void SetSystemProxy()
+        {
+            Logger.Instance.Log("Setze System-Proxy auf 127.0.0.1:8888.");
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "netsh",
+                Arguments = "winhttp set proxy 127.0.0.1:8888",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+        }
+
+        /// <summary>
+        /// Setzt den System-Proxy zurück auf die Standardwerte (automatische Erkennung).
+        /// </summary>
+        private void ResetSystemProxy()
+        {
+            Logger.Instance.Log("Setze System-Proxy zurück auf Standardwerte.");
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "netsh",
+                Arguments = "winhttp reset proxy",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+        }
+
+        /// <summary>
+        /// Setzt die Liste der geblockten Domains.
+        /// </summary>
         public void setBlockedDomains(List<string> blockedDomains)
         {
+            Logger.Instance.Log($"setBlockedDomains gestartet mit {blockedDomains.Count} Domains.");
             this.blockedDomains = blockedDomains;
         }
 
         /// <summary>
-        /// Leert die Liste der geblockten Domains
+        /// Leert die Liste der geblockten Domains.
         /// </summary>
         private void RemoveBlockedDomains()
         {
@@ -181,7 +204,6 @@ namespace ScreenZen
             {
                 Logger.Instance.Log($"Fehler beim entblocken der geblockten Domains: {ex.Message}");
             }
-
         }
     }
 }

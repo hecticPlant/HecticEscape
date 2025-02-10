@@ -68,21 +68,53 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Alle Gruppen, bei denen "Aktiv" true ist, als string
+        /// Alle Websites, aus aktiven gruppen, als Liste
         /// </summary>
         /// <returns></returns>
-        public string GetActiveGroups()
+        public List<string> GetActiveGroupsDomains()
         {
-            var activeGroups = new List<string>();
+            var activeDomains = new List<string>();
+
+            // Durchlaufe alle Gruppen und extrahiere die Domains, wenn sie aktiv sind
             foreach (var gruppe in _config.Gruppen)
             {
                 if (gruppe.Value.Aktiv)
                 {
-                    activeGroups.Add(gruppe.Key);
+                    // Füge alle Websites dieser Gruppe zur Liste der aktiven Domains hinzu
+                    foreach (var website in gruppe.Value.Websites)
+                    {
+                        activeDomains.Add(website.Name);
+                    }
                 }
             }
-            return string.Join(", ", activeGroups);
+
+            return activeDomains;
         }
+
+        /// <summary>
+        /// Alle Apps, aus aktiven gruppen, als Liste
+        /// </summary>
+        /// <returns></returns>
+        public List<string> GetActiveGroupsApps()
+        {
+            var activeApps = new List<string>();
+
+            // Durchlaufe alle Gruppen und extrahiere die Apps, wenn sie aktiv sind
+            foreach (var gruppe in _config.Gruppen)
+            {
+                if (gruppe.Value.Aktiv)
+                {
+                    // Füge alle Apps dieser Gruppe zur Liste der aktiven Apps hinzu
+                    foreach (var app in gruppe.Value.Apps)
+                    {
+                        activeApps.Add(app.Name);
+                    }
+                }
+            }
+
+            return activeApps;
+        }
+
 
         /// <summary>
         /// Alle Websites aus einer bestimmten Gruppe als string

@@ -45,17 +45,6 @@
         }
 
         /// <summary>
-        /// DEBUG: Startet die Timer timerCheck und timerFree
-        /// </summary>
-        public void StartBreak()
-        {
-            Logger.Instance.Log("Starte Pause");
-            isBreakActive = true;
-            timerCheck.Start();
-            timerBreak.Start();
-        }
-
-        /// <summary>
         /// DEBUG: Stoppt alle Timer
         /// </summary>
         public void Stop()
@@ -129,7 +118,7 @@
         /// </summary>
         public void ForceBreak()
         {
-            Logger.Instance.Log(" ");
+            Logger.Instance.Log("Erzwinge eine Pause.");
             timerFree.Stop();
             SwitchToBreakAsync();
         }
@@ -139,7 +128,7 @@
         /// </summary>
         public void EndBreak()
         {
-            Logger.Instance.Log("TimeManagement: EndBreak");
+            Logger.Instance.Log("Erzwinge das Ende einer Pause");
             timerBreak.Stop();
             SwitchToFree();
         }

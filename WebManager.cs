@@ -16,12 +16,12 @@ namespace ScreenZen
         {
             this.configReader = configReader;
             this.webProxy = webProxy;
+            SetBlockedList();   
 
             webProxy.ProxyStatusChanged += (status) =>
             {
                 ProxyStatusChanged?.Invoke(status);
             };
-
         }
 
         /// <summary>
@@ -32,6 +32,7 @@ namespace ScreenZen
         public void SaveSelectedWebsiteToFile(string selectedGroup, string websiteName)
         {
             configReader.AddWebsiteToGroup(selectedGroup, websiteName);
+            SetBlockedList();
         }
 
         /// <summary>
@@ -42,7 +43,7 @@ namespace ScreenZen
         public void RemoveSelectedWebsiteFromFile(string selectedGroup, string websiteName)
         {
             configReader.DeleteWebsiteFromGroup(selectedGroup, websiteName);
-
+            SetBlockedList();
         }
 
         /// <summary>
@@ -50,6 +51,7 @@ namespace ScreenZen
         /// </summary>
         public void StartProxy()
         {
+            //SetBlockedList();
             webProxy.StartProxy();
         }
 
@@ -63,18 +65,26 @@ namespace ScreenZen
         }
 
         /// <summary>
-        ///         Setzt die List der geblockten Domains
-        /// </summary
-        public void setBlockedList()
+        /// Setzt die Liste der geblockten Domains
+        /// </summary>
+        public void SetBlockedList()
         {
-            List<string> blockedDomains = new List<string>();
-            JsonNode jsonNode = configReader.GetActiveGroups();
-            if (jsonNode is JsonArray jsonArray)
+            try
             {
-                string[] domains = jsonArray.Select(node => node.ToString()).ToArray();
+                List<string> blockedDomains = new List<string>();
+                var domains = configReader.GetActiveGroupsDomains();
+
+                // Domains zur Blocklist hinzufügen
                 blockedDomains.AddRange(domains);
+
+                // Blockierte Domains im Proxy setzen
                 webProxy.setBlockedDomains(blockedDomains);
             }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen der Blocklist: {ex.Message}");
+            }
         }
+
     }
 }

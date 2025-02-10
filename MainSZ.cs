@@ -21,7 +21,9 @@ namespace ScreenZen
 
             // Registriere die Komponenten als Singleton
             var configReader = new ConfigReader();
+            var webManager = new WebProxySZ();
             container.RegisterSingleton(configReader); // Als Singleton registrieren
+            container.RegisterSingleton(webManager);
 
             container.Register<Logger>();
             container.Register<Overlay>();
@@ -37,7 +39,7 @@ namespace ScreenZen
                        container.Resolve<ConfigReader>(),
                        container.Resolve<WebProxySZ>()
                    ));
-            container.Register<WebProxySZ>();
+
             container.Register(() => new MainWindow(
                 container.Resolve<TimeManagement>(),
                 container.Resolve<AppManager>(),

@@ -49,7 +49,7 @@ namespace ScreenZen
         public void SaveSelectedProcessesToFile(string selectedGroup, string processName)
         {
             string newProcessName = CleanProcessName(processName);
-            configReader.AddAppToGroup(selectedGroup, newProcessName);
+            configReader.AddAppToGroup(selectedGroup, CleanProcessName(processName));
         }
 
         /// <summary>
@@ -71,13 +71,21 @@ namespace ScreenZen
         /// </summary>
         private void UpdateAppList()
         {
-            JsonNode jsonNode = configReader.GetActiveGroups();
-            if (jsonNode is JsonArray jsonArray)
+            List<string> activeApps = configReader.GetActiveGroupsApps(); // Holen der aktiven Apps
+
+            // Überprüfen, ob aktive Apps vorhanden sind
+            if (activeApps.Any())
             {
-                string[] apps = jsonArray.Select(node => node.ToString()).ToArray();
-                blockedApps.AddRange(apps); // Richtige Methode für das Hinzufügen einer Liste
+                // Füge die aktiven Apps zur blockedApps Liste hinzu
+                blockedApps.AddRange(activeApps);
+                Logger.Instance.Log($"Aktive Apps wurden hinzugefügt: {string.Join(", ", activeApps)}");
+            }
+            else
+            {
+                Logger.Instance.Log("Keine aktiven Apps gefunden.");
             }
         }
+
 
         /// <summary>
         /// Beendet alle Apps einer Gruppe

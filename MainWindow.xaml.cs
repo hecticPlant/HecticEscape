@@ -61,7 +61,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void StartProxy_Click(object sender, RoutedEventArgs e)
         {
-            timeManager.StartBreak();
+            webManager.StartProxy();
         }
 
         /// <summary>
@@ -71,7 +71,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void StopProxy_Click(object sender, RoutedEventArgs e)
         {
-            timeManager.Stop();
+            webManager.StopProxy();
         }
 
         /// <summary>
@@ -176,16 +176,6 @@ namespace ScreenZen
             string selectedProcess = ProcessListBox.SelectedItem as string;
             webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedProcess);
             ListBlockedDomains_Click(sender, e);
-        }
-
-        /// <summary>
-        /// DEBUG: Startet die Timer timerCheck und timerFree
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void StartTimer_Click(object sender, RoutedEventArgs e)
-        {
-            timeManager.StartBreak();
         }
 
         /// <summary>
