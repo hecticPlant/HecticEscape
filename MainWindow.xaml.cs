@@ -1,6 +1,9 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Media;
+using System.Windows.Threading;
+using Org.BouncyCastle.Utilities;
 
 namespace ScreenZen
 {
@@ -12,6 +15,7 @@ namespace ScreenZen
         private Overlay overlay;
         private ConfigReader configReader;
         private readonly TimeManagement _timeManagement;
+        private readonly DispatcherTimer statusUpdateTimer = new DispatcherTimer();
 
         // Der Konstruktor nimmt die Abhängigkeiten entgegen:
         public MainWindow(TimeManagement timeManager, AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader)
@@ -26,10 +30,15 @@ namespace ScreenZen
 
             this.timeManager.StatusChanged += OnStatusChanged;
             LoadGroups();
+            ListTimers();
             this.overlay = overlay;
 
             _timeManagement = timeManager;
             _timeManagement.OverlayToggleRequested += ToggleOverlay;
+
+            statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
+            statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
+            statusUpdateTimer.Start();
         }
 
         /// <summary>
@@ -52,7 +61,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void StartProxy_Click(object sender, RoutedEventArgs e)
         {
-            timeManager.Start();
+            timeManager.StartBreak();
         }
 
         /// <summary>
@@ -140,8 +149,7 @@ namespace ScreenZen
         {
             string selectedGroup = GroupComboBox.SelectedItem as string;
             string selectedProcess = ProcessListBox.SelectedItem as string;
-            configReader.AddAppToGroup(selectedGroup, selectedProcess);
-            ListBlockedApps_Click(sender, e);
+            appManager.SaveSelectedProcessesToFile(selectedGroup, selectedProcess);
         }
 
         /// <summary>
@@ -177,7 +185,7 @@ namespace ScreenZen
         /// <param name="e"></param>
         private void StartTimer_Click(object sender, RoutedEventArgs e)
         {
-            timeManager.Start();
+            timeManager.StartBreak();
         }
 
         /// <summary>
@@ -363,6 +371,176 @@ namespace ScreenZen
                 Logger.Instance.Log($"Fehler beim Speichern der Datei: {ex.Message}");
                 return "";
             }
+        }
+
+        /// <summary>
+        /// Lädt Timer in die TimerComboBox.
+        /// </summary>
+        private void ListTimers()
+        {
+            TimerComboBox.Items.Clear();
+            TimerComboBox.Items.Add("Timer Intervall");
+            TimerComboBox.Items.Add("Timer Pause");
+            TimerComboBox.Items.Add("Timer Check");
+        }
+
+        /// <summary>
+        /// Setzt die Zeit für den Ausgewählten Timer
+        /// </summary>
+        private void SetTimer_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedTimer = TimerComboBox.SelectedItem as string;
+            if (selectedTimer == null)
+            {
+                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Kein Timer gewählt");
+
+            }
+            int time;
+            if (!int.TryParse(TimerTime.Text, out time))
+            {
+                MessageBox.Show($"Die Zeit muss eine Zahl sein", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($" Versuche '{selectedTimer}' auf '{time}' zu setzen, aber '{time}' ist kein int32.");
+                return;
+            }
+            switch (selectedTimer)
+            {
+                case "Timer Intervall":
+                    _timeManagement.SetTimerTime("i", time);
+                    break;
+                case "Timer Pause":
+                    _timeManagement.SetTimerTime("p", time);
+
+                    break;
+                case "Timer Check":
+                    _timeManagement.SetTimerTime("c", time);
+                    break;
+                default:
+                    Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Startet einen ausgwählten  Timer
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void StartExplicitTimer_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedTimer = TimerComboBox.SelectedItem as string;
+            if (selectedTimer == null)
+            {
+                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Kein Timer gewählt");
+
+            }
+            switch (selectedTimer)
+            {
+                case "Timer Intervall":
+                    _timeManagement.StartTimer("i");
+                    break;
+                case "Timer Pause":
+                    _timeManagement.StartTimer("p");
+
+                    break;
+                case "Timer Check":
+                    _timeManagement.StartTimer("c");
+                    break;
+                default:
+                    Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Stoppt eine ausgewählten Timer
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void StopExplicitTimer_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedTimer = TimerComboBox.SelectedItem as string;
+            if (selectedTimer == null)
+            {
+                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Kein Timer gewählt");
+
+            }
+            switch (selectedTimer)
+            {
+                case "Timer Intervall":
+                    _timeManagement.StopTimer("i");
+                    break;
+                case "Timer Pause":
+                    _timeManagement.StopTimer("p");
+
+                    break;
+                case "Timer Check":
+                    _timeManagement.StopTimer("c");
+                    break;
+                default:
+                    Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Zeigt die Zeit eins ausgwählten Timers in Sekunden an
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="e"></param>
+        private void GetTimerTime_Click(object sender, RoutedEventArgs e)
+        {
+            string selectedTimer = TimerComboBox.SelectedItem as string;
+            if (selectedTimer == null)
+            {
+                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Kein Timer gewählt");
+
+            }
+            switch (selectedTimer)
+            {
+                case "Timer Intervall":
+                    TimerTimePanel.Text = _timeManagement.GetIntervall_Free().ToString();
+                    break;
+                case "Timer Pause":
+                    TimerTimePanel.Text = _timeManagement.GetIntervall_Break().ToString();
+                    break;
+                case "Timer Check":
+                    TimerTimePanel.Text = _timeManagement.GetIntervall_Check().ToString();
+                    break;
+                default:
+                    Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Updatet den Stauts der Module
+        /// </summary>
+        private void UpdateStatusTextBlocks()
+        {
+            if (_timeManagement == null || webManager == null)
+                return;
+
+            // Timer-Status aktualisieren
+            StatuTimersFreeTextBlock.Text = _timeManagement.TimerRunning_Free() ? "Status: Free-Timer aktiv" : "Status: Free-Timer inaktiv";
+            StatuTimersFreeTextBlock.Foreground = _timeManagement.TimerRunning_Free() ? Brushes.Green : Brushes.Red;
+
+            StatuTimersBreakTextBlock.Text = _timeManagement.TimerRunning_Break() ? "Status: Break-Timer aktiv" : "Status: Break-Timer inaktiv";
+            StatuTimersBreakTextBlock.Foreground = _timeManagement.TimerRunning_Break() ? Brushes.Green : Brushes.Red;
+
+            StatuTimersCheckTextBlock.Text = _timeManagement.TimerRunning_Check() ? "Status: Check-Timer aktiv" : "Status: Check-Timer inaktiv";
+            StatuTimersCheckTextBlock.Foreground = _timeManagement.TimerRunning_Check() ? Brushes.Green : Brushes.Red;
+
+            // Break-Status aktualisieren
+            StatusPauseTextBlock.Text = _timeManagement.IsBreakActive_Check() ? "Status: Pause aktiv" : "Momentan keine Pause";
+            StatusPauseTextBlock.Foreground = _timeManagement.IsBreakActive_Check() ? Brushes.Green : Brushes.Red;
+
+            // Proxy-Status aktualisieren
+            StatusProxyTextBlock.Text = webManager.IsProxyRunning ? "Status: Proxy aktiv" : "Status: Proxy inaktiv";
+            StatusProxyTextBlock.Foreground = webManager.IsProxyRunning ? Brushes.Green : Brushes.Red;
         }
 
     }

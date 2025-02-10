@@ -76,6 +76,5 @@ namespace ScreenZen
                 webProxy.setBlockedDomains(blockedDomains);
             }
         }
-
     }
 }

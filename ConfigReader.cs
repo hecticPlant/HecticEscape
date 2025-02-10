@@ -52,7 +52,10 @@ namespace ScreenZen
             Logger.Instance.Log("Eine neue Konfigurationsdatei wurde erstellt.");
         }
 
-        // Alle Gruppen als string
+        /// <summary>
+        /// Alle Gruppen als string
+        /// </summary>
+        /// <returns></returns>
         public string GetAllGroups()
         {
             // Prüfen, ob Gruppen null ist und falls ja, eine leere Zeichenkette zurückgeben
@@ -64,7 +67,10 @@ namespace ScreenZen
             return string.Join(", ", _config.Gruppen.Keys);
         }
 
-        // Alle Gruppen, bei denen "Aktiv" true ist, als string
+        /// <summary>
+        /// Alle Gruppen, bei denen "Aktiv" true ist, als string
+        /// </summary>
+        /// <returns></returns>
         public string GetActiveGroups()
         {
             var activeGroups = new List<string>();
@@ -78,7 +84,11 @@ namespace ScreenZen
             return string.Join(", ", activeGroups);
         }
 
-        // Alle Websites aus einer bestimmten Gruppe als string
+        /// <summary>
+        /// Alle Websites aus einer bestimmten Gruppe als string
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
         public string GetWebsitesFromGroup(string groupName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -92,7 +102,11 @@ namespace ScreenZen
             return string.Empty;
         }
 
-        // Alle Apps aus einer bestimmten Gruppe als string
+        /// <summary>
+        /// Alle Apps aus einer bestimmten Gruppe als string
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
         public string GetAppsFromGroup(string groupName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -106,7 +120,9 @@ namespace ScreenZen
             return string.Empty;
         }
 
-        // Erstellt eine neue Gruppe
+        /// <summary>
+        /// Erstellt eine neue Gruppe
+        /// </summary>
         public void CreateGroup()
         {
             // Bestimme den Namen der neuen Gruppe, basierend auf der höchsten existierenden Gruppen-ID
@@ -132,7 +148,12 @@ namespace ScreenZen
             SaveConfig();
         }
 
-        // Eine App zu einer bestehenden Gruppe hinzufügen
+        /// <summary>
+        /// Eine App zu einer bestehenden Gruppe hinzufügen
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="appName"></param>
+        /// <returns></returns>
         public bool AddAppToGroup(string groupName, string appName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -152,7 +173,12 @@ namespace ScreenZen
             return false;
         }
 
-        // Eine Website zu einer bestehenden Gruppe hinzufügen
+        /// <summary>
+        /// Eine Website zu einer bestehenden Gruppe hinzufügen
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="websiteName"></param>
+        /// <returns></returns>
         public bool AddWebsiteToGroup(string groupName, string websiteName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -172,14 +198,20 @@ namespace ScreenZen
             return false;
         }
 
-        // Änderungen in der Datei speichern (optional)
+        /// <summary>
+        /// Änderungen in der Datei speichern
+        /// </summary>
         public void SaveConfig()
         {
             string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
             System.IO.File.WriteAllText(filePath, json);
         }
 
-        // Löscht eine Gruppe
+        /// <summary>
+        /// Löscht eine Gruppe
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <returns></returns>
         public bool DeleteGroup(string groupName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -196,7 +228,12 @@ namespace ScreenZen
             }
         }
 
-        // App aus einer Gruppe löschen
+        /// <summary>
+        /// App aus einer Gruppe löschen
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="appName"></param>
+        /// <returns></returns>
         public bool DeleteAppFromGroup(string groupName, string appName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -221,7 +258,12 @@ namespace ScreenZen
             return false;
         }
 
-        // Website aus einer Gruppe löschen
+        /// <summary>
+        /// Website aus einer Gruppe löschen
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="websiteName"></param>
+        /// <returns></returns>
         public bool DeleteWebsiteFromGroup(string groupName, string websiteName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -246,7 +288,12 @@ namespace ScreenZen
             return false;
         }
 
-        // Aktivität einer Gruppe ändern
+        /// <summary>
+        /// Aktivität einer Gruppe ändern
+        /// </summary>
+        /// <param name="groupName"></param>
+        /// <param name="isActive"></param>
+        /// <returns></returns>
         public bool SetActiveStatus(string groupName, bool isActive)
         {
             if (_config.Gruppen.ContainsKey(groupName))

@@ -17,13 +17,18 @@ namespace ScreenZen
 
         public Logger()
         {
+            // Sicherstellen, dass der Unterordner "log" existiert
+            string logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log");
+            Directory.CreateDirectory(logDirectory);
+
             // Log-Datei dynamisch erstellen, basierend auf dem aktuellen Datum und der Uhrzeit
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            logFilePath = $"app_{timestamp}.log";
+            logFilePath = Path.Combine(logDirectory, $"app_{timestamp}.log");
 
-            // Die Log-Datei wird mit einem Header erstellt
-            File.WriteAllText(logFilePath, $"Log gestartet: {DateTime.Now}{Environment.NewLine}");
+            //Zeile schreiben
+            File.AppendAllText(logFilePath, "=== Log Start ===\n");
         }
+
 
         public void Log(string message)
         {

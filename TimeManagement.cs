@@ -7,25 +7,19 @@
     {
         public event Action<string> StatusChanged;
         public event Action OverlayToggleRequested;
-        public event Action<bool> UpdateProxyStatus;
-
-        /// <summary>
-        /// Timer der nach 2 Stunden eine Pause statet
-        /// </summary>
-        private System.Timers.Timer timerFree;
-        private int intervall_Free = 2 * 3600 * 1000;
-        /// <summary>
-        /// Timer der nach 15 Minuten die Pause beendet
-        /// </summary>
-        private System.Timers.Timer timerBreak;
-        private int intervall_Break = 15 * 60 * 1000;
-        /// <summary>
-        /// Timer der einmal die Sekunde alle Apps beendet
-        /// </summary>
-        private System.Timers.Timer timerCheck;
 
         private AppManager appManager;
         private WebManager webManager;
+
+        //Timer
+        private System.Timers.Timer timerFree;
+        private System.Timers.Timer timerBreak;
+        private System.Timers.Timer timerCheck;
+
+        private int intervall_Free = 2 * 3600 * 1000;
+        private int intervall_Break = 15 * 60 * 1000;
+        private int intervall_Check = 1000;
+
         private bool isBreakActive = false;
 
         // Konstruktor-Injektion von ProcessManager
@@ -39,7 +33,7 @@
             timerFree.Elapsed += (sender, e) => SwitchToBreakAsync();
             timerFree.AutoReset = false;
 
-            timerCheck = new System.Timers.Timer(1000);
+            timerCheck = new System.Timers.Timer(intervall_Check);
             timerCheck.Elapsed += (sender, e) => CheckAndCloseBlockedApps();
             timerCheck.AutoReset = true;
 
@@ -50,20 +44,15 @@
             webManager.ProxyStatusChanged += OnProxyStatusChanged;
         }
 
-        private void OnProxyStatusChanged(bool isRunning)
-        {
-            Logger.Instance.Log(isRunning ? "Proxy gestartet." : "Proxy gestoppt.");
-        }
-
         /// <summary>
         /// DEBUG: Startet die Timer timerCheck und timerFree
         /// </summary>
-        public void Start()
+        public void StartBreak()
         {
-            Logger.Instance.Log("Start");
-            isBreakActive = false;
+            Logger.Instance.Log("Starte Pause");
+            isBreakActive = true;
             timerCheck.Start();
-            timerFree.Start();
+            timerBreak.Start();
         }
 
         /// <summary>
@@ -153,6 +142,128 @@
             Logger.Instance.Log("TimeManagement: EndBreak");
             timerBreak.Stop();
             SwitchToFree();
+        }
+    
+        /// <summary>
+        /// Setzt die Timer Zeit
+        /// </summary>
+        /// <param name="timer">i: Intervall-Timer, p: Pause-Timer, c: Check-Timer</param>
+        /// <param name="time">Zeit in Sekunden</param>
+        public void SetTimerTime(string timer, int time) 
+        {
+            switch(timer)
+            {
+                case "i":
+                    Logger.Instance.Log($"intervall_Free wurde auf {time} Sekunden gesetz");
+                    intervall_Free = time*1000;
+                    break;
+                case "p":
+                    Logger.Instance.Log($"intervall_Break wurde auf {time} Sekunden gesetz");
+                    intervall_Break = time*1000;
+                    break;
+                case "c":
+                    Logger.Instance.Log($"intervall_Check wurde auf {time} Sekunden gesetz");
+                    intervall_Check = time*1000;
+                    break;
+                default:
+                    Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Stoppt den gewählten Timer
+        /// </summary>
+        /// <param name="timer">i: Intervall-Timer, p: Pause-Timer, c: Check-Timer</param>
+        public void StopTimer(string timer)
+        {
+            switch (timer)
+            {
+                case "i":
+                    Logger.Instance.Log("Stoppe intervall_Free");
+                    timerFree.Stop();
+                    break;
+                case "p":
+                    Logger.Instance.Log("Stoppe intervall_Free");
+                    timerBreak.Stop();
+                    break;
+                case "c":
+                    Logger.Instance.Log("Stoppe intervall_Free");
+                    timerCheck.Stop(); ;
+                    break;
+                default:
+                    Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.");
+                    break;
+            }
+        }
+
+        /// <summary>
+        /// Startet den gewählten Timer
+        /// </summary>
+        /// <param name="timer">i: Intervall-Timer, p: Pause-Timer, c: Check-Timer</param>
+        public void StartTimer(string timer)
+        {
+            switch (timer)
+            {
+                case "i":
+                    Logger.Instance.Log("Starte intervall_Free");
+                    timerFree.Stop();
+                    timerFree.Start();
+                    break;
+                case "p":
+                    Logger.Instance.Log("Starte intervall_Break");
+                    timerBreak.Stop();
+                    timerBreak.Start();
+                    break;
+                case "c":
+                    Logger.Instance.Log("Starte intervall_Check");
+                    timerCheck.Stop();
+                    timerCheck.Start();
+                    break;
+                default:
+                    Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.");
+                    break;
+            }
+        }
+
+        public int GetIntervall_Free()
+        {
+            return this.intervall_Free / 1000;
+        }
+
+        public int GetIntervall_Break()
+        {
+            return this.intervall_Break / 1000;
+        }
+
+        public int GetIntervall_Check()
+        {
+            return this.intervall_Check / 1000;
+        }
+        
+        public bool TimerRunning_Free()
+        {
+            return timerFree.Enabled;
+        }
+
+        public bool TimerRunning_Break()
+        {
+            return timerBreak.Enabled;
+        }
+
+        public bool TimerRunning_Check()
+        {
+            return timerCheck.Enabled;
+        }
+    
+        public bool IsBreakActive_Check()
+        {
+            return isBreakActive;
+        }
+
+        private void OnProxyStatusChanged(bool isRunning)
+        {
+            Logger.Instance.Log(isRunning ? "Proxy gestartet." : "Proxy gestoppt.");
         }
     }
 }

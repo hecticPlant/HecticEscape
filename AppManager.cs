@@ -48,7 +48,8 @@ namespace ScreenZen
         /// <param name="processName">Prozess Name</param>
         public void SaveSelectedProcessesToFile(string selectedGroup, string processName)
         {
-            configReader.AddAppToGroup(selectedGroup, processName);
+            string newProcessName = CleanProcessName(processName);
+            configReader.AddAppToGroup(selectedGroup, newProcessName);
         }
 
         /// <summary>
@@ -59,8 +60,10 @@ namespace ScreenZen
         private string CleanProcessName(string processName)
         {
             // Entfernt alles nach dem ersten Auftreten von " (ID: <Zahl>)"
-            string pattern = @"\s?\(ID: \d+\)$";  // Sucht nach der Form " (ID: <Zahl>)" am Ende des Strings
-            return Regex.Replace(processName, pattern, string.Empty).Trim();  // Entfernt die ID und gibt den bereinigten Namen zurück
+            string pattern = @"\s?\(ID: \d+\)$";
+            string newProcessName = Regex.Replace(processName, pattern, string.Empty).Trim();
+            Logger.Instance.Log($"'{processName}' wurde zu '{newProcessName}' bereinigt");
+            return newProcessName;
         }
 
         /// <summary>
