@@ -42,6 +42,7 @@ namespace ScreenZen
                 Logger.Instance.Log("Datei nicht gefunden. Erstelle eine neue.");
                 CreateDefaultConfig();
             }
+            Logger.Instance.Log("Initialisiert");
         }
 
         private void CreateDefaultConfig()
@@ -114,7 +115,6 @@ namespace ScreenZen
 
             return activeApps;
         }
-
 
         /// <summary>
         /// Alle Websites aus einer bestimmten Gruppe als string
@@ -340,6 +340,16 @@ namespace ScreenZen
                 Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
                 return false;
             }
+        }
+
+        public bool ReadActiveStatus(string groupName)
+        {
+            if(_config.Gruppen.ContainsKey(groupName))
+            {
+                return _config.Gruppen[groupName].Aktiv;
+            }
+            Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+            return false;
         }
     }
 }

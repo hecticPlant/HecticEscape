@@ -7,11 +7,11 @@
         mc:Ignorable="d"
         Title="MainWindow" Height="617" Width="791">
     <Grid>
-        
+
         <!-- Spalten-Definition -->
         <Grid.ColumnDefinitions>
-            <ColumnDefinition Width="Auto"/>
-            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="Auto" MinWidth="362"/>
+            <ColumnDefinition Width="Auto" MinWidth="274.857"/>
             <ColumnDefinition Width="Auto"/>
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
@@ -23,11 +23,11 @@
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
         <!-- Control Zeile -->
-        <StackPanel Orientation="Horizontal" Margin="0,10,0,41" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="2" Grid.RowSpan="2">
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,41" Grid.Row="0" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="2">
             <Button Content="Start Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartProxy_Click"/>
             <Button Content="Stop Proxy" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopProxy_Click"/>
             <Button Content="Stop All Timers" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopTimer_Click"/>
@@ -37,7 +37,7 @@
         </StackPanel>
 
         <!-- Status Zeile -->
-        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="2">
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,15" Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="4">
             <TextBlock Name="StatusProxyTextBlock" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20,10,0,0" FontSize="10" Foreground="Green" Text="Status: Proxy inaktiv" />
             <TextBlock Name="StatusPauseTextBlock" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20,10,0,0" FontSize="10" Foreground="Green" Text="Momentan keine Pause" />
             <TextBlock Name="StatuTimersFreeTextBlock" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="20,10,0,0" FontSize="10" Foreground="Green" Text="Status Free-Timer: inaktiv" />
@@ -46,18 +46,17 @@
         </StackPanel>
 
         <!-- Timer Zeile-->
-        <StackPanel Orientation="Horizontal" Margin="0,10,0,0" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="2">
-            <ComboBox Name="TimerComboBox" VerticalAlignment="Top" Margin="10" Width="100"/>
-            <TextBox Name="TimerTime" Width="50" VerticalAlignment="Top" Margin="11" Text="Intervall"/>
+        <StackPanel Orientation="Horizontal" Margin="0,10,0,60" Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="2">
+            <ComboBox Name="TimerComboBox" VerticalAlignment="Top" Margin="10" Width="100" SelectionChanged="TimerComboBox_SelectionChanged"/>
+            <TextBox x:Name="TimerTimePanel" TextWrapping="Wrap"  Width="40" Text=" " Height="20"/>
             <Button Content="Zeit Setzen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="SetTimer_Click"/>
+            <TextBox x:Name="TimerTime" Width="50" Text="" Height="20"/>
             <Button Content="Start Timer" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StartExplicitTimer_Click"/>
             <Button Content="Stop Timer" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="StopExplicitTimer_Click"/>
-            <Button Content="Get Time" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="GetTimerTime_Click"/>
-            <TextBox Name="TimerTimePanel" Width="50" VerticalAlignment="Top" Margin="11" Text=""/>
         </StackPanel>
 
         <!-- Website Zeile-->
-        <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="2">
+        <StackPanel Orientation="Horizontal" Margin="0,20,0,60" Grid.Row="3" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="2">
             <Button Content="Blockierte Website anzeigen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ListBlockedDomains_Click"/>
             <Button Content="Website speichern" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="AddWebsiteToBlocklist_Click"/>
             <TextBox Name="WebsiteTextBox" Width="200" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="11" Text="Website eingeben"/>
@@ -65,26 +64,39 @@
         </StackPanel>
 
         <!-- Prozesse Zeile-->
-        <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="2">
+        <StackPanel Orientation="Horizontal" Margin="0,20,0,340" Grid.Row="4" Grid.Column="0" Grid.ColumnSpan="4" Grid.RowSpan="2">
             <Button Content="Blockierte Apps anzeigen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ListBlockedApps_Click"/>
             <Button Content="Speichere Prozess" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="SaveProcessButton_Click"/>
             <Button Content="Laufende Prozesse" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ListProcessButton_Click"/>
             <Button Content="Lösche Prozess" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="RemoveProcessFromFile_Click"/>
         </StackPanel>
 
-        <!-- Panel Zeile -->
-        <StackPanel Orientation="Vertical" Margin="0,20,0,0" Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="2">
-            <ComboBox Name="GroupComboBox" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Width="200"/>
-            <Button Content="Neue Gruppe Erstellen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="CreateNewGroupButton_Click"/>
-            <Button Content="Gruppe Löschen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeleteGroupButton_Click"/>
-            <Button Content="Aktiviere Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ActivateGroupButton_Click"/>
-            <Button Content="Deaktiviere Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeactivateGroupButton_Click"/>
 
-            <!-- Panel Row -->
-        </StackPanel>
         <StackPanel Orientation="Horizontal" Margin="0,20,0,0" Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="3">
-            <ListBox Name="ProcessListBox" HorizontalAlignment="Stretch" VerticalAlignment="Top" Height="300" Margin="10" Width="200" d:ItemsSource="{d:SampleData ItemCount=5}"/>
+            <ListBox Name="ProcessListBox" VerticalAlignment="Top" Height="280" Margin="10" Width="235" d:ItemsSource="{d:SampleData ItemCount=5}"/>
         </StackPanel>
-    
+
+        <!-- Panel Zeile -->
+        <Grid Grid.Row="5" Grid.Column="0" Grid.ColumnSpan="4" Margin="0,20,0,92">
+            <!-- Erste Spalte für den ersten Teil des StackPanels -->
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Erster Teil (z.B. ComboBox und der erste Button) -->
+            <StackPanel Orientation="Vertical" Margin="10" Grid.Column="0">
+                <ComboBox Name="GroupComboBox" HorizontalAlignment="Left" VerticalAlignment="Top" Width="200" SelectionChanged="GroupComboBox_SelectionChanged"/>
+                <Button Content="Neue Gruppe Erstellen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="CreateNewGroupButton_Click"/>
+                <Button Content="Gruppe Löschen" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeleteGroupButton_Click"/>
+                <Button Content="Aktiviere Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="ActivateGroupButton_Click"/>
+                <Button Content="Deaktiviere Gruppe" HorizontalAlignment="Left" VerticalAlignment="Top" Margin="10" Click="DeactivateGroupButton_Click"/>
+            </StackPanel>
+
+            <!-- Zweiter Teil (weitere Buttons) -->
+            <StackPanel Orientation="Vertical" Margin="0,10,296,10" Grid.Column="1">
+                <TextBox Name="GroupActivityTextBox" TextWrapping="Wrap"  Width="100" Text=" "/>
+            </StackPanel>
+        </Grid>
     </Grid>
 </Window>

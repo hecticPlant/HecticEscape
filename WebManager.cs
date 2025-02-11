@@ -1,6 +1,4 @@
-﻿using System.Text.Json.Nodes;
-
-namespace ScreenZen
+﻿namespace ScreenZen
 {
     /// <summary>
     /// Verwaltet die Websites und den Proxy
@@ -16,7 +14,8 @@ namespace ScreenZen
         {
             this.configReader = configReader;
             this.webProxy = webProxy;
-            SetBlockedList();   
+            SetBlockedList();
+            Logger.Instance.Log("Initialisiert");
 
             webProxy.ProxyStatusChanged += (status) =>
             {
@@ -78,7 +77,7 @@ namespace ScreenZen
                 blockedDomains.AddRange(domains);
 
                 // Blockierte Domains im Proxy setzen
-                webProxy.setBlockedDomains(blockedDomains);
+                webProxy.SetBlockedDomains(blockedDomains);
             }
             catch (Exception ex)
             {

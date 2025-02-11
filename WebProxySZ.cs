@@ -1,208 +1,213 @@
 ﻿using System.Text;
+using System.Diagnostics;
+using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
-using Titanium.Web.Proxy;
-using System.Diagnostics;
 
 namespace ScreenZen
 {
     /// <summary>
-    /// Blockiert die Domains
+    /// Blockiert bestimmte Domains über einen lokalen Proxy-Server.
     /// </summary>
     public class WebProxySZ
     {
-        /// <summary>
-        /// Liste der geblockten Domains
-        /// </summary>
         private List<string> blockedDomains = new List<string>();
-        private ExplicitProxyEndPoint proxyEndPoint;
-        private ProxyServer proxy;
+        private readonly ProxyServer proxy;
+        private readonly ExplicitProxyEndPoint proxyEndPoint;
         private bool isProxyRunning;
         public event Action<bool> ProxyStatusChanged;
 
         /// <summary>
-        /// Konstruktor für WebProxySZ. Initialisiert den Proxy und fügt den Endpunkt hinzu.
+        /// Konstruktor: Initialisiert den Proxy-Server mit HTTPS-Unterstützung.
         /// </summary>
         public WebProxySZ()
         {
             proxy = new ProxyServer();
+            proxy.BeforeRequest += OnRequestAsync;
+            proxy.BeforeResponse += OnResponseAsync;
+
+            proxy.CertificateManager.CreateRootCertificate(true);
+            proxy.CertificateManager.TrustRootCertificate();
+
             proxyEndPoint = new ExplicitProxyEndPoint(System.Net.IPAddress.Any, 8888, true);
             proxy.AddEndPoint(proxyEndPoint);
 
-            proxy.BeforeRequest += OnRequestAsync;
             isProxyRunning = false;
+            Logger.Instance.Log("WebProxySZ initialisiert.");
         }
 
-        /// <summary>
-        /// Gibt den aktuellen Status des Proxys zurück.
-        /// </summary>
         public bool IsProxyRunning
         {
-            get
-            {
-                return isProxyRunning;
-            }
+            get => isProxyRunning;
             private set
             {
                 if (isProxyRunning != value)
                 {
                     isProxyRunning = value;
-                    ProxyStatusChanged?.Invoke(isProxyRunning);  // Event auslösen
+                    ProxyStatusChanged?.Invoke(isProxyRunning);
                     Logger.Instance.Log($"IsProxyRunning geändert: {isProxyRunning}");
                 }
             }
         }
 
-        /// <summary>
-        /// Startet den Proxy, falls er noch nicht läuft. Setzt den System-Proxy auf den lokalen Proxy.
-        /// </summary>
         public async Task StartProxy()
         {
             if (!isProxyRunning)
             {
-                try
-                {
-                    Logger.Instance.Log("Starte Proxy und setze System-Proxy.");
-                    // Setze den System-Proxy auf den lokalen Proxy
-                    SetSystemProxy();
-
-                    await Task.Run(() => proxy.Start());
-                    Logger.Instance.Log("Proxy läuft auf Port 8888...");
-                    isProxyRunning = true;
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.Log($"Fehler beim Starten des Proxys: {ex.Message}");
-                }
+                Logger.Instance.Log($"Starte Proxy mit {blockedDomains.Count} Domains.");
+                await Task.Run(() => proxy.Start());
+                isProxyRunning = true;
+                proxy.SetAsSystemHttpProxy(proxyEndPoint);
+                proxy.SetAsSystemHttpsProxy(proxyEndPoint);
             }
-            else
-            {
-                Logger.Instance.Log("Proxy läuft bereits");
-            }
-            Logger.Instance.Log("StartProxy abgeschlossen.");
         }
 
-        /// <summary>
-        /// Stoppt den Proxy und setzt den System-Proxy zurück.
-        /// </summary>
         public async Task StopProxy()
         {
             if (isProxyRunning)
             {
                 await Task.Run(() => proxy.Stop());
-
-                // Setze den System-Proxy zurück
-                ResetSystemProxy();
-
                 isProxyRunning = false;
-                Logger.Instance.Log("Proxy wurde gestoppt und System-Proxy zurückgesetzt.");
-            }
-            else
-            {
-                Logger.Instance.Log("Proxy läuft nicht.");
+                Logger.Instance.Log("Proxy gestoppt.");
             }
         }
 
-        /// <summary>
-        /// Überprüft eingehende HTTP-Anfragen und blockiert den Zugriff auf Websites, 
-        /// die in der Liste der geblockten Domains enthalten sind. 
-        /// Wenn eine blockierte Domain erkannt wird, wird eine 403-Fehlermeldung zurückgegeben.
-        /// </summary>
         private async Task OnRequestAsync(object sender, SessionEventArgs e)
         {
-            try
+            string requestUrl = e.HttpClient.Request.Url;
+            Logger.Instance.Log($"Anfrage erhalten: {requestUrl}");
+
+            if (!Uri.TryCreate(requestUrl, UriKind.Absolute, out var uri))
+                return;
+
+            string requestHost = uri.Host.ToLowerInvariant();
+            foreach (var domain in blockedDomains)
             {
-                var requestUrl = e.HttpClient.Request.Url;
-                Logger.Instance.Log($"Anfrage erhalten: {requestUrl}");
-
-                // Extrahiere den Hostnamen aus der URL
-                if (!Uri.TryCreate(requestUrl, UriKind.Absolute, out var uri))
+                if (requestHost.Contains(domain.ToLowerInvariant()))
                 {
-                    Logger.Instance.Log($"Ungültige URL: {requestUrl}");
-                    return;
+                    Logger.Instance.Log($"Blockiere {requestUrl}");
+                    var blockMessage = "Zugriff auf diese Website ist blockiert.";
+                    var responseBytes = Encoding.UTF8.GetBytes(blockMessage);
+                    e.Ok(responseBytes);
+                    e.HttpClient.Response.StatusCode = 403;
+                    e.HttpClient.Response.StatusDescription = "Forbidden";
+                    e.HttpClient.Response.ContentType = "text/plain";
+                    break;
                 }
-
-                string requestHost = uri.Host.ToLowerInvariant();
-
-                // Überprüfe, ob der Host mit einer der geblockten Domains übereinstimmt
-                foreach (var domain in blockedDomains)
-                {
-                    if (requestHost.EndsWith(domain.ToLowerInvariant()) || requestHost.Contains(domain.ToLowerInvariant()))
-                    {
-                        Logger.Instance.Log($"Blockiere {requestUrl}");
-
-                        // Sende eine 403-Fehlermeldung zurück
-                        var blockMessage = "Zugriff auf diese Website ist blockiert.";
-                        var responseBytes = Encoding.UTF8.GetBytes(blockMessage);
-
-                        // e.Ok ist eine void-Methode, daher ohne await aufrufen
-                        e.Ok(responseBytes);
-
-                        e.HttpClient.Response.StatusCode = 403;
-                        e.HttpClient.Response.StatusDescription = "Forbidden";
-                        e.HttpClient.Response.ContentType = "text/plain";
-                        break; // Keine weitere Prüfung der Domains
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler bei der Verarbeitung der Anfrage: {ex.Message}");
             }
         }
 
         /// <summary>
-        /// Setzt den System-Proxy auf den lokalen Proxy, um den Netzwerkverkehr durch den Proxy zu leiten.
+        /// Setzt die Liste der zu blockierenden Domains und wendet Sperrmaßnahmen an.
         /// </summary>
-        private void SetSystemProxy()
+        public void SetBlockedDomains(List<string> domains)
         {
-            Logger.Instance.Log("Setze System-Proxy auf 127.0.0.1:8888.");
+            Logger.Instance.Log($"Liste aktualisiert mit {domains.Count} Domains.");
+            blockedDomains = domains;
+
+            TerminateExistingConnections();
+            FlushDnsCache();
+            //BlockWithFirewall();
+        }
+
+        /// <summary>
+        /// Erzwingt die Nutzung des lokalen Proxys im System.
+        /// </summary>
+        private void EnforceSystemProxy()
+        {
+            Logger.Instance.Log("Erzwinge Proxy-Nutzung.");
             Process.Start(new ProcessStartInfo
             {
-                FileName = "netsh",
-                Arguments = "winhttp set proxy 127.0.0.1:8888",
+                FileName = "cmd",
+                Arguments = "/C reg add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\" /v ProxyEnable /t REG_DWORD /d 1 /f",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "cmd",
+                Arguments = "/C reg add \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\" /v ProxyServer /t REG_SZ /d \"127.0.0.1:8888\" /f",
                 CreateNoWindow = true,
                 UseShellExecute = false
             });
         }
 
         /// <summary>
-        /// Setzt den System-Proxy zurück auf die Standardwerte (automatische Erkennung).
+        /// Setzt die Proxy-Einstellungen auf Standard zurück.
         /// </summary>
         private void ResetSystemProxy()
         {
-            Logger.Instance.Log("Setze System-Proxy zurück auf Standardwerte.");
+            Logger.Instance.Log("Setze System-Proxy zurück.");
             Process.Start(new ProcessStartInfo
             {
-                FileName = "netsh",
-                Arguments = "winhttp reset proxy",
+                FileName = "cmd",
+                Arguments = "/C reg delete \"HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Internet Settings\" /v ProxyEnable /f",
                 CreateNoWindow = true,
                 UseShellExecute = false
             });
         }
 
         /// <summary>
-        /// Setzt die Liste der geblockten Domains.
+        /// Beendet bestehende Verbindungen zu geblockten Domains.
         /// </summary>
-        public void setBlockedDomains(List<string> blockedDomains)
+        private void TerminateExistingConnections()
         {
-            Logger.Instance.Log($"setBlockedDomains gestartet mit {blockedDomains.Count} Domains.");
-            this.blockedDomains = blockedDomains;
+            Logger.Instance.Log("Beende bestehende Verbindungen zu geblockten Domains.");
+            foreach (var domain in blockedDomains)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd",
+                    Arguments = $"/C netstat -ano | findstr {domain} | ForEach-Object {{taskkill /PID $_.Split()[4] /F}}",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
+            }
         }
 
         /// <summary>
-        /// Leert die Liste der geblockten Domains.
+        /// Leert den DNS-Cache.
         /// </summary>
-        private void RemoveBlockedDomains()
+        private void FlushDnsCache()
         {
-            try
+            Logger.Instance.Log("Leere den DNS-Cache.");
+            Process.Start(new ProcessStartInfo
             {
-                blockedDomains.Clear();
-                Logger.Instance.Log("Geblockte Domains wurden entblockt.");
+                FileName = "cmd",
+                Arguments = "/C ipconfig /flushdns",
+                CreateNoWindow = true,
+                UseShellExecute = false
+            });
+        }
+
+        /// <summary>
+        /// Setzt Windows-Firewall-Regeln für gesperrte Domains.
+        /// </summary>
+        private void BlockWithFirewall()
+        {
+            Logger.Instance.Log("Setze Firewall-Regeln.");
+            foreach (var domain in blockedDomains)
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd",
+                    Arguments = $"/C netsh advfirewall firewall add rule name=\"Block {domain}\" dir=out action=block remoteip={GetIpFromDomain(domain)}",
+                    CreateNoWindow = true,
+                    UseShellExecute = false
+                });
             }
-            catch (Exception ex)
+        }
+
+        private string GetIpFromDomain(string domain)
+        {
+            return "0.0.0.0"; // Platzhalter: Hier eine Methode zur DNS-Auflösung einfügen
+        }
+
+        private async Task OnResponseAsync(object sender, SessionEventArgs e)
+        {
+            if (e.HttpClient.Response.StatusCode == 200)
             {
-                Logger.Instance.Log($"Fehler beim entblocken der geblockten Domains: {ex.Message}");
+                await e.GetResponseBody();
             }
         }
     }

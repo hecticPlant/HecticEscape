@@ -22,7 +22,6 @@
 
         private bool isBreakActive = false;
 
-        // Konstruktor-Injektion von ProcessManager
         public TimeManagement(AppManager appManager, WebManager webManager)
         {
             this.webManager = webManager;
@@ -42,6 +41,7 @@
             timerBreak.AutoReset = false;
 
             webManager.ProxyStatusChanged += OnProxyStatusChanged;
+            Logger.Instance.Log("Initialisiert");
         }
 
         /// <summary>
@@ -65,6 +65,7 @@
             isBreakActive = true;
             StatusChanged?.Invoke("Momentan Pause");
             timerBreak.Start();
+            timerCheck.Start();
 
             // Proxy nur starten, wenn er nicht bereits läuft
             if (!webManager.IsProxyRunning)

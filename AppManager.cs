@@ -21,6 +21,7 @@ namespace ScreenZen
         {
             this.configReader = configReader;
             UpdateRunningProcesses();
+            Logger.Instance.Log("Initialisiert");
         }
 
         /// <summary>
@@ -137,6 +138,11 @@ namespace ScreenZen
         public void RemoveSelectedProcessesFromFile(string selectedGroup, string processName)
         {
             configReader.DeleteAppFromGroup(selectedGroup, processName);
+        }
+
+        public bool GetGroupActivity(string groupName)
+        {
+            return configReader.ReadActiveStatus(groupName);
         }
     }
 }

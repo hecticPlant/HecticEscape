@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.IO;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
 using Org.BouncyCastle.Utilities;
@@ -17,7 +18,6 @@ namespace ScreenZen
         private readonly TimeManagement _timeManagement;
         private readonly DispatcherTimer statusUpdateTimer = new DispatcherTimer();
 
-        // Der Konstruktor nimmt die Abhängigkeiten entgegen:
         public MainWindow(TimeManagement timeManager, AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader)
         {
             InitializeComponent();
@@ -39,6 +39,7 @@ namespace ScreenZen
             statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
             statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
             statusUpdateTimer.Start();
+            Logger.Instance.Log("Initialisiert");
         }
 
         /// <summary>
@@ -247,7 +248,6 @@ namespace ScreenZen
                 }
             }
         }
-
 
         /// <summary>
         /// Fügt die ausgewählte Website hinzu
@@ -480,7 +480,7 @@ namespace ScreenZen
         /// </summary>
         /// <param name="sender"></param>
         /// <param name="e"></param>
-        private void GetTimerTime_Click(object sender, RoutedEventArgs e)
+        private void GetTimerTime_Click()
         {
             string selectedTimer = TimerComboBox.SelectedItem as string;
             if (selectedTimer == null)
@@ -533,5 +533,35 @@ namespace ScreenZen
             StatusProxyTextBlock.Foreground = webManager.IsProxyRunning ? Brushes.Green : Brushes.Red;
         }
 
+        private void GroupComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            // Stelle sicher, dass eine Auswahl getroffen wurde
+            if (GroupComboBox.SelectedItem != null)
+            {
+               SetGroupAktivText();
+            }
+        }
+
+        private void TimerComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (TimerComboBox.SelectedItem != null)
+            {
+                GetTimerTime_Click();
+            }
+        }
+
+        private void SetGroupAktivText()
+        {
+            string selectedGroup = GroupComboBox.SelectedValue.ToString();
+            if (selectedGroup != null)
+            {
+                GroupActivityTextBox.Text = appManager.GetGroupActivity(selectedGroup).ToString();
+            }
+        }
+
+        private void TimerTimePanel_TextChanged(object sender, TextChangedEventArgs e)
+        {
+
+        }
     }
 }

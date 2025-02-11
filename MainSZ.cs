@@ -9,6 +9,7 @@ namespace ScreenZen
     {
         public MainSZ()
         {
+            Logger.Instance.Log("Initialisiert");
             Start();
         }
         /// <summary>
@@ -17,29 +18,19 @@ namespace ScreenZen
         [STAThread]
         public void Start()
         {
+            Logger.Instance.Log("Starte...");
             var container = new ContainerSZ();
 
-            // Registriere die Komponenten als Singleton
-            var configReader = new ConfigReader();
-            var webManager = new WebProxySZ();
-            container.RegisterSingleton(configReader); // Als Singleton registrieren
-            container.RegisterSingleton(webManager);
+            // Singleton-Registrierungen
+            container.RegisterSingleton(new ConfigReader());
+            container.RegisterSingleton(new WebProxySZ());
+            container.RegisterSingleton(new Logger());
+            container.RegisterSingleton(new Overlay());
+            container.RegisterSingleton(new AppManager(container.Resolve<ConfigReader>()));
+            container.RegisterSingleton(new WebManager(container.Resolve<ConfigReader>(), container.Resolve<WebProxySZ>()));
+            container.RegisterSingleton(new TimeManagement(container.Resolve<AppManager>(), container.Resolve<WebManager>()));
 
-            container.Register<Logger>();
-            container.Register<Overlay>();
-
-            container.Register(() => new AppManager(
-                       container.Resolve<ConfigReader>()
-                   ));
-            container.Register(() => new TimeManagement(
-                container.Resolve<AppManager>(),
-                container.Resolve<WebManager>()
-            ));
-            container.Register(() => new WebManager(
-                       container.Resolve<ConfigReader>(),
-                       container.Resolve<WebProxySZ>()
-                   ));
-
+            // UI-Komponenten
             container.Register(() => new MainWindow(
                 container.Resolve<TimeManagement>(),
                 container.Resolve<AppManager>(),
@@ -48,10 +39,11 @@ namespace ScreenZen
                 container.Resolve<ConfigReader>()
             ));
 
-            var mainWindow = container.Resolve<MainWindow>();
-
+            // Anwendung starten
             var app = new Application();
-            app.Run(mainWindow);
+            app.Run(container.Resolve<MainWindow>());
+
+
         }
     }
 }
