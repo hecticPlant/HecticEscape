@@ -3,18 +3,20 @@ using System.Diagnostics;
 using Titanium.Web.Proxy;
 using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
+using System;
 
 namespace ScreenZen
 {
     /// <summary>
     /// Blockiert bestimmte Domains über einen lokalen Proxy-Server.
     /// </summary>
-    public class WebProxySZ
+    public class WebProxySZ : IDisposable
     {
         private List<string> blockedDomains = new List<string>();
         private readonly ProxyServer proxy;
         private readonly ExplicitProxyEndPoint proxyEndPoint;
         private bool isProxyRunning;
+        private bool disposed = false;
         public event Action<bool> ProxyStatusChanged;
 
         /// <summary>
@@ -33,7 +35,7 @@ namespace ScreenZen
             proxy.AddEndPoint(proxyEndPoint);
 
             isProxyRunning = false;
-            Logger.Instance.Log("WebProxySZ initialisiert.");
+            Logger.Instance.Log("WebProxySZ initialisiert.", LogLevel.Info);
         }
 
         public bool IsProxyRunning
@@ -45,7 +47,7 @@ namespace ScreenZen
                 {
                     isProxyRunning = value;
                     ProxyStatusChanged?.Invoke(isProxyRunning);
-                    Logger.Instance.Log($"IsProxyRunning geändert: {isProxyRunning}");
+                    Logger.Instance.Log($"IsProxyRunning geändert: {isProxyRunning}", LogLevel.Info);
                 }
             }
         }
@@ -54,7 +56,7 @@ namespace ScreenZen
         {
             if (!isProxyRunning)
             {
-                Logger.Instance.Log($"Starte Proxy mit {blockedDomains.Count} Domains.");
+                Logger.Instance.Log($"Starte Proxy mit {blockedDomains.Count} Domains.", LogLevel.Info);
                 await Task.Run(() => proxy.Start());
                 isProxyRunning = true;
                 proxy.SetAsSystemHttpProxy(proxyEndPoint);
@@ -68,14 +70,14 @@ namespace ScreenZen
             {
                 await Task.Run(() => proxy.Stop());
                 isProxyRunning = false;
-                Logger.Instance.Log("Proxy gestoppt.");
+                Logger.Instance.Log("Proxy gestoppt.", LogLevel.Info);
             }
         }
 
         private async Task OnRequestAsync(object sender, SessionEventArgs e)
         {
             string requestUrl = e.HttpClient.Request.Url;
-            Logger.Instance.Log($"Anfrage erhalten: {requestUrl}");
+            Logger.Instance.Log($"Anfrage erhalten: {requestUrl}", LogLevel.Debug);
 
             if (!Uri.TryCreate(requestUrl, UriKind.Absolute, out var uri))
                 return;
@@ -85,7 +87,7 @@ namespace ScreenZen
             {
                 if (requestHost.Contains(domain.ToLowerInvariant()))
                 {
-                    Logger.Instance.Log($"Blockiere {requestUrl}");
+                    Logger.Instance.Log($"Blockiere {requestUrl}", LogLevel.Warn);
                     var blockMessage = "Zugriff auf diese Website ist blockiert.";
                     var responseBytes = Encoding.UTF8.GetBytes(blockMessage);
                     e.Ok(responseBytes);
@@ -102,7 +104,7 @@ namespace ScreenZen
         /// </summary>
         public void SetBlockedDomains(List<string> domains)
         {
-            Logger.Instance.Log($"Liste aktualisiert mit {domains.Count} Domains.");
+            Logger.Instance.Log($"Liste aktualisiert mit {domains.Count} Domains.", LogLevel.Info);
             blockedDomains = domains;
 
             TerminateExistingConnections();
@@ -115,7 +117,7 @@ namespace ScreenZen
         /// </summary>
         private void EnforceSystemProxy()
         {
-            Logger.Instance.Log("Erzwinge Proxy-Nutzung.");
+            Logger.Instance.Log("Erzwinge Proxy-Nutzung.", LogLevel.Info);
             Process.Start(new ProcessStartInfo
             {
                 FileName = "cmd",
@@ -137,7 +139,7 @@ namespace ScreenZen
         /// </summary>
         private void ResetSystemProxy()
         {
-            Logger.Instance.Log("Setze System-Proxy zurück.");
+            Logger.Instance.Log("Setze System-Proxy zurück.", LogLevel.Info);
             Process.Start(new ProcessStartInfo
             {
                 FileName = "cmd",
@@ -152,7 +154,7 @@ namespace ScreenZen
         /// </summary>
         private void TerminateExistingConnections()
         {
-            Logger.Instance.Log("Beende bestehende Verbindungen zu geblockten Domains.");
+            Logger.Instance.Log("Beende bestehende Verbindungen zu geblockten Domains.", LogLevel.Info);
             foreach (var domain in blockedDomains)
             {
                 Process.Start(new ProcessStartInfo
@@ -170,7 +172,7 @@ namespace ScreenZen
         /// </summary>
         private void FlushDnsCache()
         {
-            Logger.Instance.Log("Leere den DNS-Cache.");
+            Logger.Instance.Log("Leere den DNS-Cache.", LogLevel.Info);
             Process.Start(new ProcessStartInfo
             {
                 FileName = "cmd",
@@ -185,7 +187,7 @@ namespace ScreenZen
         /// </summary>
         private void BlockWithFirewall()
         {
-            Logger.Instance.Log("Setze Firewall-Regeln.");
+            Logger.Instance.Log("Setze Firewall-Regeln.", LogLevel.Info);
             foreach (var domain in blockedDomains)
             {
                 Process.Start(new ProcessStartInfo
@@ -209,6 +211,23 @@ namespace ScreenZen
             {
                 await e.GetResponseBody();
             }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+            if (disposing)
+            {
+                StopProxy().Wait();
+                Logger.Instance.Log("WebProxySZ wurde disposed.", LogLevel.Info);
+            }
+            disposed = true;
         }
     }
 }

@@ -7,9 +7,9 @@ namespace ScreenZen
     /// <summary>
     /// Verwaltet die Apps
     /// </summary>
-    public class AppManager
+    public class AppManager : IDisposable
     {
-
+        private bool disposed = false;
         private Process[] runningProcesses;
         /// <summary>
         /// Liste mit allen Apps
@@ -21,7 +21,7 @@ namespace ScreenZen
         {
             this.configReader = configReader;
             UpdateRunningProcesses();
-            Logger.Instance.Log("Initialisiert");
+            Logger.Instance.Log("Initialisiert", LogLevel.Info);
         }
 
         /// <summary>
@@ -39,7 +39,21 @@ namespace ScreenZen
         public Process[] GetRunningProcesses()
         {
             UpdateRunningProcesses();
-            return runningProcesses;
+            // Nur Prozesse mit sichtbarem Hauptfenster (typische Apps)
+            return runningProcesses
+                .Where(p =>
+                {
+                    try
+                    {
+                        return p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrWhiteSpace(p.MainWindowTitle);
+                    }
+                    catch
+                    {
+                        // Zugriff verweigert oder Prozess bereits beendet
+                        return false;
+                    }
+                })
+                .ToArray();
         }
 
         /// <summary>
@@ -63,7 +77,7 @@ namespace ScreenZen
             // Entfernt alles nach dem ersten Auftreten von " (ID: <Zahl>)"
             string pattern = @"\s?\(ID: \d+\)$";
             string newProcessName = Regex.Replace(processName, pattern, string.Empty).Trim();
-            Logger.Instance.Log($"'{processName}' wurde zu '{newProcessName}' bereinigt");
+            Logger.Instance.Log($"'{processName}' wurde zu '{newProcessName}' bereinigt", LogLevel.Debug);
             return newProcessName;
         }
 
@@ -72,34 +86,35 @@ namespace ScreenZen
         /// </summary>
         private void UpdateAppList()
         {
-            List<string> activeApps = configReader.GetActiveGroupsApps(); // Holen der aktiven Apps
+            blockedApps.Clear(); // Liste leeren!
+            List<string> activeApps = configReader.GetActiveGroupsApps();
 
-            // Überprüfen, ob aktive Apps vorhanden sind
             if (activeApps.Any())
             {
-                // Füge die aktiven Apps zur blockedApps Liste hinzu
                 blockedApps.AddRange(activeApps);
-                Logger.Instance.Log($"Aktive Apps wurden hinzugefügt: {string.Join(", ", activeApps)}");
+                Logger.Instance.Log($"Aktive Apps wurden hinzugefügt: {string.Join(", ", activeApps)}", LogLevel.Info);
             }
             else
             {
-                Logger.Instance.Log("Keine aktiven Apps gefunden.");
+                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Info);
             }
         }
-
 
         /// <summary>
         /// Beendet alle Apps einer Gruppe
         /// </summary>
-        /// <param name="groupId"></param>
         public void BlockHandler()
         {
+            if (!configReader.GetAppBlockingEnabled())
+            {
+                Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Info);
+                return;
+            }
             UpdateAppList();
             foreach (var app in blockedApps)
             {
                 EndApp(app);
             }
-
         }
 
         /// <summary>
@@ -117,7 +132,7 @@ namespace ScreenZen
                 {
                     // Beende den Prozess
                     process.Kill();
-                    Logger.Instance.Log($"Prozess {process} wurde beendet");
+                    Logger.Instance.Log($"Prozess {process} wurde beendet", LogLevel.Warn);
                 }
 
                 // Falls keine Prozesse mit diesem Namen gefunden wurden, gebe eine Nachricht aus
@@ -128,7 +143,7 @@ namespace ScreenZen
             }
             catch (Exception ex)
             {
-                Logger.Instance.Log($"Fehler beim Beenden des Prozesses '{appName}': {ex.Message}");
+                Logger.Instance.Log($"Fehler beim Beenden des Prozesses '{appName}': {ex.Message}", LogLevel.Error);
             }
         }
 
@@ -143,6 +158,24 @@ namespace ScreenZen
         public bool GetGroupActivity(string groupName)
         {
             return configReader.ReadActiveStatus(groupName);
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+            if (disposing)
+            {
+                // Hier ggf. weitere Ressourcen freigeben
+                blockedApps.Clear();
+                Logger.Instance.Log("AppManager wurde disposed.", LogLevel.Info);
+            }
+            disposed = true;
         }
     }
 }

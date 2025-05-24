@@ -4,393 +4,514 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Threading;
-using Org.BouncyCastle.Utilities;
+using System.Windows.Forms;
+using Microsoft.Extensions.DependencyInjection;
+using MessageBox = System.Windows.MessageBox;
 
 namespace ScreenZen
 {
     public partial class MainWindow : Window
     {
-        private TimeManagement timeManager;
-        private AppManager appManager;
-        private WebManager webManager;
-        private Overlay overlay;
-        private ConfigReader configReader;
         private readonly TimeManagement _timeManagement;
-        private readonly DispatcherTimer statusUpdateTimer = new DispatcherTimer();
+        private readonly AppManager _appManager;
+        private readonly WebManager _webManager;
+        private readonly Overlay _overlay;
+        private readonly ConfigReader _configReader;
+        private readonly DispatcherTimer statusUpdateTimer = new();
+        private NotifyIcon _notifyIcon;
+        private bool _closeToTray = true; // Optional: Verhalten steuern
+        private bool _isDebugMode = false;
 
-        public MainWindow(TimeManagement timeManager, AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader)
+        // Parameterloser Konstruktor (XAML)
+        public MainWindow() : this(
+            ResolveDependency<TimeManagement>("TimeManagement"),
+            ResolveDependency<AppManager>("AppManager"),
+            ResolveDependency<WebManager>("WebManager"),
+            ResolveDependency<Overlay>("Overlay"),
+            ResolveDependency<ConfigReader>("ConfigReader"))
         {
+            Logger.Instance.Log("MainWindow Konstruktor (XAML) aufgerufen", LogLevel.Debug);
+        }
+
+        private static T ResolveDependency<T>(string dependencyName) where T : class
+        {
+            var dependency = (App.Current as App)?.Services.GetService<T>();
+            if (dependency == null)
+                throw new InvalidOperationException($"{dependencyName} darf nicht null sein.");
+            return dependency;
+        }
+
+        // DI-Konstruktor
+        public MainWindow(
+            TimeManagement timeManagement,
+            AppManager appManager,
+            WebManager webManager,
+            Overlay overlay,
+            ConfigReader configReader)
+        {
+            Logger.Instance.Log("MainWindow DI-Konstruktor aufgerufen", LogLevel.Info);
+
+            _timeManagement = timeManagement;
+            _appManager = appManager;
+            _webManager = webManager;
+            _overlay = overlay;
+            _configReader = configReader;
+
             InitializeComponent();
+            Logger.Instance.Log("MainWindow initialisiert", LogLevel.Info);
 
-            this.timeManager = timeManager;
-            this.appManager = appManager;
-            this.webManager = webManager;
-            this.overlay = overlay;
-            this.configReader = configReader;
+            // Null-Checks für Abhängigkeiten
+            if (_timeManagement == null)
+            {
+                Logger.Instance.Log("TimeManagement ist null!", LogLevel.Error);
+                MessageBox.Show("Fehler: TimeManagement konnte nicht geladen werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+            if (_appManager == null)
+            {
+                Logger.Instance.Log("AppManager ist null!", LogLevel.Error);
+            }
+            if (_webManager == null)
+            {
+                Logger.Instance.Log("WebManager ist null!", LogLevel.Error);
+            }
+            if (_overlay == null)
+            {
+                Logger.Instance.Log("Overlay ist null!", LogLevel.Error);
+            }
+            if (_configReader == null)
+            {
+                Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
+            }
 
-            this.timeManager.StatusChanged += OnStatusChanged;
-            LoadGroups();
-            ListTimers();
-            this.overlay = overlay;
+            try
+            {
+                _timeManagement.StatusChanged += OnStatusChanged;
+            }
+            catch { Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error); }
 
-            _timeManagement = timeManager;
-            _timeManagement.OverlayToggleRequested += ToggleOverlay;
+            try { LoadGroups(); } catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
+            try { ListTimers(); } catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
+
+            try
+            {
+                _timeManagement.OverlayToggleRequested += ToggleOverlay;
+            }
+            catch { Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error); }
 
             statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
             statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
             statusUpdateTimer.Start();
             Logger.Instance.Log("Initialisiert");
+
+            WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
+            AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
+
+            WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
+            ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
+
+            Closing += MainWindow_Closing;
+
+            _notifyIcon = new NotifyIcon();
+            try
+            {
+                _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
+                // Optional: Fallback-Icon oder kein Icon setzen
+            }
+            _notifyIcon.Visible = true;
+            _notifyIcon.Text = "ScreenZen läuft im Hintergrund";
+            _notifyIcon.DoubleClick += (s, e) =>
+            {
+                this.Show();
+                this.WindowState = WindowState.Normal;
+                this.Activate();
+            };
+
+            var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+            contextMenu.Items.Add("Öffnen", null, (s, e) => { this.Show(); this.WindowState = WindowState.Normal; });
+            contextMenu.Items.Add("Beenden", null, (s, e) =>
+            {
+                _closeToTray = false;
+                this.Close();
+                System.Windows.Application.Current.Shutdown(); // Anwendung wirklich beenden
+            });
+            _notifyIcon.ContextMenuStrip = contextMenu;
+
+            this.StateChanged += (s, e) =>
+            {
+                if (WindowState == WindowState.Minimized)
+                {
+                    this.Hide();
+                    _notifyIcon.BalloonTipTitle = "ScreenZen";
+                    _notifyIcon.BalloonTipText = "ScreenZen läuft im Hintergrund.";
+                    _notifyIcon.ShowBalloonTip(1000);
+                }
+            };
         }
 
-        /// <summary>
-        /// Aktualisiert den Status-Text im UI-Thread.
-        /// </summary>
-        /// <param name="newStatus"></param>
+        // -------------------- Status & UI --------------------
+
         private void OnStatusChanged(string newStatus)
         {
             Dispatcher.BeginInvoke(new System.Action(() =>
             {
-                // UI-Aktualisierungen hier, z. B.:
-                StatusPauseTextBlock.Text = newStatus;
+                if (PauseStatusTextBlock != null)
+                    PauseStatusTextBlock.Text = newStatus ?? "";
             }));
         }
 
-        /// <summary>
-        /// DEBUG: Startet den Proxy
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void StartProxy_Click(object sender, RoutedEventArgs e)
+        private void UpdateStatusTextBlocks()
         {
-            webManager.StartProxy();
-        }
+            if (_timeManagement == null || _webManager == null)
+                return;
 
-        /// <summary>
-        /// DEBUG: stoppt den Proxy
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void StopProxy_Click(object sender, RoutedEventArgs e)
-        {
-            webManager.StopProxy();
-        }
-
-        /// <summary>
-        /// Läd die laufenden Prozesse in ProcessListBox
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void ListProcessButton_Click(object sender, RoutedEventArgs e)
-        {
-            Process[] processes = appManager.GetRunningProcesses();
-
-            ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
-
-            foreach (var process in processes)
+            // Free-Timer
+            if (FreeTimerStatusTextBlock != null)
             {
-                ProcessListBox.Items.Add($"{process.ProcessName} (ID: {process.Id})");
-            }
-        }
-
-        /// <summary>
-        /// Lädt alle Gruppen in die GroupComboBox.
-        /// </summary>
-        private void LoadGroups()
-        {
-            // Holen der Gruppennamen als durch Kommas getrennte Liste
-            string allGroups = configReader.GetAllGroups();
-            GroupComboBox.Items.Clear();
-
-            // Sicherstellen, dass Gruppen vorhanden sind
-            if (!string.IsNullOrEmpty(allGroups))
-            {
-                // Gruppen in die ComboBox hinzufügen (nehmen wir an, dass allGroups eine durch Kommas getrennte Liste ist)
-                var groups = allGroups.Split(new[] { ", " }, StringSplitOptions.None);
-                foreach (var group in groups)
+                if (_timeManagement.IsWorkTimerRunning())
                 {
-                    GroupComboBox.Items.Add(group);
+                    FreeTimerStatusTextBlock.Text = "Free-Timer aktiv";
+                    FreeTimerStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    FreeTimerStatusTextBlock.Text = "Free-Timer inaktiv";
+                    FreeTimerStatusTextBlock.Foreground = Brushes.Gray;
+                }
+            }
+
+            // Break-Timer
+            if (BreakTimerStatusTextBlock != null)
+            {
+                if (_timeManagement.IsBreakTimerRunning())
+                {
+                    BreakTimerStatusTextBlock.Text = "Break-Timer aktiv";
+                    BreakTimerStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    BreakTimerStatusTextBlock.Text = "Break-Timer inaktiv";
+                    BreakTimerStatusTextBlock.Foreground = Brushes.Gray;
+                }
+            }
+
+            // Check-Timer
+            if (CheckTimerStatusTextBlock != null)
+            {
+                if (_timeManagement.IsCheckTimerRunning())
+                {
+                    CheckTimerStatusTextBlock.Text = "Check-Timer aktiv";
+                    CheckTimerStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    CheckTimerStatusTextBlock.Text = "Check-Timer inaktiv";
+                    CheckTimerStatusTextBlock.Foreground = Brushes.Gray;
+                }
+            }
+
+            // Timer-Status
+            if (TimerStatusTextBlock != null)
+            {
+                TimeSpan? remaining = null;
+                string timerName = "";
+
+                if (_timeManagement.IsWorkTimerRunning())
+                {
+                    remaining = _timeManagement.GetRemainingWorkTime();
+                    timerName = "Free-Timer";
+                }
+                else if (_timeManagement.IsBreakTimerRunning())
+                {
+                    remaining = _timeManagement.GetRemainingBreakTime();
+                    timerName = "Break-Timer";
+                }
+                else if (_timeManagement.IsCheckTimerRunning())
+                {
+                    remaining = _timeManagement.GetRemainingCheckTime();
+                    timerName = "Check-Timer";
+                }
+
+                if (remaining.HasValue && remaining.Value.TotalSeconds > 0)
+                {
+                    TimerStatusTextBlock.Text = $"{timerName}: {remaining.Value.Minutes:D2}:{remaining.Value.Seconds:D2} verbleibend";
+                }
+                else
+                {
+                    TimerStatusTextBlock.Text = "Timer: --:--";
+                }
+            }
+
+            // Pause-Status
+            if (PauseStatusTextBlock != null)
+            {
+                if (_timeManagement.IsBreakActive())
+                {
+                    PauseStatusTextBlock.Text = "Pause aktiv";
+                    PauseStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    PauseStatusTextBlock.Text = "Momentan keine Pause";
+                    PauseStatusTextBlock.Foreground = Brushes.Black;
+                }
+            }
+
+            // Proxy-Status
+            if (ProxyStatusTextBlock != null)
+            {
+                if (_webManager.IsProxyRunning)
+                {
+                    ProxyStatusTextBlock.Text = "Proxy aktiv";
+                    ProxyStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    ProxyStatusTextBlock.Text = "Proxy inaktiv";
+                    ProxyStatusTextBlock.Foreground = Brushes.Red;
+                }
+            }
+
+            // Debug-Status
+            if (DebugStatusTextBlock != null)
+            {
+                if (_isDebugMode)
+                {
+                    DebugStatusTextBlock.Text = "Debug an";
+                    DebugStatusTextBlock.Foreground = Brushes.Red;
+                }
+                else
+                {
+                    DebugStatusTextBlock.Text = "Debug aus";
+                    DebugStatusTextBlock.Foreground = Brushes.Gray;
                 }
             }
         }
 
-        /// <summary>
-        /// Erstellt eine neue Gruppe
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void CreateNewGroupButton_Click(object sender, RoutedEventArgs e)
+        // -------------------- Gruppen-Tab --------------------
+
+        private void LoadGroups()
         {
-            configReader.CreateGroup();
+            if (_configReader == null)
+            {
+                Logger.Instance.Log("LoadGroups: ConfigReader ist null!", LogLevel.Error);
+                return;
+            }
+            string allGroups = _configReader.GetAllGroups();
+            GroupSelectionComboBox?.Items.Clear();
+
+            if (!string.IsNullOrEmpty(allGroups))
+            {
+                var groups = allGroups.Split(new[] { ", " }, System.StringSplitOptions.None);
+                foreach (var group in groups)
+                {
+                    GroupSelectionComboBox?.Items.Add(group);
+                }
+            }
+
+            if (GroupSelectionComboBox != null)
+            {
+                GroupSelectionComboBox.SelectedItem = "Gruppe 1";
+                GroupSelectionComboBox.SelectedIndex = GroupSelectionComboBox.Items.IndexOf("Gruppe 1");
+            }
+        }
+
+        private void CreateGroupButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configReader == null) return;
+            _configReader.CreateGroup();
             LoadGroups();
         }
 
-        /// <summary>
-        /// Löscht eine ausgewählte Gruppe
-        /// </summary>
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            string groupNameToDelete = GroupComboBox.SelectedItem as string;
-
+            if (_configReader == null) return;
+            string? groupNameToDelete = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupNameToDelete))
             {
                 MessageBox.Show("Bitte wählen Sie eine Gruppe zum Löschen aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
-            configReader.DeleteGroup(groupNameToDelete);
+            _configReader.DeleteGroup(groupNameToDelete);
             LoadGroups();
-        }
-
-        /// <summary>
-        /// Speichert den ausgewähten Prozess in die Config
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void SaveProcessButton_Click(object sender, RoutedEventArgs e)
-        {
-            string selectedGroup = GroupComboBox.SelectedItem as string;
-            string selectedProcess = ProcessListBox.SelectedItem as string;
-            appManager.SaveSelectedProcessesToFile(selectedGroup, selectedProcess);
-        }
-
-        /// <summary>
-        /// Löscht den ausgwählten Prozess aus der Config
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void RemoveProcessFromFile_Click(object sender, RoutedEventArgs e)
-        {
-            string selectedGroup = GroupComboBox.SelectedItem as string;
-            string selectedProcess = ProcessListBox.SelectedItem as string;
-            appManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
-            ListBlockedApps_Click(sender, e);
-        }
-
-        /// <summary>
-        /// Löscht die ausgewählte Domain von der Liste
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void RemoveDomainFromFile_Click(object sender, RoutedEventArgs e)
-        {
-            string selectedGroup = GroupComboBox.SelectedItem as string;
-            string selectedProcess = ProcessListBox.SelectedItem as string;
-            webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedProcess);
-            ListBlockedDomains_Click(sender, e);
-        }
-
-        /// <summary>
-        /// DEBUG: Stoppt alle Timer
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void StopTimer_Click(object sender, RoutedEventArgs e)
-        {
-            timeManager.Stop();
-        }
-
-        /// <summary>
-        /// DEBUG: Erzwingt eine Paus
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void ForceBreak_Click(object sender, RoutedEventArgs e)
-        {
-            timeManager.ForceBreak();
-        }
-
-        /// <summary>
-        /// DEBUG: Beendet eine Paus
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void EndBreak_Click(object sender, RoutedEventArgs e)
-        {
-            timeManager.EndBreak();
-        }
-
-        /// <summary>
-        /// Listet alle blockierten Apps in ProcessListBox
-        /// </summary>
-        private void ListBlockedApps_Click(object sender, RoutedEventArgs e)
-        {
-            string groupID = GroupComboBox.SelectedItem as string;
-            if (string.IsNullOrEmpty(groupID)) return;
-
-            string apps = configReader.GetAppsFromGroup(groupID);
-            ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
-
-            if (!string.IsNullOrEmpty(apps))
-            {
-                foreach (var app in apps.Split(", "))
-                {
-                    ProcessListBox.Items.Add(app);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Listet alle blockierten Websites in ProcessListBox
-        /// </summary>
-        private void ListBlockedDomains_Click(object sender, RoutedEventArgs e)
-        {
-            string groupID = GroupComboBox.SelectedItem as string;
-            if (string.IsNullOrEmpty(groupID)) return;
-
-            string domains = configReader.GetWebsitesFromGroup(groupID);
-            ProcessListBox.Items.Clear(); // Vorherige Einträge löschen
-
-            if (!string.IsNullOrEmpty(domains))
-            {
-                foreach (var domain in domains.Split(", "))
-                {
-                    ProcessListBox.Items.Add(domain);
-                }
-            }
-        }
-
-        /// <summary>
-        /// Fügt die ausgewählte Website hinzu
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void AddWebsiteToBlocklist_Click(object sender, RoutedEventArgs e)
-        {
-            string websiteName = WebsiteTextBox.Text.Trim();
-            string selectedGroup = GroupComboBox.SelectedItem as string;
-
-            configReader.AddWebsiteToGroup(selectedGroup, websiteName);
-            // Leere das Textfeld nach dem Hinzufügen
-            WebsiteTextBox.Clear();
-            ListBlockedDomains_Click(sender, e);
-        }
-
-        private bool isOvelay = false;
-        public void ToggleOverlayClick(object sender, RoutedEventArgs e)
-        {
-            ToggleOverlay();
-        }
-
-        public void ToggleOverlay()
-        {
-            if (!isOvelay)
-            {
-                overlay.Show();
-                isOvelay = true;
-            }
-            else
-            {
-                overlay.Hide();
-                isOvelay = false;
-            }
         }
 
         private void ActivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedGroup = GroupComboBox.SelectedItem as string;
-
+            if (_configReader == null) return;
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup))
             {
                 MessageBox.Show("Bitte wählen Sie eine Gruppe zum Aktivieren aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
-            configReader.SetActiveStatus(selectedGroup, true);
+            _configReader.SetActiveStatus(selectedGroup, true);
             MessageBox.Show($"Die Gruppe '{selectedGroup}' wurde aktiviert.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+            UpdateGroupActivityTextBox();
         }
 
         private void DeactivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedGroup = GroupComboBox.SelectedItem as string;
-
+            if (_configReader == null) return;
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup))
             {
                 MessageBox.Show("Bitte wählen Sie eine Gruppe zum Deaktivieren aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
-
-            configReader.SetActiveStatus(selectedGroup, false);
+            _configReader.SetActiveStatus(selectedGroup, false);
             MessageBox.Show($"Die Gruppe '{selectedGroup}' wurde deaktiviert.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+            UpdateGroupActivityTextBox();
         }
 
-        public string CleanGroupName(string input)
+        private void GroupSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (input.EndsWith(" ( True)", StringComparison.OrdinalIgnoreCase))
+            UpdateGroupActivityTextBox();
+        }
+
+        private void UpdateGroupActivityTextBox()
+        {
+            if (_configReader == null) return;
+            if (GroupSelectionComboBox?.SelectedItem is string selectedGroup && !string.IsNullOrEmpty(selectedGroup))
             {
-                return input.Substring(0, input.Length - 7).Trim(); ; // Länge von " (True)" ist 8
-            }
-            else if (input.EndsWith(" ( False)", StringComparison.OrdinalIgnoreCase))
-            {
-                return input.Substring(0, input.Length - 8).Trim(); // Länge von " (False)" ist 9
+                bool isActive = false;
+                try
+                {
+                    isActive = _configReader.GetGroupActiveStatus(selectedGroup);
+                }
+                catch
+                {
+                    Logger.Instance.Log($"Fehler beim Lesen des Aktiv-Status für Gruppe '{selectedGroup}'", LogLevel.Error);
+                }
+                if (GroupActivityTextBox != null)
+                    GroupActivityTextBox.Text = isActive ? "aktiv" : "nicht aktiv";
             }
             else
             {
-                Logger.Instance.Log($"Es wurde nichts entfernt von {input}");
-                return input; // Rückgabe des Original-Strings, wenn kein Suffix gefunden wurde
+                if (GroupActivityTextBox != null)
+                    GroupActivityTextBox.Text = "";
             }
         }
 
-        public string getConfig(string key, int num)
+        // -------------------- Prozesse-Tab --------------------
+
+        private void SaveProcessButton_Click(object sender, RoutedEventArgs e)
         {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json"); // JSON-Datei mit den Gruppen
+            if (_appManager == null) return;
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedProcess = ProcessListBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
+            _appManager.SaveSelectedProcessesToFile(selectedGroup, selectedProcess);
+        }
 
-            try
+        private void DeleteProcessButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_appManager == null) return;
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedProcess = ProcessListBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
+            _appManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
+            ShowBlockedAppsButton_Click(sender, e);
+        }
+
+        private void ShowBlockedAppsButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configReader == null) return;
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            string apps = _configReader.GetAppsFromGroup(groupID);
+            ProcessListBox?.Items.Clear();
+            if (!string.IsNullOrEmpty(apps))
             {
-                // Überprüfe, ob die Datei existiert
-                if (!File.Exists(filePath))
-                {
-                    Logger.Instance.Log($"Die Datei '{filePath}' wurde nicht gefunden.");
-                    return null;
-                }
-
-                // Lese den Inhalt der JSON-Datei
-                string jsonContent = File.ReadAllText(filePath);
-
-                switch (key)
-                {
-                    case ("c"):
-                        return jsonContent;
-                    case ("a"):
-                        return "";
-                    default:
-                        return "";
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Speichern der Datei: {ex.Message}");
-                return "";
+                foreach (var app in apps.Split(", "))
+                    ProcessListBox?.Items.Add(app);
             }
         }
 
-        /// <summary>
-        /// Lädt Timer in die TimerComboBox.
-        /// </summary>
+        private void ShowRunningProcessesButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_appManager == null) return;
+            Process[] processes = _appManager.GetRunningProcesses();
+            ProcessListBox?.Items.Clear();
+            if (processes != null)
+            {
+                foreach (var process in processes)
+                    ProcessListBox?.Items.Add($"{process.ProcessName} (ID: {process.Id})");
+            }
+        }
+
+        // -------------------- Websites-Tab --------------------
+
+        private void ShowBlockedWebsitesButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configReader == null) return;
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            string domains = _configReader.GetWebsitesFromGroup(groupID);
+            WebsiteListBox?.Items.Clear();
+            if (!string.IsNullOrEmpty(domains))
+            {
+                foreach (var domain in domains.Split(", "))
+                    WebsiteListBox?.Items.Add(domain);
+            }
+        }
+
+        private void SaveWebsiteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_configReader == null) return;
+            string? websiteName = WebsiteInputTextBox?.Text?.Trim();
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(websiteName)) return;
+            _configReader.AddWebsiteToGroup(selectedGroup, websiteName);
+            WebsiteInputTextBox?.Clear();
+            ShowBlockedWebsitesButton_Click(sender, e);
+        }
+
+        private void DeleteWebsiteButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_webManager == null) return;
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedWebsite = WebsiteListBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedWebsite)) return;
+            _webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedWebsite);
+            ShowBlockedWebsitesButton_Click(sender, e);
+        }
+
+        // -------------------- Timer-Tab --------------------
+
         private void ListTimers()
         {
-            TimerComboBox.Items.Clear();
-            TimerComboBox.Items.Add("Timer Intervall");
-            TimerComboBox.Items.Add("Timer Pause");
-            TimerComboBox.Items.Add("Timer Check");
+            TimerTypeComboBox?.Items.Clear();
+            TimerTypeComboBox?.Items.Add("Timer Intervall");
+            TimerTypeComboBox?.Items.Add("Timer Pause");
+            TimerTypeComboBox?.Items.Add("Timer Check");
+            if (TimerTypeComboBox != null)
+            {
+                TimerTypeComboBox.SelectedIndex = 0; // Intervalltimer als Standard
+                UpdateTimerDurationTextBox(); // Direkt beim Start anzeigen
+            }
         }
 
-        /// <summary>
-        /// Setzt die Zeit für den Ausgewählten Timer
-        /// </summary>
-        private void SetTimer_Click(object sender, RoutedEventArgs e)
+        private void SetTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedTimer = TimerComboBox.SelectedItem as string;
-            if (selectedTimer == null)
+            if (_timeManagement == null) return;
+            string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedTimer))
             {
                 MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Kein Timer gewählt");
-
+                return;
             }
-            int time;
-            if (!int.TryParse(TimerTime.Text, out time))
+            if (!int.TryParse(TimerCurrentTimeTextBox?.Text, out int time))
             {
                 MessageBox.Show($"Die Zeit muss eine Zahl sein", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Logger.Instance.Log($" Versuche '{selectedTimer}' auf '{time}' zu setzen, aber '{time}' ist kein int32.");
+                Logger.Instance.Log($"Versuche '{selectedTimer}' auf '{TimerCurrentTimeTextBox?.Text}' zu setzen, aber das ist kein int32.");
                 return;
             }
             switch (selectedTimer)
@@ -400,7 +521,6 @@ namespace ScreenZen
                     break;
                 case "Timer Pause":
                     _timeManagement.SetTimerTime("p", time);
-
                     break;
                 case "Timer Check":
                     _timeManagement.SetTimerTime("c", time);
@@ -411,19 +531,15 @@ namespace ScreenZen
             }
         }
 
-        /// <summary>
-        /// Startet einen ausgwählten  Timer
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void StartExplicitTimer_Click(object sender, RoutedEventArgs e)
+        private void StartTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedTimer = TimerComboBox.SelectedItem as string;
-            if (selectedTimer == null)
+            if (_timeManagement == null) return;
+            string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedTimer))
             {
                 MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Kein Timer gewählt");
-
+                return;
             }
             switch (selectedTimer)
             {
@@ -432,7 +548,6 @@ namespace ScreenZen
                     break;
                 case "Timer Pause":
                     _timeManagement.StartTimer("p");
-
                     break;
                 case "Timer Check":
                     _timeManagement.StartTimer("c");
@@ -443,19 +558,15 @@ namespace ScreenZen
             }
         }
 
-        /// <summary>
-        /// Stoppt eine ausgewählten Timer
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void StopExplicitTimer_Click(object sender, RoutedEventArgs e)
+        private void StopTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            string selectedTimer = TimerComboBox.SelectedItem as string;
-            if (selectedTimer == null)
+            if (_timeManagement == null) return;
+            string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedTimer))
             {
                 MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Kein Timer gewählt");
-
+                return;
             }
             switch (selectedTimer)
             {
@@ -464,7 +575,6 @@ namespace ScreenZen
                     break;
                 case "Timer Pause":
                     _timeManagement.StopTimer("p");
-
                     break;
                 case "Timer Check":
                     _timeManagement.StopTimer("c");
@@ -475,93 +585,190 @@ namespace ScreenZen
             }
         }
 
-        /// <summary>
-        /// Zeigt die Zeit eins ausgwählten Timers in Sekunden an
-        /// </summary>
-        /// <param name="sender"></param>
-        /// <param name="e"></param>
-        private void GetTimerTime_Click()
+        private void TimerTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            string selectedTimer = TimerComboBox.SelectedItem as string;
-            if (selectedTimer == null)
-            {
-                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Logger.Instance.Log($"Kein Timer gewählt");
-
-            }
-            switch (selectedTimer)
-            {
-                case "Timer Intervall":
-                    TimerTimePanel.Text = _timeManagement.GetIntervall_Free().ToString();
-                    break;
-                case "Timer Pause":
-                    TimerTimePanel.Text = _timeManagement.GetIntervall_Break().ToString();
-                    break;
-                case "Timer Check":
-                    TimerTimePanel.Text = _timeManagement.GetIntervall_Check().ToString();
-                    break;
-                default:
-                    Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
-                    break;
-            }
+            UpdateTimerDurationTextBox();
         }
 
-        /// <summary>
-        /// Updatet den Stauts der Module
-        /// </summary>
-        private void UpdateStatusTextBlocks()
+        private void UpdateTimerDurationTextBox()
         {
-            if (_timeManagement == null || webManager == null)
+            if (_timeManagement == null)
+            {
+                if (TimerDurationTextBox != null)
+                    TimerDurationTextBox.Text = "Error: Timer management not initialized.";
                 return;
+            }
 
-            // Timer-Status aktualisieren
-            StatuTimersFreeTextBlock.Text = _timeManagement.TimerRunning_Free() ? "Status: Free-Timer aktiv" : "Status: Free-Timer inaktiv";
-            StatuTimersFreeTextBlock.Foreground = _timeManagement.TimerRunning_Free() ? Brushes.Green : Brushes.Red;
-
-            StatuTimersBreakTextBlock.Text = _timeManagement.TimerRunning_Break() ? "Status: Break-Timer aktiv" : "Status: Break-Timer inaktiv";
-            StatuTimersBreakTextBlock.Foreground = _timeManagement.TimerRunning_Break() ? Brushes.Green : Brushes.Red;
-
-            StatuTimersCheckTextBlock.Text = _timeManagement.TimerRunning_Check() ? "Status: Check-Timer aktiv" : "Status: Check-Timer inaktiv";
-            StatuTimersCheckTextBlock.Foreground = _timeManagement.TimerRunning_Check() ? Brushes.Green : Brushes.Red;
-
-            // Break-Status aktualisieren
-            StatusPauseTextBlock.Text = _timeManagement.IsBreakActive_Check() ? "Status: Pause aktiv" : "Momentan keine Pause";
-            StatusPauseTextBlock.Foreground = _timeManagement.IsBreakActive_Check() ? Brushes.Green : Brushes.Red;
-
-            // Proxy-Status aktualisieren
-            StatusProxyTextBlock.Text = webManager.IsProxyRunning ? "Status: Proxy aktiv" : "Status: Proxy inaktiv";
-            StatusProxyTextBlock.Foreground = webManager.IsProxyRunning ? Brushes.Green : Brushes.Red;
-        }
-
-        private void GroupComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
-        {
-            // Stelle sicher, dass eine Auswahl getroffen wurde
-            if (GroupComboBox.SelectedItem != null)
+            if (TimerTypeComboBox?.SelectedItem is string selectedTimer)
             {
-               SetGroupAktivText();
+                switch (selectedTimer)
+                {
+                    case "Timer Intervall":
+                        if (TimerDurationTextBox != null)
+                            TimerDurationTextBox.Text = _timeManagement.GetIntervalFree().ToString();
+                        break;
+                    case "Timer Pause":
+                        if (TimerDurationTextBox != null)
+                            TimerDurationTextBox.Text = _timeManagement.GetIntervalBreak().ToString();
+                        break;
+                    case "Timer Check":
+                        if (TimerDurationTextBox != null)
+                            TimerDurationTextBox.Text = _timeManagement.GetIntervalCheck().ToString();
+                        break;
+                    default:
+                        if (TimerDurationTextBox != null)
+                            TimerDurationTextBox.Text = "";
+                        break;
+                }
             }
         }
 
-        private void TimerComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        // -------------------- Steuerung-Tab --------------------
+
+        private void StartProxyButton_Click(object sender, RoutedEventArgs e)
         {
-            if (TimerComboBox.SelectedItem != null)
+            _webManager?.StartProxy();
+        }
+        private void StopProxyButton_Click(object sender, RoutedEventArgs e)
+        {
+            _webManager?.StopProxy();
+        }
+        private void StopAllTimersButton_Click(object sender, RoutedEventArgs e)
+        {
+            _timeManagement?.Stop();
+        }
+        private void ForceBreakButton_Click(object sender, RoutedEventArgs e)
+        {
+            _timeManagement?.ForceBreak();
+        }
+        private void EndBreakButton_Click(object sender, RoutedEventArgs e)
+        {
+            _timeManagement?.EndBreak();
+        }
+        private void ToggleOverlayButton_Click(object sender, RoutedEventArgs e)
+        {
+            ToggleOverlay();
+        }
+        private void DebugButton_Click(object sender, RoutedEventArgs e)
+        {
+            _isDebugMode = !_isDebugMode;
+            if (_isDebugMode)
             {
-                GetTimerTime_Click();
+                _timeManagement?.SetTimerTime("p", 45);
+                _timeManagement?.SetTimerTime("i", 15);
+                Logger.Instance.Log("Debug: Pause auf 45 Sekunden und Intervall auf 15 Sekunden gesetzt.");
+            }
+            UpdateStatusTextBlocks();
+        }
+        private void WebsiteBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetWebsiteBlockingEnabled(true);
+            WebsitesTab.IsEnabled = true;
+        }
+
+        private void WebsiteBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetWebsiteBlockingEnabled(false);
+            WebsitesTab.IsEnabled = false;
+            // Optional: Proxy stoppen, falls aktiv
+        }
+
+        private void AppBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetAppBlockingEnabled(true);
+            ProzesseTab.IsEnabled = true;
+        }
+
+        private void AppBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetAppBlockingEnabled(false);
+            ProzesseTab.IsEnabled = false;
+        }
+
+        private void StartBlockingButton_Click(object sender, RoutedEventArgs e)
+        {
+            // Arbeitszeit-Timer starten (freie Zeit)
+            _timeManagement?.StartTimer("i");
+            Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Info);
+        }
+
+        // -------------------- Overlay --------------------
+
+        private bool isOvelay = false;
+        public void ToggleOverlay()
+        {
+            if (_overlay == null) return;
+            if (!isOvelay)
+            {
+                _overlay.Show();
+                isOvelay = true;
+            }
+            else
+            {
+                _overlay.Hide();
+                isOvelay = false;
             }
         }
 
-        private void SetGroupAktivText()
+        // -------------------- Hilfsmethoden --------------------
+
+        public string CleanGroupName(string input)
         {
-            string selectedGroup = GroupComboBox.SelectedValue.ToString();
-            if (selectedGroup != null)
+            if (input == null) return "";
+            if (input.EndsWith(" ( True)", System.StringComparison.OrdinalIgnoreCase))
+                return input.Substring(0, input.Length - 7).Trim();
+            else if (input.EndsWith(" ( False)", System.StringComparison.OrdinalIgnoreCase))
+                return input.Substring(0, input.Length - 8).Trim();
+            else
             {
-                GroupActivityTextBox.Text = appManager.GetGroupActivity(selectedGroup).ToString();
+                Logger.Instance.Log($"Es wurde nichts entfernt von {input}");
+                return input;
             }
         }
 
-        private void TimerTimePanel_TextChanged(object sender, TextChangedEventArgs e)
+        public string? getConfig(string key, int num)
         {
+            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
+            try
+            {
+                if (!File.Exists(filePath))
+                {
+                    Logger.Instance.Log($"Die Datei '{filePath}' wurde nicht gefunden.");
+                    return null; // Rückgabewert bleibt nullable
+                }
+                string jsonContent = File.ReadAllText(filePath);
+                switch (key)
+                {
+                    case ("c"):
+                        return jsonContent;
+                    case ("a"):
+                        return string.Empty; // Rückgabe eines leeren Strings statt null
+                    default:
+                        return string.Empty; // Rückgabe eines leeren Strings statt null
+                }
+            }
+            catch (System.Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Speichern der Datei: {ex.Message}");
+                return string.Empty; // Rückgabe eines leeren Strings statt null
+            }
+        }
 
+        private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            if (_closeToTray)
+            {
+                e.Cancel = true;
+                this.Hide();
+                _notifyIcon.BalloonTipTitle = "ScreenZen";
+                _notifyIcon.BalloonTipText = "ScreenZen läuft weiter im Hintergrund.";
+                _notifyIcon.ShowBalloonTip(1000);
+            }
+            else
+            {
+                _notifyIcon.Visible = false;
+                _notifyIcon.Dispose();
+            }
         }
     }
 }

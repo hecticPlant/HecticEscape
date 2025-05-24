@@ -1,259 +1,429 @@
 ﻿namespace ScreenZen
 {
     /// <summary>
-    /// Verwaltet die Timer
+    /// Verwaltet die Arbeits-, Pausen- und Prüf-Timer für die App- und Webseiten-Blockierung.
     /// </summary>
-    public class TimeManagement
+    public class TimeManagement : IDisposable
     {
         public event Action<string> StatusChanged;
         public event Action OverlayToggleRequested;
 
         private AppManager appManager;
         private WebManager webManager;
+        private readonly Overlay _overlay;
 
-        //Timer
-        private System.Timers.Timer timerFree;
-        private System.Timers.Timer timerBreak;
-        private System.Timers.Timer timerCheck;
+        // Timer für Arbeitszeit, Pausenzeit und Prüfintervall
+        private System.Timers.Timer workTimer;
+        private System.Timers.Timer breakTimer;
+        private System.Timers.Timer checkTimer;
+        private System.Timers.Timer overlayAnnounceTimer;
 
-        private int intervall_Free = 2 * 3600 * 1000;
-        private int intervall_Break = 15 * 60 * 1000;
-        private int intervall_Check = 1000;
+        // Intervalle in Millisekunden
+        private int intervalFreeMs = 2 * 3600 * 1000;
+        private int intervalBreakMs = 15 * 60 * 1000;
+        private int intervalCheckMs = 1000;
 
         private bool isBreakActive = false;
 
-        public TimeManagement(AppManager appManager, WebManager webManager)
+        private DateTime? workTimerEnd;
+        private DateTime? breakTimerEnd;
+        private DateTime? checkTimerEnd;
+
+        private List<TimeSpan> announceTimes = new()
+        {
+            TimeSpan.FromMinutes(30),
+            TimeSpan.FromMinutes(15),
+            TimeSpan.FromMinutes(10),
+            TimeSpan.FromMinutes(5),
+            TimeSpan.FromMinutes(1),
+            TimeSpan.FromSeconds(30)
+        };
+        private HashSet<TimeSpan> alreadyAnnounced = new();
+
+        public TimeManagement(AppManager appManager, WebManager webManager, Overlay overlay)
         {
             this.webManager = webManager;
             this.appManager = appManager;
+            this._overlay = overlay;
 
-            // Timer-Initialisierung:
-            timerFree = new System.Timers.Timer(intervall_Free);
-            timerFree.Elapsed += (sender, e) => SwitchToBreakAsync();
-            timerFree.AutoReset = false;
+            // Timer-Initialisierung
+            workTimer = new System.Timers.Timer(intervalFreeMs);
+            workTimer.Elapsed += (sender, e) => _ = SafeSwitchToBreakAsync();
+            workTimer.AutoReset = false;
 
-            timerCheck = new System.Timers.Timer(intervall_Check);
-            timerCheck.Elapsed += (sender, e) => CheckAndCloseBlockedApps();
-            timerCheck.AutoReset = true;
+            checkTimer = new System.Timers.Timer(intervalCheckMs);
+            checkTimer.Elapsed += (sender, e) => CheckAndCloseBlockedApps();
+            checkTimer.AutoReset = true;
 
-            timerBreak = new System.Timers.Timer(intervall_Break);
-            timerBreak.Elapsed += (sender, e) => SwitchToFree();
-            timerBreak.AutoReset = false;
+            breakTimer = new System.Timers.Timer(intervalBreakMs);
+            breakTimer.Elapsed += (sender, e) => _ = SafeSwitchToFreeAsync();
+            breakTimer.AutoReset = false;
+
+            overlayAnnounceTimer = new System.Timers.Timer(1000);
+            overlayAnnounceTimer.Elapsed += OverlayAnnounceTimer_Elapsed;
+            overlayAnnounceTimer.Start();
 
             webManager.ProxyStatusChanged += OnProxyStatusChanged;
-            Logger.Instance.Log("Initialisiert");
+            Logger.Instance.Log("TimeManagement initialisiert", LogLevel.Info);
         }
 
         /// <summary>
-        /// DEBUG: Stoppt alle Timer
+        /// Stoppt alle Timer.
         /// </summary>
         public void Stop()
         {
-            Logger.Instance.Log("TimeManagement: Stop");
-            timerFree.Stop();
-            timerBreak.Stop();
-            timerCheck.Stop();
+            try
+            {
+                Logger.Instance.Log("TimeManagement: Stop", LogLevel.Info);
+                workTimer.Stop();
+                breakTimer.Stop();
+                checkTimer.Stop();
+                overlayAnnounceTimer.Stop();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Stoppen der Timer: {ex.Message}", LogLevel.Error);
+            }
         }
 
         /// <summary>
-        /// Startet eine Pause, wenn der Proxy nicht bereits aktiv ist.
+        /// Startet die Pausenphase.
         /// </summary>
-        /// <returns>Eine asynchrone Task, die den Start der Pause verwaltet.</returns>
         private async Task SwitchToBreakAsync()
         {
-            Logger.Instance.Log("Pause wird gestartet");
-            isBreakActive = true;
-            StatusChanged?.Invoke("Momentan Pause");
-            timerBreak.Start();
-            timerCheck.Start();
+            try
+            {
+                Logger.Instance.Log("Pause wird gestartet", LogLevel.Info);
+                isBreakActive = true;
+                StatusChanged?.Invoke("Momentan Pause");
 
-            // Proxy nur starten, wenn er nicht bereits läuft
-            if (!webManager.IsProxyRunning)
-            {
-                await Task.Run(() => webManager.StartProxy());
-                Logger.Instance.Log("Proxy wurde gestartet.");
+                // Overlay: Pause beginnt
+                _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage("Pause beginnt!", 2500));
+
+                breakTimer.Stop();
+                breakTimerEnd = DateTime.Now.AddMilliseconds(breakTimer.Interval);
+                breakTimer.Start();
+                checkTimer.Start();
+                alreadyAnnounced.Clear(); // HashSet für nächste Pause zurücksetzen
+
+                if (!webManager.IsProxyRunning)
+                {
+                    await Task.Run(() => webManager.StartProxy());
+                    Logger.Instance.Log("Proxy wurde gestartet.", LogLevel.Info);
+                }
+                else
+                {
+                    Logger.Instance.Log("Proxy läuft bereits.", LogLevel.Debug);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Logger.Instance.Log("Proxy läuft bereits.");
+                Logger.Instance.Log($"Fehler in SwitchToBreakAsync: {ex.Message}", LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// Beendet eine Pause, wenn der Proxy aktiv ist.
+        /// Beendet die Pausenphase und startet die Arbeitsphase.
         /// </summary>
-        /// <returns>Eine asynchrone Task, die das Ende der Pause verwaltet.</returns>
-        private async Task SwitchToFree()
+        private async Task SwitchToFreeAsync()
         {
-            Logger.Instance.Log("Pause wird beendet");
-            isBreakActive = false;
-            StatusChanged?.Invoke("Momentan freie Zeit");
-            timerFree.Start();
+            try
+            {
+                Logger.Instance.Log("Pause wird beendet", LogLevel.Info);
+                isBreakActive = false;
+                StatusChanged?.Invoke("Momentan freie Zeit");
 
-            // Proxy nur stoppen, wenn er aktuell läuft
-            if (webManager.IsProxyRunning)
-            {
-                await Task.Run(() => webManager.StopProxy());
-                Logger.Instance.Log("Proxy wurde gestoppt.");
+                // Overlay: Pause ist vorbei
+                _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage("Pause vorbei!", 2500));
+
+                workTimer.Stop();
+                workTimerEnd = DateTime.Now.AddMilliseconds(workTimer.Interval);
+                workTimer.Start();
+                alreadyAnnounced.Clear(); // HashSet für neuen Arbeitszyklus zurücksetzen
+
+                if (webManager.IsProxyRunning)
+                {
+                    await Task.Run(() => webManager.StopProxy());
+                    Logger.Instance.Log("Proxy wurde gestoppt.", LogLevel.Info);
+                }
+                else
+                {
+                    Logger.Instance.Log("Proxy war bereits gestoppt.", LogLevel.Debug);
+                }
             }
-            else
+            catch (Exception ex)
             {
-                Logger.Instance.Log("Proxy war bereits gestoppt.");
+                Logger.Instance.Log($"Fehler in SwitchToFreeAsync: {ex.Message}", LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// Wird von timerCheck aufgerufen und schließt alle Apps
+        /// Wird regelmäßig während der Pause aufgerufen und schließt blockierte Apps.
         /// </summary>
         private void CheckAndCloseBlockedApps()
         {
-            //Logger.Instance.Log("TimeManagement: CheckAndCloseBlockedApps");
-            if (isBreakActive)
+            try
             {
-                appManager.BlockHandler();
+                if (isBreakActive)
+                {
+                    appManager.BlockHandler();
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler in CheckAndCloseBlockedApps: {ex.Message}", LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// DEBUG: Erzwinge ein Pause
+        /// Erzwingt sofort eine Pause.
         /// </summary>
         public void ForceBreak()
         {
-            Logger.Instance.Log("Erzwinge eine Pause.");
-            timerFree.Stop();
-            SwitchToBreakAsync();
+            try
+            {
+                Logger.Instance.Log("Erzwinge eine Pause.", LogLevel.Warn);
+                workTimer.Stop();
+                _ = SwitchToBreakAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Erzwingen einer Pause: {ex.Message}", LogLevel.Error);
+            }
         }
 
         /// <summary>
-        /// DEBUG: Erzwinge das beenden eine Pause
+        /// Erzwingt das sofortige Ende einer Pause.
         /// </summary>
         public void EndBreak()
         {
-            Logger.Instance.Log("Erzwinge das Ende einer Pause");
-            timerBreak.Stop();
-            SwitchToFree();
-        }
-    
-        /// <summary>
-        /// Setzt die Timer Zeit
-        /// </summary>
-        /// <param name="timer">i: Intervall-Timer, p: Pause-Timer, c: Check-Timer</param>
-        /// <param name="time">Zeit in Sekunden</param>
-        public void SetTimerTime(string timer, int time) 
-        {
-            switch(timer)
+            try
             {
-                case "i":
-                    Logger.Instance.Log($"intervall_Free wurde auf {time} Sekunden gesetz");
-                    intervall_Free = time*1000;
-                    break;
-                case "p":
-                    Logger.Instance.Log($"intervall_Break wurde auf {time} Sekunden gesetz");
-                    intervall_Break = time*1000;
-                    break;
-                case "c":
-                    Logger.Instance.Log($"intervall_Check wurde auf {time} Sekunden gesetz");
-                    intervall_Check = time*1000;
-                    break;
-                default:
-                    Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.");
-                    break;
+                Logger.Instance.Log("Erzwinge das Ende einer Pause", LogLevel.Warn);
+                breakTimer.Stop();
+                _ = SwitchToFreeAsync();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Erzwingen des Endes einer Pause: {ex.Message}", LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// Stoppt den gewählten Timer
+        /// Setzt die Zeit für einen der Timer (in Sekunden).
         /// </summary>
-        /// <param name="timer">i: Intervall-Timer, p: Pause-Timer, c: Check-Timer</param>
+        public void SetTimerTime(string timer, int time)
+        {
+            try
+            {
+                switch (timer)
+                {
+                    case "i":
+                        Logger.Instance.Log($"intervalFreeMs wurde auf {time} Sekunden gesetzt", LogLevel.Info);
+                        intervalFreeMs = time * 1000;
+                        workTimer.Interval = intervalFreeMs;
+                        break;
+                    case "p":
+                        Logger.Instance.Log($"intervalBreakMs wurde auf {time} Sekunden gesetzt", LogLevel.Info);
+                        intervalBreakMs = time * 1000;
+                        breakTimer.Interval = intervalBreakMs;
+                        break;
+                    case "c":
+                        Logger.Instance.Log($"intervalCheckMs wurde auf {time} Sekunden gesetzt", LogLevel.Info);
+                        intervalCheckMs = time * 1000;
+                        checkTimer.Interval = intervalCheckMs;
+                        break;
+                    default:
+                        Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.", LogLevel.Warn);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen der Timer-Zeit: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        /// <summary>
+        /// Stoppt den gewählten Timer.
+        /// </summary>
         public void StopTimer(string timer)
         {
-            switch (timer)
+            try
             {
-                case "i":
-                    Logger.Instance.Log("Stoppe intervall_Free");
-                    timerFree.Stop();
-                    break;
-                case "p":
-                    Logger.Instance.Log("Stoppe intervall_Free");
-                    timerBreak.Stop();
-                    break;
-                case "c":
-                    Logger.Instance.Log("Stoppe intervall_Free");
-                    timerCheck.Stop(); ;
-                    break;
-                default:
-                    Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.");
-                    break;
+                switch (timer)
+                {
+                    case "i":
+                        Logger.Instance.Log("Stoppe intervalFreeMs", LogLevel.Info);
+                        workTimer.Stop();
+                        break;
+                    case "p":
+                        Logger.Instance.Log("Stoppe intervalBreakMs", LogLevel.Info);
+                        breakTimer.Stop();
+                        break;
+                    case "c":
+                        Logger.Instance.Log("Stoppe intervalCheckMs", LogLevel.Info);
+                        checkTimer.Stop();
+                        break;
+                    default:
+                        Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.", LogLevel.Warn);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Stoppen des Timers: {ex.Message}", LogLevel.Error);
             }
         }
 
         /// <summary>
-        /// Startet den gewählten Timer
+        /// Startet den gewählten Timer.
         /// </summary>
-        /// <param name="timer">i: Intervall-Timer, p: Pause-Timer, c: Check-Timer</param>
         public void StartTimer(string timer)
         {
-            switch (timer)
+            try
             {
-                case "i":
-                    Logger.Instance.Log("Starte intervall_Free");
-                    timerFree.Stop();
-                    timerFree.Start();
-                    break;
-                case "p":
-                    Logger.Instance.Log("Starte intervall_Break");
-                    timerBreak.Stop();
-                    timerBreak.Start();
-                    break;
-                case "c":
-                    Logger.Instance.Log("Starte intervall_Check");
-                    timerCheck.Stop();
-                    timerCheck.Start();
-                    break;
-                default:
-                    Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.");
-                    break;
+                switch (timer)
+                {
+                    case "i":
+                        Logger.Instance.Log("Starte intervalFreeMs", LogLevel.Info);
+                        workTimer.Stop();
+                        workTimerEnd = DateTime.Now.AddMilliseconds(workTimer.Interval);
+                        workTimer.Start();
+                        alreadyAnnounced.Clear(); // HashSet für neuen Arbeitszyklus zurücksetzen
+                        break;
+                    case "p":
+                        Logger.Instance.Log("Starte intervalBreakMs", LogLevel.Info);
+                        breakTimer.Stop();
+                        breakTimerEnd = DateTime.Now.AddMilliseconds(breakTimer.Interval);
+                        breakTimer.Start();
+                        break;
+                    case "c":
+                        Logger.Instance.Log("Starte intervalCheckMs", LogLevel.Info);
+                        checkTimer.Stop();
+                        checkTimerEnd = DateTime.Now.AddMilliseconds(checkTimer.Interval);
+                        checkTimer.Start();
+                        break;
+                    default:
+                        Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.", LogLevel.Warn);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Starten des Timers: {ex.Message}", LogLevel.Error);
             }
         }
 
-        public int GetIntervall_Free()
+        public int GetIntervalFree() => intervalFreeMs / 1000;
+        public int GetIntervalBreak() => intervalBreakMs / 1000;
+        public int GetIntervalCheck() => intervalCheckMs / 1000;
+
+        public bool IsWorkTimerRunning() => workTimer.Enabled;
+        public bool IsBreakTimerRunning() => breakTimer.Enabled;
+        public bool IsCheckTimerRunning() => checkTimer.Enabled;
+        public bool IsBreakActive() => isBreakActive;
+
+        public TimeSpan? GetRemainingWorkTime()
         {
-            return this.intervall_Free / 1000;
+            if (workTimer.Enabled && workTimerEnd.HasValue)
+                return workTimerEnd.Value - DateTime.Now;
+            return null;
         }
 
-        public int GetIntervall_Break()
+        public TimeSpan? GetRemainingBreakTime()
         {
-            return this.intervall_Break / 1000;
+            if (breakTimer.Enabled && breakTimerEnd.HasValue)
+                return breakTimerEnd.Value - DateTime.Now;
+            return null;
         }
 
-        public int GetIntervall_Check()
+        public TimeSpan? GetRemainingCheckTime()
         {
-            return this.intervall_Check / 1000;
-        }
-        
-        public bool TimerRunning_Free()
-        {
-            return timerFree.Enabled;
-        }
-
-        public bool TimerRunning_Break()
-        {
-            return timerBreak.Enabled;
-        }
-
-        public bool TimerRunning_Check()
-        {
-            return timerCheck.Enabled;
-        }
-    
-        public bool IsBreakActive_Check()
-        {
-            return isBreakActive;
+            if (checkTimer.Enabled && checkTimerEnd.HasValue)
+                return checkTimerEnd.Value - DateTime.Now;
+            return null;
         }
 
         private void OnProxyStatusChanged(bool isRunning)
         {
-            Logger.Instance.Log(isRunning ? "Proxy gestartet." : "Proxy gestoppt.");
+            Logger.Instance.Log(isRunning ? "Proxy gestartet." : "Proxy gestoppt.", LogLevel.Info);
+        }
+
+        private async Task SafeSwitchToBreakAsync()
+        {
+            try { await SwitchToBreakAsync(); }
+            catch (Exception ex) { Logger.Instance.Log($"Fehler in SwitchToBreakAsync: {ex.Message}", LogLevel.Error); }
+        }
+
+        private async Task SafeSwitchToFreeAsync()
+        {
+            try { await SwitchToFreeAsync(); }
+            catch (Exception ex) { Logger.Instance.Log($"Fehler in SwitchToFreeAsync: {ex.Message}", LogLevel.Error); }
+        }
+
+        private void OverlayAnnounceTimer_Elapsed(object? sender, System.Timers.ElapsedEventArgs e)
+        {
+            // Nur während der Arbeitszeit Overlay-Ankündigungen machen!
+            if (!workTimer.Enabled || !workTimerEnd.HasValue || isBreakActive)
+                return;
+
+            var remaining = workTimerEnd.Value - DateTime.Now;
+            var totalWorkTime = TimeSpan.FromMilliseconds(workTimer.Interval);
+
+            foreach (var t in announceTimes)
+            {
+                if (t > totalWorkTime)
+                    continue;
+
+                if (remaining <= t && !alreadyAnnounced.Contains(t))
+                {
+                    alreadyAnnounced.Add(t);
+                    _overlay.Dispatcher.Invoke(() =>
+                        _overlay.ShowMessage($"Pause in {FormatTimeSpan(t)}"));
+                }
+            }
+
+            if (totalWorkTime >= TimeSpan.FromSeconds(10) &&
+                remaining.TotalSeconds <= 10 && remaining.TotalSeconds > 0 &&
+                !alreadyAnnounced.Contains(TimeSpan.FromSeconds(10)))
+            {
+                alreadyAnnounced.Add(TimeSpan.FromSeconds(10));
+                _overlay.Dispatcher.Invoke(async () => await _overlay.ShowCountdownAsync(10));
+            }
+        }
+
+        // Hilfsmethode für Zeitformatierung
+        private string FormatTimeSpan(TimeSpan t)
+        {
+            if (t.TotalMinutes >= 1)
+                return $"{(int)t.TotalMinutes} Minuten";
+            else
+                return $"{(int)t.TotalSeconds} Sekunden";
+        }
+
+        /// <summary>
+        /// Schaltet das Overlay um.
+        /// </summary>
+        public void ToggleOverlay()
+        {
+            try
+            {
+                Logger.Instance.Log("Overlay wird umgeschaltet", LogLevel.Info);
+                OverlayToggleRequested?.Invoke();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Umschalten des Overlays: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        public void Dispose()
+        {
+            workTimer?.Dispose();
+            breakTimer?.Dispose();
+            checkTimer?.Dispose();
+            overlayAnnounceTimer?.Dispose();
         }
     }
 }

@@ -21,5 +21,7 @@
     public class Config
     {
         public Dictionary<string, Gruppe> Gruppen { get; set; }
+        public bool EnableWebsiteBlocking { get; set; }
+        public bool EnableAppBlocking { get; set; }
     }
 }

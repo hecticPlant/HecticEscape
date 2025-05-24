@@ -1,57 +1,86 @@
-﻿using System.Diagnostics;
+﻿using System;
+using System.Collections.Concurrent;
 using System.IO;
+using System.Runtime.CompilerServices;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace ScreenZen
 {
-    /// <summary>
-    /// Diese Klasse verwaltet das Logging in eine .log Datei
-    /// </summary>
-    public class Logger
+    public enum LogLevel
     {
+        Info,
+        Warn,
+        Error,
+        Debug
+    }
+
+    public class Logger : IDisposable
+    {
+        private static readonly Lazy<Logger> _instance = new(() => new Logger());
+        public static Logger Instance => _instance.Value;
+
         private readonly string logFilePath;
+        private readonly BlockingCollection<string> logQueue = new();
+        private readonly CancellationTokenSource cts = new();
+        private readonly Task logTask;
 
-        private static Logger instance;
-        public static Logger Instance => instance ?? (instance = new Logger());
-
-        public event Action<string> LogMessageReceived;
-
-        public Logger()
+        private Logger()
         {
-            // Sicherstellen, dass der Unterordner "log" existiert
             string logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log");
             Directory.CreateDirectory(logDirectory);
 
-            // Log-Datei dynamisch erstellen, basierend auf dem aktuellen Datum und der Uhrzeit
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
             logFilePath = Path.Combine(logDirectory, $"app_{timestamp}.log");
 
-            //Zeile schreiben
-            File.AppendAllText(logFilePath, "=== Log Start ===\n");
+            logTask = Task.Run(ProcessLogQueue);
         }
 
-
-        public void Log(string message)
+        public void Log(
+            string message,
+            LogLevel level = LogLevel.Info,
+            [CallerMemberName] string callerMemberName = "",
+            [CallerFilePath] string callerFilePath = "",
+            [CallerLineNumber] int callerLineNumber = 0)
         {
-            // Hole die aktuelle Methode und Klasse
-            var stackTrace = new StackTrace(true);
-            var frame = stackTrace.GetFrame(1); // Der Frame 1 ist der Aufrufer der Methode
-            string methodName = frame.GetMethod().Name;
-            string className = frame.GetMethod().DeclaringType.Name;
+            string callerInfo = $"{Path.GetFileNameWithoutExtension(callerFilePath)}.{callerMemberName}:{callerLineNumber}";
+            string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] [{callerInfo}] {message}{Environment.NewLine}";
+            logQueue.Add(logEntry);
+        }
 
-            string fullMessage = $"{DateTime.Now:dd.MM.yyyy HH:mm:ss} - {className}.{methodName} - {message}";
+        public Task LogAsync(
+            string message,
+            LogLevel level = LogLevel.Info,
+            [CallerMemberName] string callerMemberName = "",
+            [CallerFilePath] string callerFilePath = "",
+            [CallerLineNumber] int callerLineNumber = 0)
+        {
+            Log(message, level, callerMemberName, callerFilePath, callerLineNumber);
+            return Task.CompletedTask;
+        }
 
-            try
+        private async Task ProcessLogQueue()
+        {
+            foreach (var logEntry in logQueue.GetConsumingEnumerable(cts.Token))
             {
-                // Füge die Log-Nachricht in die Datei hinzu
-                File.AppendAllText(logFilePath, fullMessage + Environment.NewLine);
+                try
+                {
+                    await File.AppendAllTextAsync(logFilePath, logEntry);
+                }
+                catch
+                {
+                    // Fehler beim Schreiben ins Log ignorieren, um Endlosschleifen zu vermeiden
+                }
             }
-            catch (Exception ex)
-            {
-                // Logge Fehler, wenn etwas schief geht
-                Logger.Instance.Log($"Fehler: '{ex}'");
-            }
+        }
 
-            LogMessageReceived?.Invoke(fullMessage);
+        public void Dispose()
+        {
+            cts.Cancel();
+            logQueue.CompleteAdding();
+            try { logTask.Wait(); } catch { }
+            cts.Dispose();
+            logQueue.Dispose();
         }
     }
 }

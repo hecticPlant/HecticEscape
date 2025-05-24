@@ -1,16 +1,16 @@
 {
-    "Gruppe 1": {
-        "Date": "2025-02-02",
-        "Aktiv": true,
-        "Apps": [
-            {
-                "Name": "Spotify"
-            }
-        ],
-        "Websites": [
-            {
-                "Name": "youtube"
-            }
-        ]
-    }
+    "Gruppen": {
+        "Gruppe 1": {
+            "Date": "2025-02-02",
+            "Aktiv": true,
+            "Apps": [
+                { "Name": "Spotify" }
+            ],
+            "Websites": [
+                { "Name": "youtube" }
+            ]
+        }
+    },
+    "EnableWebsiteBlocking": true,
+    "EnableAppBlocking": true
 }

@@ -1,12 +1,16 @@
-﻿namespace ScreenZen
+﻿using System;
+
+namespace ScreenZen
 {
     /// <summary>
     /// Verwaltet die Websites und den Proxy
     /// </summary>
-    public class WebManager
+    public class WebManager : IDisposable
     {
         private ConfigReader configReader;
         private WebProxySZ webProxy;
+        private bool disposed = false;
+
         public bool IsProxyRunning => webProxy.IsProxyRunning;
         public event Action<bool> ProxyStatusChanged;
 
@@ -15,7 +19,7 @@
             this.configReader = configReader;
             this.webProxy = webProxy;
             SetBlockedList();
-            Logger.Instance.Log("Initialisiert");
+            Logger.Instance.Log("Initialisiert", LogLevel.Info);
 
             webProxy.ProxyStatusChanged += (status) =>
             {
@@ -50,8 +54,20 @@
         /// </summary>
         public void StartProxy()
         {
-            //SetBlockedList();
+            if (!configReader.GetWebsiteBlockingEnabled())
+            {
+                Logger.Instance.Log("Website-Blocking ist deaktiviert. Proxy wird nicht gestartet.", LogLevel.Info);
+                return;
+            }
             webProxy.StartProxy();
+        }
+
+        /// <summary>
+        /// Startet den Proxy 
+        /// </summary>
+        public async Task StartProxyAsync()
+        {
+            await webProxy.StartProxy();
         }
 
         /// <summary>
@@ -60,7 +76,14 @@
         public void StopProxy()
         {
             webProxy.StopProxy();
+        }
 
+        /// <summary>
+        /// Stoppe den Proxy
+        /// </summary>
+        public async Task StopProxyAsync()
+        {
+            await webProxy.StopProxy();
         }
 
         /// <summary>
@@ -68,6 +91,12 @@
         /// </summary>
         public void SetBlockedList()
         {
+            if (!configReader.GetWebsiteBlockingEnabled())
+            {
+                Logger.Instance.Log("Website-Blocking ist deaktiviert. Blocklist wird nicht gesetzt.", LogLevel.Info);
+                webProxy.SetBlockedDomains(new List<string>()); // Leere Liste setzen
+                return;
+            }
             try
             {
                 List<string> blockedDomains = new List<string>();
@@ -78,12 +107,39 @@
 
                 // Blockierte Domains im Proxy setzen
                 webProxy.SetBlockedDomains(blockedDomains);
+                Logger.Instance.Log("Blocklist erfolgreich gesetzt.", LogLevel.Info);
             }
             catch (Exception ex)
             {
-                Logger.Instance.Log($"Fehler beim Setzen der Blocklist: {ex.Message}");
+                Logger.Instance.Log($"Fehler beim Setzen der Blocklist: {ex.Message}", LogLevel.Error);
             }
         }
 
+        /// <summary>
+        /// Ressourcen aufräumen
+        /// </summary>
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (disposed) return;
+            if (disposing)
+            {
+                // Hier verwaltete Ressourcen freigeben
+                try
+                {
+                    StopProxy();
+                }
+                catch { /* Fehlerbehandlung optional */ }
+                // Falls WebProxySZ IDisposable implementiert:
+                (webProxy as IDisposable)?.Dispose();
+            }
+            // Hier ggf. unmanaged Ressourcen freigeben
+            disposed = true;
+        }
     }
 }

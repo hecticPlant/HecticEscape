@@ -13,142 +13,172 @@ namespace ScreenZen
 
         public ConfigReader()
         {
-            // Sicherstellen, dass die Datei existiert oder gültiges JSON enthält
+            Logger.Instance.Log("Starte Initialisierung des ConfigReaders.", LogLevel.Info);
+
             if (File.Exists(filePath))
             {
-                Logger.Instance.Log($" {filePath} exestiert.");
+                Logger.Instance.Log($"{filePath} existiert.", LogLevel.Info);
                 try
                 {
                     string json = File.ReadAllText(filePath);
-                    Logger.Instance.Log(json);
-                    _config = JsonSerializer.Deserialize<Config>(json);
+                    Logger.Instance.Log($"Config-Inhalt geladen: {json}", LogLevel.Debug);
+                    _config = JsonSerializer.Deserialize<Config>(json) ?? new Config { Gruppen = new Dictionary<string, Gruppe>(), EnableWebsiteBlocking = true, EnableAppBlocking = true };
 
-                    // Wenn die Datei leer oder ungültig ist, wird eine neue Struktur erstellt
-                    if (_config == null)
+                    if (_config.Gruppen == null || _config.Gruppen.Count == 0)
                     {
-                        Logger.Instance.Log("Ungültige oder leere Konfigurationsdatei. Eine neue Datei wird erstellt.");
+                        Logger.Instance.Log("Ungültige oder leere Konfigurationsdatei. Eine neue Datei wird erstellt.", LogLevel.Warn);
                         CreateDefaultConfig();
                     }
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.Log($"Fehler beim Laden oder Deserialisieren der Datei: {ex.Message}");
+                    Logger.Instance.Log($"Fehler beim Laden oder Deserialisieren der Datei: {ex.Message}", LogLevel.Error);
                     CreateDefaultConfig();
                 }
             }
             else
             {
-                // Wenn die Datei nicht existiert, eine neue leere Konfiguration erstellen
-                Logger.Instance.Log("Datei nicht gefunden. Erstelle eine neue.");
+                Logger.Instance.Log("Datei nicht gefunden. Erstelle eine neue Konfiguration.", LogLevel.Warn);
                 CreateDefaultConfig();
             }
-            Logger.Instance.Log("Initialisiert");
+            Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
         }
 
         private void CreateDefaultConfig()
         {
-            _config = new Config { Gruppen = new Dictionary<string, Gruppe>() };
+            Logger.Instance.Log("Erstelle Default-Konfiguration.", LogLevel.Info);
+            _config = new Config
+            {
+                Gruppen = new Dictionary<string, Gruppe>(),
+                EnableWebsiteBlocking = true,
+                EnableAppBlocking = true
+            };
             CreateGroup();
             SaveConfig();
-            Logger.Instance.Log("Eine neue Konfigurationsdatei wurde erstellt.");
+            Logger.Instance.Log("Eine neue Konfigurationsdatei wurde erstellt.", LogLevel.Info);
+        }
+
+        /// <summary>
+        /// Getter für Website-Blocking
+        /// </summary>
+        public bool GetWebsiteBlockingEnabled()
+        {
+            Logger.Instance.Log($"Abfrage: EnableWebsiteBlocking = {_config.EnableWebsiteBlocking}", LogLevel.Debug);
+            return _config.EnableWebsiteBlocking;
+        }
+
+        /// <summary>
+        /// Setter für Website-Blocking
+        /// </summary>
+        public void SetWebsiteBlockingEnabled(bool enabled)
+        {
+            Logger.Instance.Log($"Setze EnableWebsiteBlocking auf {enabled}.", LogLevel.Info);
+            _config.EnableWebsiteBlocking = enabled;
+            SaveConfig();
+        }
+
+        /// <summary>
+        /// Getter für App-Blocking
+        /// </summary>
+        public bool GetAppBlockingEnabled()
+        {
+            Logger.Instance.Log($"Abfrage: EnableAppBlocking = {_config.EnableAppBlocking}", LogLevel.Debug);
+            return _config.EnableAppBlocking;
+        }
+
+        /// <summary>
+        /// Setter für App-Blocking
+        /// </summary>
+        public void SetAppBlockingEnabled(bool enabled)
+        {
+            Logger.Instance.Log($"Setze EnableAppBlocking auf {enabled}.", LogLevel.Info);
+            _config.EnableAppBlocking = enabled;
+            SaveConfig();
         }
 
         /// <summary>
         /// Alle Gruppen als string
         /// </summary>
-        /// <returns></returns>
         public string GetAllGroups()
         {
-            // Prüfen, ob Gruppen null ist und falls ja, eine leere Zeichenkette zurückgeben
             if (_config.Gruppen == null)
             {
+                Logger.Instance.Log("GetAllGroups: Keine Gruppen vorhanden.", LogLevel.Warn);
                 return string.Empty;
             }
-
+            Logger.Instance.Log($"GetAllGroups: {_config.Gruppen.Count} Gruppen gefunden.", LogLevel.Debug);
             return string.Join(", ", _config.Gruppen.Keys);
         }
 
         /// <summary>
         /// Alle Websites, aus aktiven gruppen, als Liste
         /// </summary>
-        /// <returns></returns>
         public List<string> GetActiveGroupsDomains()
         {
             var activeDomains = new List<string>();
-
-            // Durchlaufe alle Gruppen und extrahiere die Domains, wenn sie aktiv sind
             foreach (var gruppe in _config.Gruppen)
             {
                 if (gruppe.Value.Aktiv)
                 {
-                    // Füge alle Websites dieser Gruppe zur Liste der aktiven Domains hinzu
                     foreach (var website in gruppe.Value.Websites)
                     {
                         activeDomains.Add(website.Name);
                     }
                 }
             }
-
+            Logger.Instance.Log($"GetActiveGroupsDomains: {activeDomains.Count} Domains gefunden.", LogLevel.Debug);
             return activeDomains;
         }
 
         /// <summary>
         /// Alle Apps, aus aktiven gruppen, als Liste
         /// </summary>
-        /// <returns></returns>
         public List<string> GetActiveGroupsApps()
         {
             var activeApps = new List<string>();
-
-            // Durchlaufe alle Gruppen und extrahiere die Apps, wenn sie aktiv sind
             foreach (var gruppe in _config.Gruppen)
             {
                 if (gruppe.Value.Aktiv)
                 {
-                    // Füge alle Apps dieser Gruppe zur Liste der aktiven Apps hinzu
                     foreach (var app in gruppe.Value.Apps)
                     {
                         activeApps.Add(app.Name);
                     }
                 }
             }
-
+            Logger.Instance.Log($"GetActiveGroupsApps: {activeApps.Count} Apps gefunden.", LogLevel.Debug);
             return activeApps;
         }
 
         /// <summary>
         /// Alle Websites aus einer bestimmten Gruppe als string
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
         public string GetWebsitesFromGroup(string groupName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
             {
                 var websites = _config.Gruppen[groupName].Websites;
                 var websiteNames = websites.Select(w => w.Name).ToList();
+                Logger.Instance.Log($"GetWebsitesFromGroup: {websiteNames.Count} Websites in '{groupName}'.", LogLevel.Debug);
                 return string.Join(", ", websiteNames);
             }
-
-            Logger.Instance.Log($"{groupName} nicht gefunden");
+            Logger.Instance.Log($"GetWebsitesFromGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return string.Empty;
         }
 
         /// <summary>
         /// Alle Apps aus einer bestimmten Gruppe als string
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
         public string GetAppsFromGroup(string groupName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
             {
                 var apps = _config.Gruppen[groupName].Apps;
                 var appNames = apps.Select(a => a.Name).ToList();
+                Logger.Instance.Log($"GetAppsFromGroup: {appNames.Count} Apps in '{groupName}'.", LogLevel.Debug);
                 return string.Join(", ", appNames);
             }
-
-            Logger.Instance.Log($"{groupName} nicht gefunden");
+            Logger.Instance.Log($"GetAppsFromGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return string.Empty;
         }
 
@@ -157,7 +187,6 @@ namespace ScreenZen
         /// </summary>
         public void CreateGroup()
         {
-            // Bestimme den Namen der neuen Gruppe, basierend auf der höchsten existierenden Gruppen-ID
             int groupNumber = _config.Gruppen.Keys
                 .Select(key => key.StartsWith("Gruppe") ? int.Parse(key.Split(' ')[1]) : 0)
                 .DefaultIfEmpty(0)
@@ -167,7 +196,6 @@ namespace ScreenZen
             string date = DateTime.Now.ToString("yyyy-MM-dd");
             bool aktiv = true;
 
-            // Erstelle die neue Gruppe
             _config.Gruppen[groupName] = new Gruppe
             {
                 Date = date,
@@ -176,16 +204,13 @@ namespace ScreenZen
                 Websites = new List<Website>()
             };
 
-            Logger.Instance.Log($"Gruppe '{groupName}' wurde erstellt.");
+            Logger.Instance.Log($"Neue Gruppe erstellt: '{groupName}' am {date}.", LogLevel.Info);
             SaveConfig();
         }
 
         /// <summary>
         /// Eine App zu einer bestehenden Gruppe hinzufügen
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="appName"></param>
-        /// <returns></returns>
         public bool AddAppToGroup(string groupName, string appName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -193,24 +218,20 @@ namespace ScreenZen
                 if (!_config.Gruppen[groupName].Apps.Any(a => a.Name.Equals(appName, StringComparison.OrdinalIgnoreCase)))
                 {
                     _config.Gruppen[groupName].Apps.Add(new AppSZ { Name = appName });
-                    Logger.Instance.Log($"App '{appName}' wurde zu der Gruppe '{groupName}' hinzugefügt.");
+                    Logger.Instance.Log($"App '{appName}' zu Gruppe '{groupName}' hinzugefügt.", LogLevel.Info);
                     SaveConfig();
                     return true;
                 }
-                Logger.Instance.Log($"App '{appName}' existiert bereits in der Gruppe '{groupName}'.");
+                Logger.Instance.Log($"App '{appName}' existiert bereits in Gruppe '{groupName}'.", LogLevel.Warn);
                 return false;
             }
-
-            Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+            Logger.Instance.Log($"AddAppToGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return false;
         }
 
         /// <summary>
         /// Eine Website zu einer bestehenden Gruppe hinzufügen
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="websiteName"></param>
-        /// <returns></returns>
         public bool AddWebsiteToGroup(string groupName, string websiteName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -219,14 +240,13 @@ namespace ScreenZen
                 {
                     _config.Gruppen[groupName].Websites.Add(new Website { Name = websiteName });
                     SaveConfig();
-                    Logger.Instance.Log($"Website '{websiteName}' wurde zu der Gruppe '{groupName}' hinzugefügt.");
+                    Logger.Instance.Log($"Website '{websiteName}' zu Gruppe '{groupName}' hinzugefügt.", LogLevel.Info);
                     return true;
                 }
-                Logger.Instance.Log($"Website '{websiteName}' existiert bereits in der Gruppe '{groupName}'.");
+                Logger.Instance.Log($"Website '{websiteName}' existiert bereits in Gruppe '{groupName}'.", LogLevel.Warn);
                 return false;
             }
-
-            Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+            Logger.Instance.Log($"AddWebsiteToGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return false;
         }
 
@@ -235,27 +255,33 @@ namespace ScreenZen
         /// </summary>
         public void SaveConfig()
         {
-            string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
-            System.IO.File.WriteAllText(filePath, json);
+            try
+            {
+                string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(filePath, json);
+                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Speichern der Konfiguration: {ex.Message}", LogLevel.Error);
+            }
         }
 
         /// <summary>
         /// Löscht eine Gruppe
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <returns></returns>
         public bool DeleteGroup(string groupName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
             {
                 _config.Gruppen.Remove(groupName);
-                Logger.Instance.Log($"Gruppe '{groupName}' wurde gelöscht.");
+                Logger.Instance.Log($"Gruppe '{groupName}' gelöscht.", LogLevel.Info);
                 SaveConfig();
                 return true;
             }
             else
             {
-                Logger.Instance.Log($"Gruppe '{groupName}' existiert nicht.");
+                Logger.Instance.Log($"DeleteGroup: Gruppe '{groupName}' existiert nicht.", LogLevel.Warn);
                 return false;
             }
         }
@@ -263,9 +289,6 @@ namespace ScreenZen
         /// <summary>
         /// App aus einer Gruppe löschen
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="appName"></param>
-        /// <returns></returns>
         public bool DeleteAppFromGroup(string groupName, string appName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -275,27 +298,23 @@ namespace ScreenZen
                 if (app != null)
                 {
                     apps.Remove(app);
-                    Logger.Instance.Log($"App '{appName}' wurde aus der Gruppe '{groupName}' gelöscht.");
+                    Logger.Instance.Log($"App '{appName}' aus Gruppe '{groupName}' gelöscht.", LogLevel.Info);
                     SaveConfig();
                     return true;
                 }
                 else
                 {
-                    Logger.Instance.Log($"App '{appName}' nicht in der Gruppe '{groupName}' gefunden.");
+                    Logger.Instance.Log($"DeleteAppFromGroup: App '{appName}' nicht in Gruppe '{groupName}' gefunden.", LogLevel.Warn);
                     return false;
                 }
             }
-
-            Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+            Logger.Instance.Log($"DeleteAppFromGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return false;
         }
 
         /// <summary>
         /// Website aus einer Gruppe löschen
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="websiteName"></param>
-        /// <returns></returns>
         public bool DeleteWebsiteFromGroup(string groupName, string websiteName)
         {
             if (_config.Gruppen.ContainsKey(groupName))
@@ -305,50 +324,61 @@ namespace ScreenZen
                 if (website != null)
                 {
                     websites.Remove(website);
-                    Logger.Instance.Log($"Website '{websiteName}' wurde aus der Gruppe '{groupName}' gelöscht.");
+                    Logger.Instance.Log($"Website '{websiteName}' aus Gruppe '{groupName}' gelöscht.", LogLevel.Info);
                     SaveConfig();
                     return true;
                 }
                 else
                 {
-                    Logger.Instance.Log($"Website '{websiteName}' nicht in der Gruppe '{groupName}' gefunden.");
+                    Logger.Instance.Log($"DeleteWebsiteFromGroup: Website '{websiteName}' nicht in Gruppe '{groupName}' gefunden.", LogLevel.Warn);
                     return false;
                 }
             }
-
-            Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+            Logger.Instance.Log($"DeleteWebsiteFromGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return false;
         }
 
         /// <summary>
         /// Aktivität einer Gruppe ändern
         /// </summary>
-        /// <param name="groupName"></param>
-        /// <param name="isActive"></param>
-        /// <returns></returns>
         public bool SetActiveStatus(string groupName, bool isActive)
         {
             if (_config.Gruppen.ContainsKey(groupName))
             {
                 _config.Gruppen[groupName].Aktiv = isActive;
-                Logger.Instance.Log($"Der Aktivitätsstatus der Gruppe '{groupName}' wurde auf {isActive} gesetzt.");
+                Logger.Instance.Log($"Aktivitätsstatus der Gruppe '{groupName}' auf {isActive} gesetzt.", LogLevel.Info);
                 SaveConfig();
                 return true;
             }
             else
             {
-                Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+                Logger.Instance.Log($"SetActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
                 return false;
             }
         }
 
         public bool ReadActiveStatus(string groupName)
         {
-            if(_config.Gruppen.ContainsKey(groupName))
+            if (_config.Gruppen.ContainsKey(groupName))
             {
+                Logger.Instance.Log($"ReadActiveStatus: Gruppe '{groupName}' ist {( _config.Gruppen[groupName].Aktiv ? "aktiv" : "inaktiv")}.", LogLevel.Debug);
                 return _config.Gruppen[groupName].Aktiv;
             }
-            Logger.Instance.Log($"Gruppe '{groupName}' wurde nicht gefunden.");
+            Logger.Instance.Log($"ReadActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
+            return false;
+        }
+
+        /// <summary>
+        /// Lese den Aktivitätsstatus einer Gruppe aus der Config.json
+        /// </summary>
+        public bool GetGroupActiveStatus(string groupName)
+        {
+            if (_config.Gruppen.ContainsKey(groupName))
+            {
+                Logger.Instance.Log($"GetGroupActiveStatus: Gruppe '{groupName}' ist {( _config.Gruppen[groupName].Aktiv ? "aktiv" : "inaktiv")}.", LogLevel.Debug);
+                return _config.Gruppen[groupName].Aktiv;
+            }
+            Logger.Instance.Log($"GetGroupActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return false;
         }
     }

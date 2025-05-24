@@ -1,49 +1,39 @@
-﻿public class ContainerSZ
+﻿using System;
+using System.Collections.Generic;
+
+namespace ScreenZen
 {
-    private readonly Dictionary<Type, Func<object>> _registrations = new Dictionary<Type, Func<object>>();
-    private readonly Dictionary<Type, object> _singletons = new Dictionary<Type, object>();
-
-    // Registrierung eines Typs mit einer Factory-Methode (optional als Singleton)
-    public void Register<TService>(Func<TService> factory, bool asSingleton = false)
+    public class ContainerSZ
     {
-        if (asSingleton)
+        private readonly Dictionary<Type, object> _singletons = new();
+        private readonly Dictionary<Type, Func<object>> _registrations = new();
+
+        public void RegisterSingleton<T>(T instance)
         {
-            var lazyInstance = new Lazy<object>(() => factory());
-            _singletons[typeof(TService)] = lazyInstance.Value;
-        }
-        else
-        {
-            _registrations[typeof(TService)] = () => factory();
-        }
-    }
-
-    // Registrierung eines Typs, der selbst instanziiert wird (optional als Singleton)
-    public void Register<TService>(bool asSingleton = false) where TService : new()
-    {
-        Register(() => new TService(), asSingleton);
-    }
-
-    // Registrierung eines expliziten Singleton-Objekts
-    public void RegisterSingleton<TService>(TService instance)
-    {
-        _singletons[typeof(TService)] = instance;
-    }
-
-    // Auflösung eines Typs
-    public TService Resolve<TService>()
-    {
-        Type serviceType = typeof(TService);
-
-        if (_singletons.ContainsKey(serviceType))
-        {
-            return (TService)_singletons[serviceType];
+            if (instance == null)
+                throw new ArgumentNullException(nameof(instance), "Die Instanz darf nicht null sein.");
+            
+            Logger.Instance.Log($"RegisterSingleton: {typeof(T).Name}", LogLevel.Debug);
+            _singletons[typeof(T)] = instance;
         }
 
-        if (_registrations.TryGetValue(serviceType, out var factory))
+        public void Register<T>(Func<T> factory)
         {
-            return (TService)factory();
+            if (factory == null)
+                throw new ArgumentNullException(nameof(factory), "Die Factory-Funktion darf nicht null sein.");
+            
+            Logger.Instance.Log($"Register Factory: {typeof(T).Name}", LogLevel.Debug);
+            _registrations[typeof(T)] = () => factory()!;
         }
 
-        throw new InvalidOperationException($"Service {serviceType.Name} wurde nicht registriert.");
+        public T Resolve<T>()
+        {
+            Logger.Instance.Log($"Resolve: {typeof(T).Name}", LogLevel.Debug);
+            if (_singletons.TryGetValue(typeof(T), out var singleton))
+                return (T)singleton;
+            if (_registrations.TryGetValue(typeof(T), out var factory))
+                return (T)factory();
+            throw new InvalidOperationException($"Typ {typeof(T).Name} nicht registriert.");
+        }
     }
 }
