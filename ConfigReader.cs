@@ -1,4 +1,5 @@
 ﻿using System.IO;
+using System.Security.RightsManagement;
 using System.Text.Json;
 
 namespace ScreenZen
@@ -21,8 +22,15 @@ namespace ScreenZen
                 try
                 {
                     string json = File.ReadAllText(filePath);
-                    Logger.Instance.Log($"Config-Inhalt geladen: {json}", LogLevel.Debug);
+                    Logger.Instance.Log($"Config-Inhalt geladen: {json}", LogLevel.Info);
                     _config = JsonSerializer.Deserialize<Config>(json) ?? new Config { Gruppen = new Dictionary<string, Gruppe>(), EnableWebsiteBlocking = true, EnableAppBlocking = true };
+
+                    if (_config.IntervalFreeMs <= 0)
+                        _config.IntervalFreeMs = 2 * 3600 * 1000;
+                    if (_config.IntervalBreakMs <= 0)
+                        _config.IntervalBreakMs = 15 * 60 * 1000;
+                    if (_config.IntervalCheckMs <= 0)
+                        _config.IntervalCheckMs = 1000;
 
                     if (_config.Gruppen == null || _config.Gruppen.Count == 0)
                     {
@@ -41,6 +49,15 @@ namespace ScreenZen
                 Logger.Instance.Log("Datei nicht gefunden. Erstelle eine neue Konfiguration.", LogLevel.Warn);
                 CreateDefaultConfig();
             }
+            try
+            {
+                Logger.Instance.IsDebugEnabled = GetEnableDebugMode();
+                Logger.Instance.Log($"Debug-Modus ist {(Logger.Instance.IsDebugEnabled ? "aktiviert" : "deaktiviert")}.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen des Debug-Modus: {ex.Message}", LogLevel.Error);
+            }
             Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
         }
 
@@ -51,12 +68,39 @@ namespace ScreenZen
             {
                 Gruppen = new Dictionary<string, Gruppe>(),
                 EnableWebsiteBlocking = true,
-                EnableAppBlocking = true
+                EnableAppBlocking = true,
+                StartTimerAtStartup = false,
+                IntervalFreeMs = 2 * 3600 * 1000,
+                IntervalBreakMs = 15 * 60 * 1000,
+                IntervalCheckMs = 1000,
+                EnableDebugMode = true,
             };
             CreateGroup();
             SaveConfig();
             Logger.Instance.Log("Eine neue Konfigurationsdatei wurde erstellt.", LogLevel.Info);
+            string json = File.ReadAllText(filePath);
+            Logger.Instance.Log($"Neue Config-Inhalte: {json}", LogLevel.Info);
+
         }
+        
+        /// <summary>
+        /// Änderungen in der Datei speichern
+        /// </summary>
+        public void SaveConfig()
+        {
+            try
+            {
+                string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
+                File.WriteAllText(filePath, json);
+                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Speichern der Konfiguration: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        ///-------- GETTER UND SETTER FÜR KONFIGURATIONSELEMENTE --------//
 
         /// <summary>
         /// Getter für Website-Blocking
@@ -72,7 +116,7 @@ namespace ScreenZen
         /// </summary>
         public void SetWebsiteBlockingEnabled(bool enabled)
         {
-            Logger.Instance.Log($"Setze EnableWebsiteBlocking auf {enabled}.", LogLevel.Info);
+            Logger.Instance.Log($"Setze EnableWebsiteBlocking auf {enabled}.", LogLevel.Debug);
             _config.EnableWebsiteBlocking = enabled;
             SaveConfig();
         }
@@ -86,13 +130,75 @@ namespace ScreenZen
             return _config.EnableAppBlocking;
         }
 
-        /// <summary>
-        /// Setter für App-Blocking
-        /// </summary>
         public void SetAppBlockingEnabled(bool enabled)
         {
-            Logger.Instance.Log($"Setze EnableAppBlocking auf {enabled}.", LogLevel.Info);
+            Logger.Instance.Log($"Setze EnableAppBlocking auf {enabled}.", LogLevel.Debug);
             _config.EnableAppBlocking = enabled;
+            SaveConfig();
+        }
+
+        public int GetIntervalFreeMs()
+        {
+            Logger.Instance.Log($"Abfrage: IntervalFreeMs = {_config.IntervalFreeMs}", LogLevel.Debug);
+            return _config.IntervalFreeMs;
+        }
+
+        public int GetIntervalBreakMs()
+        {
+            Logger.Instance.Log($"Abfrage: IntervalBreakMs = {_config.IntervalBreakMs}", LogLevel.Debug);
+            return _config.IntervalBreakMs; 
+        }
+
+        public int GetIntervalCheckMs()
+        {
+            Logger.Instance.Log($"Abfrage: IntervalCheckMs = {_config.IntervalCheckMs}", LogLevel.Debug);
+            return _config.IntervalCheckMs;
+        }
+
+        public bool GetStartTimerAtStartup()
+        {
+            Logger.Instance.Log($"Abfrage: StartTimerAtStartup = {_config.StartTimerAtStartup}", LogLevel.Debug);
+            return _config.StartTimerAtStartup;
+        }
+
+        public void SetStartTimerAtStartup(bool value)
+        {
+            _config.StartTimerAtStartup = value;
+            Logger.Instance.Log($"Setze StartTimerAtStartup auf {value}.", LogLevel.Debug);
+            SaveConfig();
+        }
+
+        public void SetIntervalFreeMs(int value)
+        {   
+            _config.IntervalFreeMs = value;
+            Logger.Instance.Log($"Setze IntervalFreeMs auf {value} ms.", LogLevel.Debug);
+            SaveConfig();
+        }
+
+        public void SetIntervalBreakMs(int value)
+        {           
+            _config.IntervalBreakMs = value;
+            Logger.Instance.Log($"Setze IntervalBreakMs auf {value} ms.", LogLevel.Debug);
+            SaveConfig();
+        }
+
+        public void SetIntervalCheckMs(int value)
+        {          
+            _config.IntervalCheckMs = value;
+            Logger.Instance.Log($"Setze IntervalCheckMs auf {value} ms.", LogLevel.Debug);
+            SaveConfig();
+        }
+
+        public bool GetEnableDebugMode()
+        {
+            Logger.Instance.Log($"Abfrage: EnableDebugMode = {_config.EnableDebugMode}", LogLevel.Debug);
+            return _config.EnableDebugMode;
+        }
+
+        public void SetEnableDebugMode(bool value)
+        {   
+            _config.EnableDebugMode = value;
+            Logger.Instance.Log($"Setze EnableDebugMode auf {value}.", LogLevel.Info);
             SaveConfig();
         }
 
@@ -109,6 +215,99 @@ namespace ScreenZen
             Logger.Instance.Log($"GetAllGroups: {_config.Gruppen.Count} Gruppen gefunden.", LogLevel.Debug);
             return string.Join(", ", _config.Gruppen.Keys);
         }
+
+        ///-------- Gruppen Management --------//
+
+        /// <summary>
+        /// Erstellt eine neue Gruppe
+        /// </summary>
+        public void CreateGroup()
+        {
+            int groupNumber = _config.Gruppen.Keys
+                .Select(key => key.StartsWith("Gruppe") ? int.Parse(key.Split(' ')[1]) : 0)
+                .DefaultIfEmpty(0)
+                .Max() + 1;
+
+            string groupName = $"Gruppe {groupNumber}";
+            string date = DateTime.Now.ToString("yyyy-MM-dd");
+            bool aktiv = true;
+
+            _config.Gruppen[groupName] = new Gruppe
+            {
+                Date = date,
+                Aktiv = aktiv,
+                Apps = new List<AppSZ>(),
+                Websites = new List<Website>()
+            };
+
+            Logger.Instance.Log($"Neue Gruppe erstellt: '{groupName}' am {date}.", LogLevel.Info);
+            SaveConfig();
+        }
+
+        /// <summary>
+        /// Löscht eine Gruppe
+        /// </summary>
+        public bool DeleteGroup(string groupName)
+        {
+            if (_config.Gruppen.ContainsKey(groupName))
+            {
+                _config.Gruppen.Remove(groupName);
+                Logger.Instance.Log($"Gruppe '{groupName}' gelöscht.", LogLevel.Info);
+                SaveConfig();
+                return true;
+            }
+            else
+            {
+                Logger.Instance.Log($"DeleteGroup: Gruppe '{groupName}' existiert nicht.", LogLevel.Warn);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Aktivität einer Gruppe ändern
+        /// </summary>
+        public bool SetActiveStatus(string groupName, bool isActive)
+        {
+            if (_config.Gruppen.ContainsKey(groupName))
+            {
+                _config.Gruppen[groupName].Aktiv = isActive;
+                Logger.Instance.Log($"Aktivitätsstatus der Gruppe '{groupName}' auf {isActive} gesetzt.", LogLevel.Info);
+                SaveConfig();
+                return true;
+            }
+            else
+            {
+                Logger.Instance.Log($"SetActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
+                return false;
+            }
+        }
+
+        public bool ReadActiveStatus(string groupName)
+        {
+            if (_config.Gruppen.ContainsKey(groupName))
+            {
+                Logger.Instance.Log($"ReadActiveStatus: Gruppe '{groupName}' ist {( _config.Gruppen[groupName].Aktiv ? "aktiv" : "inaktiv")}.", LogLevel.Debug);
+                return _config.Gruppen[groupName].Aktiv;
+            }
+            Logger.Instance.Log($"ReadActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
+            return false;
+        }
+
+        /// <summary>
+        /// Lese den Aktivitätsstatus einer Gruppe aus der Config.json
+        /// </summary>
+        public bool GetGroupActiveStatus(string groupName)
+        {
+            if (_config.Gruppen.ContainsKey(groupName))
+            {
+                Logger.Instance.Log($"GetGroupActiveStatus: Gruppe '{groupName}' ist {( _config.Gruppen[groupName].Aktiv ? "aktiv" : "inaktiv")}.", LogLevel.Debug);
+                return _config.Gruppen[groupName].Aktiv;
+            }
+            Logger.Instance.Log($"GetGroupActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
+            return false;
+        }
+
+        ///-------- App/Website-Management --------//
 
         /// <summary>
         /// Alle Websites, aus aktiven gruppen, als Liste
@@ -183,32 +382,6 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Erstellt eine neue Gruppe
-        /// </summary>
-        public void CreateGroup()
-        {
-            int groupNumber = _config.Gruppen.Keys
-                .Select(key => key.StartsWith("Gruppe") ? int.Parse(key.Split(' ')[1]) : 0)
-                .DefaultIfEmpty(0)
-                .Max() + 1;
-
-            string groupName = $"Gruppe {groupNumber}";
-            string date = DateTime.Now.ToString("yyyy-MM-dd");
-            bool aktiv = true;
-
-            _config.Gruppen[groupName] = new Gruppe
-            {
-                Date = date,
-                Aktiv = aktiv,
-                Apps = new List<AppSZ>(),
-                Websites = new List<Website>()
-            };
-
-            Logger.Instance.Log($"Neue Gruppe erstellt: '{groupName}' am {date}.", LogLevel.Info);
-            SaveConfig();
-        }
-
-        /// <summary>
         /// Eine App zu einer bestehenden Gruppe hinzufügen
         /// </summary>
         public bool AddAppToGroup(string groupName, string appName)
@@ -248,42 +421,6 @@ namespace ScreenZen
             }
             Logger.Instance.Log($"AddWebsiteToGroup: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
             return false;
-        }
-
-        /// <summary>
-        /// Änderungen in der Datei speichern
-        /// </summary>
-        public void SaveConfig()
-        {
-            try
-            {
-                string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(filePath, json);
-                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Info);
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Speichern der Konfiguration: {ex.Message}", LogLevel.Error);
-            }
-        }
-
-        /// <summary>
-        /// Löscht eine Gruppe
-        /// </summary>
-        public bool DeleteGroup(string groupName)
-        {
-            if (_config.Gruppen.ContainsKey(groupName))
-            {
-                _config.Gruppen.Remove(groupName);
-                Logger.Instance.Log($"Gruppe '{groupName}' gelöscht.", LogLevel.Info);
-                SaveConfig();
-                return true;
-            }
-            else
-            {
-                Logger.Instance.Log($"DeleteGroup: Gruppe '{groupName}' existiert nicht.", LogLevel.Warn);
-                return false;
-            }
         }
 
         /// <summary>
@@ -338,48 +475,6 @@ namespace ScreenZen
             return false;
         }
 
-        /// <summary>
-        /// Aktivität einer Gruppe ändern
-        /// </summary>
-        public bool SetActiveStatus(string groupName, bool isActive)
-        {
-            if (_config.Gruppen.ContainsKey(groupName))
-            {
-                _config.Gruppen[groupName].Aktiv = isActive;
-                Logger.Instance.Log($"Aktivitätsstatus der Gruppe '{groupName}' auf {isActive} gesetzt.", LogLevel.Info);
-                SaveConfig();
-                return true;
-            }
-            else
-            {
-                Logger.Instance.Log($"SetActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
-                return false;
-            }
-        }
-
-        public bool ReadActiveStatus(string groupName)
-        {
-            if (_config.Gruppen.ContainsKey(groupName))
-            {
-                Logger.Instance.Log($"ReadActiveStatus: Gruppe '{groupName}' ist {( _config.Gruppen[groupName].Aktiv ? "aktiv" : "inaktiv")}.", LogLevel.Debug);
-                return _config.Gruppen[groupName].Aktiv;
-            }
-            Logger.Instance.Log($"ReadActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
-            return false;
-        }
-
-        /// <summary>
-        /// Lese den Aktivitätsstatus einer Gruppe aus der Config.json
-        /// </summary>
-        public bool GetGroupActiveStatus(string groupName)
-        {
-            if (_config.Gruppen.ContainsKey(groupName))
-            {
-                Logger.Instance.Log($"GetGroupActiveStatus: Gruppe '{groupName}' ist {( _config.Gruppen[groupName].Aktiv ? "aktiv" : "inaktiv")}.", LogLevel.Debug);
-                return _config.Gruppen[groupName].Aktiv;
-            }
-            Logger.Instance.Log($"GetGroupActiveStatus: Gruppe '{groupName}' nicht gefunden.", LogLevel.Warn);
-            return false;
-        }
+       
     }
 }

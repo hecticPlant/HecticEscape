@@ -20,7 +20,6 @@ namespace ScreenZen
         private readonly DispatcherTimer statusUpdateTimer = new();
         private NotifyIcon _notifyIcon;
         private bool _closeToTray = true; // Optional: Verhalten steuern
-        private bool _isDebugMode = false;
 
         // Parameterloser Konstruktor (XAML)
         public MainWindow() : this(
@@ -31,6 +30,7 @@ namespace ScreenZen
             ResolveDependency<ConfigReader>("ConfigReader"))
         {
             Logger.Instance.Log("MainWindow Konstruktor (XAML) aufgerufen", LogLevel.Debug);
+            UpdateStatusTextBlocks();
         }
 
         private static T ResolveDependency<T>(string dependencyName) where T : class
@@ -109,6 +109,8 @@ namespace ScreenZen
 
             WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
             ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
+
+            StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
 
             Closing += MainWindow_Closing;
 
@@ -279,7 +281,7 @@ namespace ScreenZen
             // Debug-Status
             if (DebugStatusTextBlock != null)
             {
-                if (_isDebugMode)
+                if (_configReader.GetEnableDebugMode())
                 {
                     DebugStatusTextBlock.Text = "Debug an";
                     DebugStatusTextBlock.Foreground = Brushes.Red;
@@ -488,9 +490,9 @@ namespace ScreenZen
         private void ListTimers()
         {
             TimerTypeComboBox?.Items.Clear();
-            TimerTypeComboBox?.Items.Add("Timer Intervall");
-            TimerTypeComboBox?.Items.Add("Timer Pause");
-            TimerTypeComboBox?.Items.Add("Timer Check");
+            TimerTypeComboBox?.Items.Add("Freizeit");
+            TimerTypeComboBox?.Items.Add("Pause");
+            TimerTypeComboBox?.Items.Add("Check");
             if (TimerTypeComboBox != null)
             {
                 TimerTypeComboBox.SelectedIndex = 0; // Intervalltimer als Standard
@@ -508,27 +510,35 @@ namespace ScreenZen
                 Logger.Instance.Log($"Kein Timer gewählt");
                 return;
             }
-            if (!int.TryParse(TimerCurrentTimeTextBox?.Text, out int time))
+
+            // Eingabe im Format hh:mm:ss parsen
+            if (!TimeSpan.TryParse(TimerCurrentTimeMaskedBox?.Text, out var timeSpan))
             {
-                MessageBox.Show($"Die Zeit muss eine Zahl sein", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
-                Logger.Instance.Log($"Versuche '{selectedTimer}' auf '{TimerCurrentTimeTextBox?.Text}' zu setzen, aber das ist kein int32.");
+                MessageBox.Show("Bitte geben Sie die Zeit im Format hh:mm:ss ein.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Ungültiges Zeitformat: '{TimerCurrentTimeMaskedBox?.Text}'");
                 return;
             }
+            int timeInSeconds = (int)timeSpan.TotalSeconds;
+
             switch (selectedTimer)
             {
-                case "Timer Intervall":
-                    _timeManagement.SetTimerTime("i", time);
+                case "Freizeit":
+                    _timeManagement.SetTimerTime("i", timeInSeconds);
                     break;
-                case "Timer Pause":
-                    _timeManagement.SetTimerTime("p", time);
+                case "Pause":
+                    _timeManagement.SetTimerTime("p", timeInSeconds);
                     break;
-                case "Timer Check":
-                    _timeManagement.SetTimerTime("c", time);
+                case "Check":
+                    _timeManagement.SetTimerTime("c", timeInSeconds);
                     break;
                 default:
                     Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
                     break;
             }
+
+            // Nach dem Setzen des Timers
+            if (TimerDurationTextBox != null)
+                TimerDurationTextBox.Text = timeSpan.ToString(@"hh\:mm\:ss");
         }
 
         private void StartTimerButton_Click(object sender, RoutedEventArgs e)
@@ -601,25 +611,34 @@ namespace ScreenZen
 
             if (TimerTypeComboBox?.SelectedItem is string selectedTimer)
             {
+                int seconds = 0;
                 switch (selectedTimer)
                 {
-                    case "Timer Intervall":
-                        if (TimerDurationTextBox != null)
-                            TimerDurationTextBox.Text = _timeManagement.GetIntervalFree().ToString();
+                    case "Freizeit":
+                        seconds = _timeManagement.GetIntervalFree();
                         break;
-                    case "Timer Pause":
-                        if (TimerDurationTextBox != null)
-                            TimerDurationTextBox.Text = _timeManagement.GetIntervalBreak().ToString();
+                    case "Pause":
+                        seconds = _timeManagement.GetIntervalBreak();
                         break;
-                    case "Timer Check":
-                        if (TimerDurationTextBox != null)
-                            TimerDurationTextBox.Text = _timeManagement.GetIntervalCheck().ToString();
+                    case "Check":
+                        seconds = _timeManagement.GetIntervalCheck();
                         break;
                     default:
-                        if (TimerDurationTextBox != null)
-                            TimerDurationTextBox.Text = "";
+                        seconds = 0;
                         break;
                 }
+                if (TimerDurationTextBox != null)
+                    TimerDurationTextBox.Text = TimeSpan.FromSeconds(seconds).ToString(@"hh\:mm\:ss");
+            }
+        }
+
+        private void StartTimerWithDuration()
+        {
+            int minutes = 0;
+            if (int.TryParse(TimerDurationTextBox.Text, out minutes))
+            {
+                int durationInSeconds = minutes * 60;
+                // Timer mit durationInSeconds starten
             }
         }
 
@@ -651,12 +670,15 @@ namespace ScreenZen
         }
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-            _isDebugMode = !_isDebugMode;
-            if (_isDebugMode)
+            
+            _configReader.SetEnableDebugMode(!_configReader.GetEnableDebugMode());
+            _configReader.SaveConfig();
+
+            if (_configReader.GetEnableDebugMode())
             {
                 _timeManagement?.SetTimerTime("p", 45);
                 _timeManagement?.SetTimerTime("i", 15);
-                Logger.Instance.Log("Debug: Pause auf 45 Sekunden und Intervall auf 15 Sekunden gesetzt.");
+                Logger.Instance.Log("Debug-Modus aktiviert: Pause = 45s, Intervall = 15s", LogLevel.Info);
             }
             UpdateStatusTextBlocks();
         }
@@ -690,6 +712,23 @@ namespace ScreenZen
             // Arbeitszeit-Timer starten (freie Zeit)
             _timeManagement?.StartTimer("i");
             Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Info);
+        }
+
+        private void StartTimerAtStartupCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetStartTimerAtStartup(true);
+        }
+
+        private void StartTimerAtStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetStartTimerAtStartup(false);
+        }
+
+        private void UpdateTimerIntervals(int freeMs, int breakMs, int checkMs)
+        {
+            _configReader.SetIntervalFreeMs(freeMs);
+            _configReader.SetIntervalBreakMs(breakMs);
+            _configReader.SetIntervalCheckMs(checkMs);
         }
 
         // -------------------- Overlay --------------------

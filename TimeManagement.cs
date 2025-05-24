@@ -11,6 +11,7 @@
         private AppManager appManager;
         private WebManager webManager;
         private readonly Overlay _overlay;
+        private readonly ConfigReader configReader;
 
         // Timer für Arbeitszeit, Pausenzeit und Prüfintervall
         private System.Timers.Timer workTimer;
@@ -19,9 +20,11 @@
         private System.Timers.Timer overlayAnnounceTimer;
 
         // Intervalle in Millisekunden
-        private int intervalFreeMs = 2 * 3600 * 1000;
-        private int intervalBreakMs = 15 * 60 * 1000;
-        private int intervalCheckMs = 1000;
+        private int intervalFreeMs;
+        private int intervalBreakMs;
+        private int intervalCheckMs;
+
+        private bool startTimerAtStartup;
 
         private bool isBreakActive = false;
 
@@ -40,11 +43,27 @@
         };
         private HashSet<TimeSpan> alreadyAnnounced = new();
 
-        public TimeManagement(AppManager appManager, WebManager webManager, Overlay overlay)
+        public TimeManagement(AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader)
         {
             this.webManager = webManager;
             this.appManager = appManager;
             this._overlay = overlay;
+            this.configReader = configReader; // Zuweisung des übergebenen Parameters
+
+            // Werte aus der Config laden
+            intervalFreeMs = configReader.GetIntervalFreeMs();
+            if (intervalFreeMs <= 0)
+                throw new ArgumentException("IntervalFreeMs muss größer als 0 sein.");
+
+            intervalBreakMs = configReader.GetIntervalBreakMs();
+            if (intervalBreakMs <= 0)
+                throw new ArgumentException("IntervalBreakMs muss größer als 0 sein.");
+
+            intervalCheckMs = configReader.GetIntervalCheckMs();
+            if (intervalCheckMs <= 0)
+                throw new ArgumentException("IntervalCheckMs muss größer als 0 sein.");
+
+            startTimerAtStartup = configReader.GetStartTimerAtStartup();
 
             // Timer-Initialisierung
             workTimer = new System.Timers.Timer(intervalFreeMs);
@@ -65,6 +84,11 @@
 
             webManager.ProxyStatusChanged += OnProxyStatusChanged;
             Logger.Instance.Log("TimeManagement initialisiert", LogLevel.Info);
+
+            if (startTimerAtStartup)
+            {
+                StartTimer("i");
+            }
         }
 
         /// <summary>
@@ -79,6 +103,7 @@
                 breakTimer.Stop();
                 checkTimer.Stop();
                 overlayAnnounceTimer.Stop();
+                _overlay.CancelCountdown();
             }
             catch (Exception ex)
             {
@@ -222,16 +247,22 @@
                         Logger.Instance.Log($"intervalFreeMs wurde auf {time} Sekunden gesetzt", LogLevel.Info);
                         intervalFreeMs = time * 1000;
                         workTimer.Interval = intervalFreeMs;
+                        configReader.SetIntervalFreeMs(intervalFreeMs);
+                        configReader.SaveConfig();
                         break;
                     case "p":
                         Logger.Instance.Log($"intervalBreakMs wurde auf {time} Sekunden gesetzt", LogLevel.Info);
                         intervalBreakMs = time * 1000;
                         breakTimer.Interval = intervalBreakMs;
+                        configReader.SetIntervalBreakMs(intervalBreakMs);
+                        configReader.SaveConfig();
                         break;
                     case "c":
                         Logger.Instance.Log($"intervalCheckMs wurde auf {time} Sekunden gesetzt", LogLevel.Info);
                         intervalCheckMs = time * 1000;
                         checkTimer.Interval = intervalCheckMs;
+                        configReader.SetIntervalCheckMs(intervalCheckMs);
+                        configReader.SaveConfig();
                         break;
                     default:
                         Logger.Instance.Log($"'{timer}' ist keine gültige Eingabe.", LogLevel.Warn);
@@ -291,6 +322,8 @@
                         workTimerEnd = DateTime.Now.AddMilliseconds(workTimer.Interval);
                         workTimer.Start();
                         alreadyAnnounced.Clear(); // HashSet für neuen Arbeitszyklus zurücksetzen
+                        if (!overlayAnnounceTimer.Enabled)
+                            overlayAnnounceTimer.Start(); // Overlay-Timer wieder starten!
                         break;
                     case "p":
                         Logger.Instance.Log("Starte intervalBreakMs", LogLevel.Info);

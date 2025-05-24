@@ -24,6 +24,7 @@ namespace ScreenZen
         private readonly BlockingCollection<string> logQueue = new();
         private readonly CancellationTokenSource cts = new();
         private readonly Task logTask;
+        public bool IsDebugEnabled { get; set; } = false;
 
         private Logger()
         {
@@ -43,6 +44,8 @@ namespace ScreenZen
             [CallerFilePath] string callerFilePath = "",
             [CallerLineNumber] int callerLineNumber = 0)
         {
+            if (level == LogLevel.Debug && !IsDebugEnabled)
+                return;
             string callerInfo = $"{Path.GetFileNameWithoutExtension(callerFilePath)}.{callerMemberName}:{callerLineNumber}";
             string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] [{callerInfo}] {message}{Environment.NewLine}";
             logQueue.Add(logEntry);

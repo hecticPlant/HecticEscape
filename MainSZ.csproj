@@ -1,0 +1,5 @@
+<ItemGroup>
+  <Content Include="app.ico">
+    <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+  </Content>
+</ItemGroup>

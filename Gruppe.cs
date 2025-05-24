@@ -1,4 +1,6 @@
-﻿namespace ScreenZen
+﻿using System.Collections.Generic;
+
+namespace ScreenZen
 {
     public class Gruppe
     {
@@ -23,5 +25,10 @@
         public Dictionary<string, Gruppe> Gruppen { get; set; }
         public bool EnableWebsiteBlocking { get; set; }
         public bool EnableAppBlocking { get; set; }
+        public bool StartTimerAtStartup { get; set; }
+        public int IntervalFreeMs { get; set; }
+        public int IntervalBreakMs { get; set; }
+        public int IntervalCheckMs { get; set; }
+        public bool EnableDebugMode { get; set; } = false;
     }
 }

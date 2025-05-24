@@ -24,7 +24,8 @@ namespace ScreenZen
                 new TimeManagement(
                     provider.GetRequiredService<AppManager>(),
                     provider.GetRequiredService<WebManager>(),
-                    provider.GetRequiredService<Overlay>() // Overlay wird übergeben
+                    provider.GetRequiredService<Overlay>(), // Overlay wird übergeben
+                    provider.GetRequiredService<ConfigReader>() // ConfigReader hinzugefügt
                 ));
             services.AddSingleton<MainWindow>();
             Services = services.BuildServiceProvider();

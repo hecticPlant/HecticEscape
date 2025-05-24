@@ -34,7 +34,8 @@ namespace ScreenZen
                 container.RegisterSingleton(new TimeManagement(
                     container.Resolve<AppManager>(), 
                     container.Resolve<WebManager>(), 
-                    container.Resolve<Overlay>() // Overlay wird übergeben
+                    container.Resolve<Overlay>(),
+                    container.Resolve<ConfigReader>() // Hinzufügen des fehlenden Parameters
                 ));
 
                 Logger.Instance.Log("Registriere MainWindow im Container", LogLevel.Debug);

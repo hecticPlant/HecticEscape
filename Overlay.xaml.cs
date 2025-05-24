@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
 using System.Windows.Media;
@@ -11,6 +12,7 @@ namespace ScreenZen
     public partial class Overlay : Window, IDisposable
     {
         private bool disposed = false;
+        private CancellationTokenSource? _countdownCts;
 
         public Overlay()
         {
@@ -49,15 +51,31 @@ namespace ScreenZen
 
         public async Task ShowCountdownAsync(int seconds)
         {
+            _countdownCts?.Cancel(); // Vorherigen Countdown abbrechen
+            var cts = new CancellationTokenSource();
+            _countdownCts = cts;
+
             Show();
             Topmost = true;
             Activate();
-            for (int i = seconds; i > 0; i--)
+            try
             {
-                OverlayMessageTextBlock.Text = $"Pause in {i} Sekunden";
-                await Task.Delay(1000);
+                for (int i = seconds; i > 0; i--)
+                {
+                    OverlayMessageTextBlock.Text = $"Pause in {i} Sekunden";
+                    await Task.Delay(1000, cts.Token);
+                }
+            }
+            catch (TaskCanceledException)
+            {
+                // Abbruch: Overlay ausblenden
             }
             Hide();
+        }
+
+        public void CancelCountdown()
+        {
+            _countdownCts?.Cancel();
         }
 
         public void Dispose()
