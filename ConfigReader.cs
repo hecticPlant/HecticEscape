@@ -52,7 +52,6 @@ namespace ScreenZen
             try
             {
                 Logger.Instance.IsDebugEnabled = GetEnableDebugMode();
-                Logger.Instance.Log($"Debug-Modus ist {(Logger.Instance.IsDebugEnabled ? "aktiviert" : "deaktiviert")}.", LogLevel.Info);
             }
             catch (Exception ex)
             {
@@ -196,9 +195,9 @@ namespace ScreenZen
         }
 
         public void SetEnableDebugMode(bool value)
-        {   
+        {
+            Logger.Instance.Log($"Setze EnableDebugMode auf {value}.", LogLevel.Debug);
             _config.EnableDebugMode = value;
-            Logger.Instance.Log($"Setze EnableDebugMode auf {value}.", LogLevel.Info);
             SaveConfig();
         }
 

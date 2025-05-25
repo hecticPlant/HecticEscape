@@ -134,7 +134,6 @@
                 if (!webManager.IsProxyRunning)
                 {
                     await Task.Run(() => webManager.StartProxy());
-                    Logger.Instance.Log("Proxy wurde gestartet.", LogLevel.Info);
                 }
                 else
                 {

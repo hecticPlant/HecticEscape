@@ -1,7 +1,9 @@
 ﻿using System;
+using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Interop;
 using System.Windows.Media;
 
 namespace ScreenZen
@@ -13,6 +15,16 @@ namespace ScreenZen
     {
         private bool disposed = false;
         private CancellationTokenSource? _countdownCts;
+        // P/Invoke Konstanten und Methoden
+        private const int GWL_EXSTYLE = -20;
+        private const int WS_EX_TRANSPARENT = 0x00000020;
+        private const int WS_EX_LAYERED = 0x00080000;
+
+        [DllImport("user32.dll")]
+        private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
+
+        [DllImport("user32.dll")]
+        private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
         public Overlay()
         {
@@ -30,6 +42,18 @@ namespace ScreenZen
             Height = SystemParameters.PrimaryScreenHeight;
             Left = (SystemParameters.PrimaryScreenWidth - Width) / 2;
             Top = (SystemParameters.PrimaryScreenHeight - Height) / 2;
+        }
+
+        protected override void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+
+            // Jetzt ist das Hwnd bereit – hier die Click-Through-Styles setzen:
+            var hwnd = new WindowInteropHelper(this).Handle;
+            int exStyle = GetWindowLong(hwnd, GWL_EXSTYLE);
+
+            // Layered ist nötig für Transparenz, Transparent für Durchklickbarkeit
+            SetWindowLong(hwnd, GWL_EXSTYLE, exStyle | WS_EX_LAYERED | WS_EX_TRANSPARENT);
         }
 
         public void ShowMessage(string message, int durationMs = 2000)
@@ -66,9 +90,9 @@ namespace ScreenZen
                     await Task.Delay(1000, cts.Token);
                 }
             }
-            catch (TaskCanceledException)
+            catch (TaskCanceledException e)
             {
-                // Abbruch: Overlay ausblenden
+                Logger.Instance.Log($"Countdown abgebrochen: {e.Message}", LogLevel.Debug);
             }
             Hide();
         }

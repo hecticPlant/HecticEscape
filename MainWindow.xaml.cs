@@ -240,7 +240,7 @@ namespace ScreenZen
 
                 if (remaining.HasValue && remaining.Value.TotalSeconds > 0)
                 {
-                    TimerStatusTextBlock.Text = $"{timerName}: {remaining.Value.Minutes:D2}:{remaining.Value.Seconds:D2} verbleibend";
+                    TimerStatusTextBlock.Text = $"{timerName}: {remaining.Value.Hours:D2}:{remaining.Value.Minutes:D2}:{remaining.Value.Seconds:D2} verbleibend";
                 }
                 else
                 {

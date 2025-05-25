@@ -41,7 +41,7 @@ namespace ScreenZen
             UpdateRunningProcesses();
             // Nur Prozesse mit sichtbarem Hauptfenster (typische Apps)
             return runningProcesses
-                .Where(p =>
+                /*.Where(p =>
                 {
                     try
                     {
@@ -53,7 +53,7 @@ namespace ScreenZen
                         return false;
                     }
                 })
-                .ToArray();
+                */.ToArray();
         }
 
         /// <summary>
@@ -92,11 +92,11 @@ namespace ScreenZen
             if (activeApps.Any())
             {
                 blockedApps.AddRange(activeApps);
-                Logger.Instance.Log($"Aktive Apps wurden hinzugefügt: {string.Join(", ", activeApps)}", LogLevel.Info);
+                Logger.Instance.Log($"Aktive Apps wurden hinzugefügt: {string.Join(", ", activeApps)}", LogLevel.Debug);
             }
             else
             {
-                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Info);
+                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Debug);
             }
         }
 
@@ -107,7 +107,7 @@ namespace ScreenZen
         {
             if (!configReader.GetAppBlockingEnabled())
             {
-                Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Info);
+                Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Debug);
                 return;
             }
             UpdateAppList();
