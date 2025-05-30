@@ -68,11 +68,12 @@ namespace ScreenZen
                 Gruppen = new Dictionary<string, Gruppe>(),
                 EnableWebsiteBlocking = true,
                 EnableAppBlocking = true,
+                EnableDebugMode = true,
+                EnableShowTimeInOverlay = true,
                 StartTimerAtStartup = false,
                 IntervalFreeMs = 2 * 3600 * 1000,
                 IntervalBreakMs = 15 * 60 * 1000,
-                IntervalCheckMs = 1000,
-                EnableDebugMode = true,
+                IntervalCheckMs = 1000
             };
             CreateGroup();
             SaveConfig();
@@ -199,6 +200,19 @@ namespace ScreenZen
             Logger.Instance.Log($"Setze EnableDebugMode auf {value}.", LogLevel.Debug);
             _config.EnableDebugMode = value;
             SaveConfig();
+        }
+
+        public void SetShowTimeInOverlayEnable(bool value)
+        {
+            Logger.Instance.Log($"Setze EnableShowTimeInOverlay auf {value}.", LogLevel.Debug);
+            _config.EnableShowTimeInOverlay = value;
+            SaveConfig();
+        }
+
+        public bool GetShowTimeInOverlayEnable()
+        {
+            Logger.Instance.Log($"Abfrage: EnableShowTimeInOverlay = {_config.EnableShowTimeInOverlay}", LogLevel.Debug);
+            return _config.EnableShowTimeInOverlay;
         }
 
         /// <summary>

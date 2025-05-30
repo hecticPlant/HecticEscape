@@ -124,12 +124,13 @@
 
                 // Overlay: Pause beginnt
                 _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage("Pause beginnt!", 2500));
-
                 breakTimer.Stop();
                 breakTimerEnd = DateTime.Now.AddMilliseconds(breakTimer.Interval);
                 breakTimer.Start();
                 checkTimer.Start();
                 alreadyAnnounced.Clear(); // HashSet für nächste Pause zurücksetzen
+
+                _overlay.Dispatcher.Invoke(() => _overlay.StartOverlayTimer((int)breakTimer.Interval));
 
                 if (!webManager.IsProxyRunning)
                 {
@@ -159,11 +160,12 @@
 
                 // Overlay: Pause ist vorbei
                 _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage("Pause vorbei!", 2500));
-
                 workTimer.Stop();
                 workTimerEnd = DateTime.Now.AddMilliseconds(workTimer.Interval);
                 workTimer.Start();
                 alreadyAnnounced.Clear(); // HashSet für neuen Arbeitszyklus zurücksetzen
+
+                _overlay.Dispatcher.Invoke(() => _overlay.StartOverlayTimer((int)workTimer.Interval));
 
                 if (webManager.IsProxyRunning)
                 {
@@ -319,15 +321,19 @@
                         Logger.Instance.Log("Starte intervalFreeMs", LogLevel.Info);
                         workTimer.Stop();
                         workTimerEnd = DateTime.Now.AddMilliseconds(workTimer.Interval);
+                        _overlay.StartOverlayTimer((int)workTimer.Interval);
                         workTimer.Start();
-                        alreadyAnnounced.Clear(); // HashSet für neuen Arbeitszyklus zurücksetzen
+                        alreadyAnnounced.Clear();
                         if (!overlayAnnounceTimer.Enabled)
-                            overlayAnnounceTimer.Start(); // Overlay-Timer wieder starten!
+                        {
+                            overlayAnnounceTimer.Start();
+                        }
                         break;
                     case "p":
                         Logger.Instance.Log("Starte intervalBreakMs", LogLevel.Info);
                         breakTimer.Stop();
                         breakTimerEnd = DateTime.Now.AddMilliseconds(breakTimer.Interval);
+                        _overlay.StartOverlayTimer((int)workTimer.Interval);
                         breakTimer.Start();
                         break;
                     case "c":

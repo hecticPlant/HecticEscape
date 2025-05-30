@@ -30,5 +30,7 @@ namespace ScreenZen
         public int IntervalBreakMs { get; set; }
         public int IntervalCheckMs { get; set; }
         public bool EnableDebugMode { get; set; } = false;
+
+        public bool EnableShowTimeInOverlay { get; set; } = true;
     }
 }

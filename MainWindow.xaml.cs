@@ -111,6 +111,7 @@ namespace ScreenZen
             ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
 
             StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
+            ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
 
             Closing += MainWindow_Closing;
 
@@ -722,6 +723,7 @@ namespace ScreenZen
         private void StartTimerAtStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _configReader.SetStartTimerAtStartup(false);
+
         }
 
         private void UpdateTimerIntervals(int freeMs, int breakMs, int checkMs)
@@ -747,6 +749,18 @@ namespace ScreenZen
                 _overlay.Hide();
                 isOvelay = false;
             }
+        }
+
+        private void ShowTimerInOverlay_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetShowTimeInOverlayEnable(true);
+            _overlay.SetShowTimer(true);
+        }
+
+        private void ShowTimerInOverlay_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetShowTimeInOverlayEnable(false);
+            _overlay.SetShowTimer(false);
         }
 
         // -------------------- Hilfsmethoden --------------------
