@@ -433,6 +433,11 @@ namespace ScreenZen
         /// </summary>
         public long GetAppDateTimeMs(Gruppe group, AppSZ app, DateOnly date)
         {
+            if(group == null || app == null)
+            {
+                Logger.Instance.Log("GetAppDateTimeMs: Gruppe oder App ist null.", LogLevel.Error);
+                return 0;
+            }
             var logs = GetAppLogs(group, app);
             var entry = logs.FirstOrDefault(l => l.Date == date);
             if (entry != null)
@@ -442,9 +447,33 @@ namespace ScreenZen
             }
 
             Logger.Instance.Log($"GetAppDateTimeMs: Kein Log für App '{app.Name}' am {date} gefunden. Erstelle Log.", LogLevel.Warn);
-            app.Logs.Add(new Log { Date = date, TimeMs = 0 });
-            SaveConfig();
+            if(app.Logs == null)
+            {
+                CreateLog(group, app, date, 0);
+            }
             return 0;
+        }
+        public void CreateLog(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        {
+            if (group == null || app == null)
+            {
+                Logger.Instance.Log("CreateLog: Gruppe oder App ist null.", LogLevel.Error);
+                return;
+            }
+            var logs = GetAppLogs(group, app);
+            var entry = logs.FirstOrDefault(l => l.Date == date);
+            if (entry == null)
+            {
+                entry = new Log { Date = date, TimeMs = timeMs };
+                logs.Add(entry);
+                Logger.Instance.Log($"CreateLog: Neuer Log-Eintrag für App '{app.Name}' am {date} mit {timeMs} ms erstellt.", LogLevel.Verbose);
+            }
+            else
+            {
+                entry.TimeMs = timeMs;
+                Logger.Instance.Log($"CreateLog: Log-Eintrag für App '{app.Name}' am {date} aktualisiert auf {timeMs} ms.", LogLevel.Verbose);
+            }
+            SaveConfig();
         }
 
         /// <summary>
