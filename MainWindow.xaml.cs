@@ -7,6 +7,7 @@ using System.Windows.Threading;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using MessageBox = System.Windows.MessageBox;
+using Org.BouncyCastle.Pkix;
 
 namespace ScreenZen
 {
@@ -64,7 +65,6 @@ namespace ScreenZen
             if (_timeManagement == null)
             {
                 Logger.Instance.Log("TimeManagement ist null!", LogLevel.Error);
-                MessageBox.Show("Fehler: TimeManagement konnte nicht geladen werden.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 return;
             }
             if (_appManager == null)
@@ -95,7 +95,7 @@ namespace ScreenZen
 
             try
             {
-                _timeManagement.OverlayToggleRequested += ToggleOverlay;
+                _timeManagement.OverlayToggleRequested += ToggleEnableOverlay;
             }
             catch { Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error); }
 
@@ -104,14 +104,27 @@ namespace ScreenZen
             statusUpdateTimer.Start();
             Logger.Instance.Log("Initialisiert");
 
-            WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
-            AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
+            try
+            {
+                if(_configReader == null)
+                {
+                    Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
+                    return;
+                }
+                WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
+                AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
 
-            WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
-            ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
+                WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
+                ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
 
-            StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
-            ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
+                StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
+                ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
+
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log("Fehler beim Laden der Konfiguration: " + ex.Message, LogLevel.Error);
+            }
 
             Closing += MainWindow_Closing;
 
@@ -293,6 +306,37 @@ namespace ScreenZen
                     DebugStatusTextBlock.Foreground = Brushes.Gray;
                 }
             }
+            // Verbose-Status
+            if (VerboseStatusTextBlock != null)
+            {
+                if (_configReader.GetEnableVerboseMode())
+                {
+                    VerboseStatusTextBlock.Visibility = Visibility.Visible; // Sichtbar machen, wenn aktiv
+                    VerboseStatusTextBlock.Text = "Verbose";
+                    VerboseStatusTextBlock.Foreground = Brushes.Red;
+                }
+                else
+                {
+                    VerboseStatusTextBlock.Text = "";
+                    VerboseStatusTextBlock.Visibility = Visibility.Collapsed; // Ausblenden, wenn nicht aktiv
+                }
+            }
+            
+            // Overlay-Status
+            if( OverlayStatusTextBlock != null)
+            {
+                if (_configReader.GetEnableOverlay())
+                {
+                    OverlayStatusTextBlock.Text = "Overlay aktiv";
+                    OverlayStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    OverlayStatusTextBlock.Text = "Overlay inaktiv";
+                    OverlayStatusTextBlock.Foreground = Brushes.Gray;
+                }
+            }
+            UpdateDailyTimeLeftTextBox();
         }
 
         // -------------------- Gruppen-Tab --------------------
@@ -304,16 +348,22 @@ namespace ScreenZen
                 Logger.Instance.Log("LoadGroups: ConfigReader ist null!", LogLevel.Error);
                 return;
             }
-            string allGroups = _configReader.GetAllGroups();
+            List<String> allGroups = _configReader.GetAllGroupNamesString();
             GroupSelectionComboBox?.Items.Clear();
 
-            if (!string.IsNullOrEmpty(allGroups))
+            if (allGroups != null)
             {
-                var groups = allGroups.Split(new[] { ", " }, System.StringSplitOptions.None);
-                foreach (var group in groups)
+            foreach (var group in allGroups)
                 {
-                    GroupSelectionComboBox?.Items.Add(group);
+                    if (!string.IsNullOrEmpty(group))
+                    {
+                        GroupSelectionComboBox?.Items.Add(group);
+                    }
                 }
+            }
+            else
+            {
+                Logger.Instance.Log("LoadGroups: Keine Gruppen gefunden.", LogLevel.Warn);
             }
 
             if (GroupSelectionComboBox != null)
@@ -334,12 +384,10 @@ namespace ScreenZen
         {
             if (_configReader == null) return;
             string? groupNameToDelete = GroupSelectionComboBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(groupNameToDelete))
-            {
-                MessageBox.Show("Bitte wählen Sie eine Gruppe zum Löschen aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-            _configReader.DeleteGroup(groupNameToDelete);
+            if (string.IsNullOrEmpty(groupNameToDelete)) return;
+            Gruppe? group =_configReader.GetGroupByName(groupNameToDelete);
+            if (group == null) return;
+            _configReader.DeleteGroup(group);
             LoadGroups();
         }
 
@@ -347,13 +395,10 @@ namespace ScreenZen
         {
             if (_configReader == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(selectedGroup))
-            {
-                MessageBox.Show("Bitte wählen Sie eine Gruppe zum Aktivieren aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-            _configReader.SetActiveStatus(selectedGroup, true);
-            MessageBox.Show($"Die Gruppe '{selectedGroup}' wurde aktiviert.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (string.IsNullOrEmpty(selectedGroup)) return;
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            _configReader.SetGroupActiveStatus(group, true);
             UpdateGroupActivityTextBox();
         }
 
@@ -361,13 +406,10 @@ namespace ScreenZen
         {
             if (_configReader == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(selectedGroup))
-            {
-                MessageBox.Show("Bitte wählen Sie eine Gruppe zum Deaktivieren aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
-                return;
-            }
-            _configReader.SetActiveStatus(selectedGroup, false);
-            MessageBox.Show($"Die Gruppe '{selectedGroup}' wurde deaktiviert.", "Erfolg", MessageBoxButton.OK, MessageBoxImage.Information);
+            if (string.IsNullOrEmpty(selectedGroup)) return;
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            _configReader.SetGroupActiveStatus(group, false);
             UpdateGroupActivityTextBox();
         }
 
@@ -384,7 +426,13 @@ namespace ScreenZen
                 bool isActive = false;
                 try
                 {
-                    isActive = _configReader.GetGroupActiveStatus(selectedGroup);
+                    Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+                    if (group == null)
+                    {
+                        Logger.Instance.Log($"Gruppe '{selectedGroup}' nicht gefunden.", LogLevel.Warn);
+                        return;
+                    }
+                    isActive = _configReader.GetGroupActiveStatus(group);
                 }
                 catch
                 {
@@ -408,7 +456,9 @@ namespace ScreenZen
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
-            _appManager.SaveSelectedProcessesToFile(selectedGroup, selectedProcess);
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            _appManager.SaveSelectedProcessesToFile(group, selectedProcess);
         }
 
         private void DeleteProcessButton_Click(object sender, RoutedEventArgs e)
@@ -427,12 +477,16 @@ namespace ScreenZen
             string? groupID = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupID)) return;
 
-            string apps = _configReader.GetAppsFromGroup(groupID);
+            Gruppe? group = _configReader.GetGroupByName(groupID);
+            if (group == null) return;
+            List<string> apps = _configReader.GetAppNamesFromGroupString(group);
             ProcessListBox?.Items.Clear();
-            if (!string.IsNullOrEmpty(apps))
+            foreach (var app in apps)
             {
-                foreach (var app in apps.Split(", "))
+                if (!string.IsNullOrEmpty(app))
+                {
                     ProcessListBox?.Items.Add(app);
+                }
             }
         }
 
@@ -448,6 +502,114 @@ namespace ScreenZen
             }
         }
 
+        private void SaveDailyTimeButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_appManager == null) return;
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedProcess = ProcessListBox?.SelectedItem as string;
+            string? dailyTimeMs = DailyTimeTextBox?.Text?.Trim();
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess) || string.IsNullOrEmpty(dailyTimeMs)) return;
+
+            // Eingabe im Format hh:mm:ss parsen
+            if (!TimeSpan.TryParse(DailyTimeMaskedBox?.Text, out var timeSpan))
+            {
+                MessageBox.Show("Bitte geben Sie die Zeit im Format hh:mm:ss ein.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Ungültiges Zeitformat: '{DailyTimeMaskedBox?.Text}'");
+                return;
+            }
+            Logger.Instance.Log($"Tägliche Zeit für App'{selectedProcess}' in Gruppe '{selectedGroup}' wird auf {dailyTimeMs} gesetzt.", LogLevel.Info);
+
+            int timeInSeconds = (int)timeSpan.TotalSeconds;
+            // Umwandlung in Millisekunden
+            long dailyTimeMsValue = timeInSeconds * 1000; // Umwandlung in Millisekunden
+
+            if (selectedGroup == null || selectedProcess == null) return;
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            AppSZ app = _configReader.GetAppFromGroup(group, selectedProcess);
+
+            _appManager.SetDailyTimeMs(group, app, dailyTimeMsValue);
+            UpdateDailyTimeTextBox();
+        }
+
+        private void ProcessListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            UpdateDailyTimeTextBox();
+            UpdateDailyTimeLeftTextBox();
+        }
+
+        private void UpdateDailyTimeTextBox()
+        {
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedProcess = ProcessListBox?.SelectedItem as string;
+            if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            AppSZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            if (app == null)
+            {
+                if (DailyTimeTextBox != null)
+                    DailyTimeTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
+                return;
+            }
+            string? dailyTimeMs = _appManager.GetDailyTimeMs(group, app).ToString();
+            if (string.IsNullOrEmpty(dailyTimeMs)) 
+            {
+                if (DailyTimeTextBox != null)
+                    DailyTimeTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
+                return;
+            }
+            if (DailyTimeTextBox != null)
+            {
+                long timeMs = long.Parse(dailyTimeMs);
+                DailyTimeTextBox.Text = TimeSpan.FromMilliseconds(timeMs).ToString(@"hh\:mm\:ss");
+            }
+        }
+
+        private void UpdateDailyTimeLeftTextBox()
+        {
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedProcess = ProcessListBox?.SelectedItem as string;
+            if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            AppSZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            if (app == null)
+            {
+                if (DailyTimeLeftTextBox != null)
+                    DailyTimeLeftTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
+                return;
+            }
+            long timeLeftMs = _appManager.GetDailyTimeLeft(group, app, today);
+            if (DailyTimeLeftTextBox != null)
+            {
+                DailyTimeLeftTextBox.Text = TimeSpan.FromMilliseconds(timeLeftMs).ToString(@"hh\:mm\:ss");
+            }
+
+        }
+
+        private void ResetDailyTimeButton_Click(object sender, EventArgs e)
+        {
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedProcess = ProcessListBox?.SelectedItem as string;
+            if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            AppSZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            if (app == null) return;
+            _appManager.SetDaílyTimeMs(group, app, today, 0);
+            UpdateDailyTimeTextBox();
+            UpdateDailyTimeLeftTextBox();
+        }
+
+        private void ProcessTabOpend(object sender, RoutedEventArgs e)
+        {
+            // Beim Öffnen des Tabs die Liste der Prozesse aktualisieren
+            ShowBlockedAppsButton_Click(sender, e);
+        }
+
         // -------------------- Websites-Tab --------------------
 
         private void ShowBlockedWebsitesButton_Click(object sender, RoutedEventArgs e)
@@ -456,12 +618,19 @@ namespace ScreenZen
             string? groupID = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupID)) return;
 
-            string domains = _configReader.GetWebsitesFromGroup(groupID);
+            Gruppe? group = _configReader.GetGroupByName(groupID);
+            if (group == null) return;
+            List<string> domains = _configReader.GetWebsiteNamesFromGroupString(group);
             WebsiteListBox?.Items.Clear();
-            if (!string.IsNullOrEmpty(domains))
+            if (domains.Count > 0)
             {
-                foreach (var domain in domains.Split(", "))
-                    WebsiteListBox?.Items.Add(domain);
+                foreach (var domain in domains)
+                {
+                    if (!string.IsNullOrEmpty(domain))
+                    {
+                        WebsiteListBox?.Items.Add(domain);
+                    }
+                }
             }
         }
 
@@ -471,7 +640,11 @@ namespace ScreenZen
             string? websiteName = WebsiteInputTextBox?.Text?.Trim();
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(websiteName)) return;
-            _configReader.AddWebsiteToGroup(selectedGroup, websiteName);
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            Website? website = _configReader.GetWebsiteFromGroup(group, websiteName);
+            if (website != null) return;
+            _configReader.AddWebsiteToGroup(group, website);
             WebsiteInputTextBox?.Clear();
             ShowBlockedWebsitesButton_Click(sender, e);
         }
@@ -482,7 +655,17 @@ namespace ScreenZen
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedWebsite = WebsiteListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedWebsite)) return;
-            _webManager.RemoveSelectedWebsiteFromFile(selectedGroup, selectedWebsite);
+            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            Website? website = _configReader.GetWebsiteFromGroup(group, selectedWebsite);
+            if (website == null) return;
+            _webManager.RemoveSelectedWebsiteFromFile(group, website);
+            ShowBlockedWebsitesButton_Click(sender, e);
+        }
+
+        private void WebsiteTabOpend(object sender, RoutedEventArgs e)
+        {
+            // Beim Öffnen des Tabs die Liste der Websites aktualisieren
             ShowBlockedWebsitesButton_Click(sender, e);
         }
 
@@ -667,13 +850,11 @@ namespace ScreenZen
         }
         private void ToggleOverlayButton_Click(object sender, RoutedEventArgs e)
         {
-            ToggleOverlay();
+            ToggleEnableOverlay();
         }
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-            
             _configReader.SetEnableDebugMode(!_configReader.GetEnableDebugMode());
-            _configReader.SaveConfig();
 
             if (_configReader.GetEnableDebugMode())
             {
@@ -683,14 +864,25 @@ namespace ScreenZen
             }
             UpdateStatusTextBlocks();
         }
+
+        private void VerboseButton_Click(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnablVerbosetMode(!_configReader.GetEnableVerboseMode());
+            _configReader.SaveConfig();
+            UpdateStatusTextBlocks();
+            Logger.Instance.Log($"Verbose {( _configReader.GetEnableVerboseMode() ? "aktiviert" : "deaktiviert")}", LogLevel.Info);
+        }
+
         private void WebsiteBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
+            Logger.Instance.Log("Website-Blocking aktiviert", LogLevel.Info);
             _configReader.SetWebsiteBlockingEnabled(true);
             WebsitesTab.IsEnabled = true;
         }
 
         private void WebsiteBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
+            Logger.Instance.Log("Website-Blocking deaktiviert", LogLevel.Info);
             _configReader.SetWebsiteBlockingEnabled(false);
             WebsitesTab.IsEnabled = false;
             // Optional: Proxy stoppen, falls aktiv
@@ -698,12 +890,14 @@ namespace ScreenZen
 
         private void AppBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
+            Logger.Instance.Log("App-Blocking aktiviert", LogLevel.Info);
             _configReader.SetAppBlockingEnabled(true);
             ProzesseTab.IsEnabled = true;
         }
 
         private void AppBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
+            Logger.Instance.Log("App-Blocking deaktiviert", LogLevel.Info);
             _configReader.SetAppBlockingEnabled(false);
             ProzesseTab.IsEnabled = false;
         }
@@ -712,6 +906,7 @@ namespace ScreenZen
         {
             // Arbeitszeit-Timer starten (freie Zeit)
             _timeManagement?.StartTimer("i");
+            _timeManagement?.StartTimer("c");
             Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Info);
         }
 
@@ -735,22 +930,6 @@ namespace ScreenZen
 
         // -------------------- Overlay --------------------
 
-        private bool isOvelay = false;
-        public void ToggleOverlay()
-        {
-            if (_overlay == null) return;
-            if (!isOvelay)
-            {
-                _overlay.Show();
-                isOvelay = true;
-            }
-            else
-            {
-                _overlay.Hide();
-                isOvelay = false;
-            }
-        }
-
         private void ShowTimerInOverlay_Checked(object sender, RoutedEventArgs e)
         {
             _configReader.SetShowTimeInOverlayEnable(true);
@@ -761,6 +940,26 @@ namespace ScreenZen
         {
             _configReader.SetShowTimeInOverlayEnable(false);
             _overlay.SetShowTimer(false);
+        }
+
+        private void ToggleEnableOverlay()
+        {
+            if (_overlay == null) return;
+            if (_configReader.GetEnableOverlay())
+            {
+                _overlay.Show();
+                _overlay.DisableOverlay();
+                _configReader.SetEnableOverlay(false);
+                Logger.Instance.Log("Overlay deaktiviert", LogLevel.Info);
+            }
+            else
+            {
+                _overlay.Hide();
+                _overlay.EnableOverlay();
+                _configReader.SetEnableOverlay(true);
+                Logger.Instance.Log("Overlay aktiviert", LogLevel.Info);
+            }
+            UpdateStatusTextBlocks();
         }
 
         // -------------------- Hilfsmethoden --------------------

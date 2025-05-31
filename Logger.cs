@@ -12,7 +12,8 @@ namespace ScreenZen
         Info,
         Warn,
         Error,
-        Debug
+        Debug,
+        Verbose
     }
 
     public class Logger : IDisposable
@@ -25,6 +26,7 @@ namespace ScreenZen
         private readonly CancellationTokenSource cts = new();
         private readonly Task logTask;
         public bool IsDebugEnabled { get; set; } = false;
+        public bool IsVerboseEnabled { get; set; } = false;
 
         private Logger()
         {
@@ -45,11 +47,25 @@ namespace ScreenZen
             [CallerLineNumber] int callerLineNumber = 0)
         {
             if (level == LogLevel.Debug && !IsDebugEnabled)
+            {
                 return;
+            }
+
+            if (level == LogLevel.Verbose && !IsVerboseEnabled)
+            {
+                return;
+            }
+
+            // Kürzen des Dateinamens (ohne Pfad und ohne Endung) für Caller-Info
             string callerInfo = $"{Path.GetFileNameWithoutExtension(callerFilePath)}.{callerMemberName}:{callerLineNumber}";
+
+            // Zeitstempel + Level + Caller + Nachricht
             string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] [{callerInfo}] {message}{Environment.NewLine}";
+
+            // In die Queue schieben (z. B. BlockingCollection<string> oder ConcurrentQueue<string>)
             logQueue.Add(logEntry);
         }
+
 
         public Task LogAsync(
             string message,

@@ -18,7 +18,7 @@
                     <TextBlock Text="Timer-Steuerung" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
                     <WrapPanel Margin="0,0,0,10">
                         <ComboBox Name="TimerTypeComboBox" Width="120" Margin="0,0,10,0" SelectionChanged="TimerTypeComboBox_SelectionChanged"/>
-                        <TextBox x:Name="TimerDurationTextBox" Width="50" Margin="0,0,10,0" IsReadOnly="True" Focusable="False"/>
+                        <TextBox x:Name="TimerDurationTextBox" Width="50" Margin="0,0,10,0" IsReadOnly="True" Focusable="False" BorderThickness="0,0,0,0"/>
                         <Button Content="Zeit Setzen" Name="SetTimerButton" Margin="0,0,10,0" Click="SetTimerButton_Click"/>
                         <xctk:MaskedTextBox
                             Name="TimerCurrentTimeMaskedBox"
@@ -33,7 +33,7 @@
                     </WrapPanel>
                 </StackPanel>
             </TabItem>
-            <TabItem x:Name="WebsitesTab" Header="Websites">
+            <TabItem x:Name="WebsitesTab" Header="Websites" Selector.Selected="WebsiteTabOpend">
                 <StackPanel Margin="10">
                     <TextBlock Text="Webseiten-Verwaltung" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
                     <WrapPanel Margin="0,0,0,10">
@@ -46,16 +46,36 @@
                     
                 </StackPanel>
             </TabItem>
-            <TabItem x:Name="ProzesseTab" Header="Prozesse">
+            <TabItem x:Name="ProzesseTab" Header="Prozesse" Height="22" Margin="-2,-2,-2,0" VerticalAlignment="Top" Selector.Selected="ProcessTabOpend">
                 <StackPanel Margin="10">
                     <TextBlock Text="Prozess-Verwaltung" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
                     <WrapPanel Margin="0,0,0,10">
                         <Button Content="Blockierte Apps anzeigen" Name="ShowBlockedAppsButton" Margin="0,0,10,0" Click="ShowBlockedAppsButton_Click"/>
                         <Button Content="Speichere Prozess" Name="SaveProcessButton" Margin="0,0,10,0" Click="SaveProcessButton_Click"/>
                         <Button Content="Laufende Prozesse" Name="ShowRunningProcessesButton" Margin="0,0,10,0" Click="ShowRunningProcessesButton_Click"/>
-                        <Button Content="Lösche Prozess" Name="DeleteProcessButton" Click="DeleteProcessButton_Click"/>
+                        <Button Content="Lösche Prozess" Name="DeleteProcessButton" Margin="0,0,10,0" Click="DeleteProcessButton_Click"/>
                     </WrapPanel>
-                    <ListBox Name="ProcessListBox" Height="200" Margin="0,10,0,0"/>
+                    <TextBlock Text="Tägliche Zeiten" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
+                    <WrapPanel>
+                        <WrapPanel Margin="0,0,0,10">
+                            <Button Content="Speichere Tägliche Zeit" Name="SaveDailyTimeButton" Click="SaveDailyTimeButton_Click" />
+                            <xctk:MaskedTextBox
+                            Name="DailyTimeMaskedBox"
+                            Width="80"
+                            Margin="0,0,10,0"
+                            Mask="00:00:00"
+                            PromptChar="0"
+                            TextAlignment="Center"
+                            ValueDataType="{x:Type sys:String}"/>
+                            <TextBox Text=" Heute Verblieben:" Width="Auto" Margin="0,0,10,0" IsReadOnly="True" Focusable="False" BorderThickness="0,0,0,0"/>
+                            <TextBox x:Name="DailyTimeLeftTextBox" Width="50" Margin="0,0,5,0" IsReadOnly="True" Focusable="False" BorderThickness="0,0,0,0"/>
+                            <Button Content="Reset Daily Time" Name="ResetDailyTimeButton" Click="ResetDailyTimeButton_Click"/>
+                        </WrapPanel>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <ListBox x:Name="ProcessListBox" Height="200" Width="400" SelectionChanged="ProcessListBox_SelectionChanged" HorizontalAlignment="Left" />
+                        <TextBox x:Name="DailyTimeTextBox" Width="50" Margin="0,0,10,0" IsReadOnly="True" Focusable="False" BorderThickness="0,0,0,0"/>
+                    </WrapPanel>
                 </StackPanel>
             </TabItem>
             <TabItem Header="Gruppen">
@@ -71,12 +91,13 @@
                     <TextBox Name="GroupActivityTextBox" Width="200" Margin="0,10,0,0" HorizontalAlignment="Left"/>
                 </StackPanel>
             </TabItem>
-            <TabItem Header="Steuerung">
+            <TabItem Header="Steuerung" Height="22" VerticalAlignment="Top">
                 <StackPanel Margin="10" VerticalAlignment="Top">
                     <TextBlock Text="Allgemein" FontWeight="Bold" FontSize="14" Margin="0,0,0,10"/>
                     <WrapPanel Margin="0,0,0,10">
                         <Button Content="Start" x:Name="StartBlockingButton" Margin="0,0,10,0" Click="StartBlockingButton_Click"/>
-                        <Button Content="Toggle Debug Mode" Name="DebugButton" Margin="0,0,10,0" Click="DebugButton_Click"/>
+                        <Button Content="Toggle Debug" Name="DebugButton" Margin="0,0,10,0" Click="DebugButton_Click"/>
+                        <Button Content="Toggle Verbose" Name="VerboseButton" Margin="0,0,10,0" Click="VerboseButton_Click"/>
                         <Button Content="Toggle Overlay" Name="ToggleOverlayButton" Click="ToggleOverlayButton_Click"/>
                     </WrapPanel>
 
@@ -111,28 +132,52 @@
         </TabControl>
 
         <!-- Statusleiste -->
-        <StatusBar Grid.Row="1">
-            <StatusBarItem>
-                <TextBlock Name="ProxyStatusTextBlock" Text="Proxy inaktiv" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="PauseStatusTextBlock" Text="Momentan keine Pause" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="FreeTimerStatusTextBlock" Text="Free-Timer: inaktiv" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="BreakTimerStatusTextBlock" Text=" Break-Timer: inaktiv" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock Name="CheckTimerStatusTextBlock" Text="Check-Timer: inaktiv" />
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock x:Name="DebugStatusTextBlock" Text="Debug aus"/>
-            </StatusBarItem>
-            <StatusBarItem>
-                <TextBlock x:Name="TimerStatusTextBlock" Text="Timer: --:--" />
-            </StatusBarItem>
-        </StatusBar>
+        <Grid>
+            <!-- Definiere zwei Zeilen: eine für deine Haupt-Inhalte, eine für die Statusleisten -->
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Hier kommt dein Hauptinhalt hinein -->
+            <!-- <Grid Grid.Row="0"> … </Grid> -->
+
+            <!-- Erste StatusBar mit den ersten 5 Items -->
+            <StatusBar Grid.Row="1">
+                <StatusBarItem>
+                    <TextBlock Name="ProxyStatusTextBlock" Text="Proxy inaktiv" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <TextBlock Name="PauseStatusTextBlock" Text="Momentan keine Pause" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <TextBlock Name="FreeTimerStatusTextBlock" Text="Free-Timer: inaktiv" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <TextBlock Name="BreakTimerStatusTextBlock" Text="Break-Timer: inaktiv" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <TextBlock Name="CheckTimerStatusTextBlock" Text="Check-Timer: inaktiv" />
+                </StatusBarItem>
+
+                <StatusBarItem>
+                    <TextBlock x:Name="TimerStatusTextBlock" Text="Timer: --:--" />
+                </StatusBarItem>
+            </StatusBar>
+
+            <!-- Zweite StatusBar mit den restlichen Items -->
+            <StatusBar Grid.Row="2">
+                <StatusBarItem>
+                    <TextBlock x:Name="OverlayStatusTextBlock" Text="Overlay: inaktiv" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <TextBlock x:Name="DebugStatusTextBlock" Text="Debug aus" />
+                </StatusBarItem>
+                <StatusBarItem>
+                    <TextBlock x:Name="VerboseStatusTextBlock" Text="Verbose" />
+                </StatusBarItem>
+            </StatusBar>
+        </Grid>
     </Grid>
 </Window>

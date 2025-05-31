@@ -1,16 +1,31 @@
 {
-    "Gruppen": {
-        "Gruppe 1": {
-            "Date": "2025-02-02",
-            "Aktiv": true,
-            "Apps": [
-                { "Name": "Spotify" }
-            ],
-            "Websites": [
-                { "Name": "youtube" }
-            ]
+  "Gruppen": {
+    "Gruppe 1": {
+      "Name": "Gruppe 1",
+      "Aktiv": true,
+      "Apps": [
+        {
+          "Name": "Spotify",
+          "DailyTimeMs": 7200000,
+          "Log": [
+            {
+              "Date": "2024-10-01",
+              "TimeMs": 0
+            }
+          ]
         }
-    },
-    "EnableWebsiteBlocking": true,
-    "EnableAppBlocking": true
+      ],
+      "Websites": []
+    }
+  },
+  "EnableWebsiteBlocking": false,
+  "EnableAppBlocking": true,
+  "StartTimerAtStartup": false,
+  "IntervalFreeMs": 7200000,
+  "IntervalBreakMs": 900000,
+  "IntervalCheckMs": 1000,
+  "EnableDebugMode": false,
+  "EnableVerboseMode": false,
+  "EnableShowTimeInOverlay": false,
+  "EnableOverlay": true
 }

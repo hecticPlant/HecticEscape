@@ -88,6 +88,7 @@
             if (startTimerAtStartup)
             {
                 StartTimer("i");
+                StartTimer("c");
             }
         }
 
@@ -127,7 +128,6 @@
                 breakTimer.Stop();
                 breakTimerEnd = DateTime.Now.AddMilliseconds(breakTimer.Interval);
                 breakTimer.Start();
-                checkTimer.Start();
                 alreadyAnnounced.Clear(); // HashSet für nächste Pause zurücksetzen
 
                 _overlay.Dispatcher.Invoke(() => _overlay.StartOverlayTimer((int)breakTimer.Interval));
@@ -188,12 +188,10 @@
         /// </summary>
         private void CheckAndCloseBlockedApps()
         {
+            Logger.Instance.Log("CheckAndCloseBlockedApps wird aufgerufen", LogLevel.Verbose);
             try
             {
-                if (isBreakActive)
-                {
-                    appManager.BlockHandler();
-                }
+                appManager.BlockHandler(intervalCheckMs, isBreakActive);
             }
             catch (Exception ex)
             {

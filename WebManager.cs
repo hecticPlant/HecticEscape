@@ -32,9 +32,9 @@ namespace ScreenZen
         /// </summary>
         /// <param name="selectedGroup">Name der Gruppe</param>
         /// <param name="websiteName">Name der Website</param>
-        public void SaveSelectedWebsiteToFile(string selectedGroup, string websiteName)
+        public void SaveSelectedWebsiteToFile(Gruppe group, Website website)
         {
-            configReader.AddWebsiteToGroup(selectedGroup, websiteName);
+            configReader.AddWebsiteToGroup(group, website);
             SetBlockedList();
         }
 
@@ -43,9 +43,9 @@ namespace ScreenZen
         /// </summary>
         /// <param name="selectedGroup">Gruppen Name</param>
         /// <param name="websiteName">Website Name</param>
-        public void RemoveSelectedWebsiteFromFile(string selectedGroup, string websiteName)
+        public void RemoveSelectedWebsiteFromFile(Gruppe gruppe, Website website)
         {
-            configReader.DeleteWebsiteFromGroup(selectedGroup, websiteName);
+            configReader.DeleteWebsiteFromGroup(gruppe, website);
             SetBlockedList();
         }
 
@@ -100,10 +100,10 @@ namespace ScreenZen
             try
             {
                 List<string> blockedDomains = new List<string>();
-                var domains = configReader.GetActiveGroupsDomains();
+                //var domains = configReader.GetActiveGroupsWebsites();
 
                 // Domains zur Blocklist hinzufügen
-                blockedDomains.AddRange(domains);
+                blockedDomains.AddRange("");
 
                 // Blockierte Domains im Proxy setzen
                 webProxy.SetBlockedDomains(blockedDomains);

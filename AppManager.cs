@@ -1,6 +1,8 @@
 ﻿using System.Diagnostics;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using System.Windows.Automation.Peers;
+using System.Windows.Forms;
 
 namespace ScreenZen
 {
@@ -14,7 +16,6 @@ namespace ScreenZen
         /// <summary>
         /// Liste mit allen Apps
         /// </summary>
-        private List<string> blockedApps = new List<string>();
         private ConfigReader configReader;
 
         public AppManager(ConfigReader configReader)
@@ -61,10 +62,16 @@ namespace ScreenZen
         /// </summary>
         /// <param name="selectedGroup">Gruppen Name</param>
         /// <param name="processName">Prozess Name</param>
-        public void SaveSelectedProcessesToFile(string selectedGroup, string processName)
+        public void SaveSelectedProcessesToFile(Gruppe selectedGroup, string processName)
         {
             string newProcessName = CleanProcessName(processName);
-            configReader.AddAppToGroup(selectedGroup, CleanProcessName(processName));
+            AppSZ app = new AppSZ
+            {
+                Name = newProcessName,
+                DailyTimeMs = 0,
+                Logs = new List<Log>()
+            };
+            configReader.AddAppToGroup(selectedGroup, app);
         }
 
         /// <summary>
@@ -82,68 +89,108 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Schreibt alle aktiven Apps in blockedApps
+        /// Blockiert Apps basierend auf den aktiven Gruppen und dem Pausenstatus.
         /// </summary>
-        private void UpdateAppList()
+        /// <param name="intervalCheckMs"></param>
+        /// <param name="breakActive"></param>
+        public void BlockHandler(int intervalCheckMs, bool breakActive)
         {
-            blockedApps.Clear(); // Liste leeren!
-            List<string> activeApps = configReader.GetActiveGroupsApps();
+            List<Gruppe> activeGroupList = configReader.GetAllActiveGroups();
+            Logger.Instance.Log($"Starte App-Blocking Handler {intervalCheckMs} {breakActive} mit {activeGroupList.Count} aktiven Gruppen", LogLevel.Debug);
 
-            if (activeApps.Any())
-            {
-                blockedApps.AddRange(activeApps);
-                Logger.Instance.Log($"Aktive Apps wurden hinzugefügt: {string.Join(", ", activeApps)}", LogLevel.Debug);
-            }
-            else
-            {
-                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Debug);
-            }
-        }
-
-        /// <summary>
-        /// Beendet alle Apps einer Gruppe
-        /// </summary>
-        public void BlockHandler()
-        {
             if (!configReader.GetAppBlockingEnabled())
             {
                 Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Debug);
                 return;
             }
-            UpdateAppList();
-            foreach (var app in blockedApps)
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+            foreach (var group in configReader.GetAllActiveGroups())
             {
-                EndApp(app);
+                if (!group.Aktiv)
+                {
+                    Logger.Instance.Log($"Gruppe {group.Name} ist nicht aktiv. Überspringe App-Blockierung.", LogLevel.Debug);
+                    continue;
+                }
+                Logger.Instance.Log($"Verarbeite Gruppe: {group.Name}, aktiv: {group.Aktiv}", LogLevel.Debug);
+                foreach (var app in group.Apps)
+                {
+                    if (app.Logs == null)
+                    {
+                        Logger.Instance.Log($"Erstelle neues Log für {app.Name} in Gruppe {group.Name}, da Logs null sind.", LogLevel.Error);
+                        app.Logs = new List<Log>();
+                    }
+                    var log = app.Logs.FirstOrDefault(l => l.Date == today);
+                    if (log == null)
+                    {
+                        log = new Log { Date = today, TimeMs = 0 };
+                        app.Logs.Add(log);
+                        Logger.Instance.Log($"Neues Log für {app.Name} am {today:yyyy-MM-dd} erstellt.", LogLevel.Debug);
+                    }
+                    if (breakActive)
+                    {
+                        var processesForPause = Process.GetProcessesByName(app.Name);
+                        if (processesForPause.Length > 0)
+                        {
+                            Logger.Instance.Log($"Beende App {app.Name} aus Gruppe {group.Name} wegen Pause.", LogLevel.Warn);
+
+                            TerminateProcesses(appName: app.Name, processes: processesForPause, groupName: group.Name, reason: "Pausenmodus");
+                        }
+                        else
+                        {
+                            Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden (Pausenmodus).", LogLevel.Debug);
+                        }
+                        continue;
+                    }
+                    var runningProcesses = Process.GetProcessesByName(app.Name);
+                    if (runningProcesses.Length == 0)
+                    {
+                        Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden.", LogLevel.Debug);
+                        continue;
+                    }
+                    Logger.Instance.Log($"Gefundene Prozesse für {app.Name}: {runningProcesses.Length}", LogLevel.Debug);
+                    AddTimeToLog(app, today, intervalCheckMs);
+                    Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Debug);
+                    if (log.TimeMs >= app.DailyTimeMs)
+                    {
+                        Logger.Instance.Log($"Beende App {app.Name}, da tägliche Zeit erreicht ist: {log.TimeMs}ms >= {app.DailyTimeMs}ms", LogLevel.Warn);
+                        TerminateProcesses(appName: app.Name, processes: runningProcesses, groupName: group.Name, reason: "Tageslimit überschritten");
+                    }
+                }
             }
+        configReader.SaveConfig();
+        Logger.Instance.Log("App-Blocking Handler abgeschlossen.", LogLevel.Debug);
         }
 
         /// <summary>
-        /// Beendet einen Prozess
+        /// Hilfsmethode, die alle Prozesse in <paramref name="processes"/> killt und
+        /// entsprechende Log-Einträge schreibt. 
         /// </summary>
-        /// <param name="appName">Name der App</param>
-        private void EndApp(string appName)
+        /// <param name="appName">Name der App (Prozessname ohne .exe).</param>
+        /// <param name="processes">Array der Process-Instanzen, die beendet werden sollen.</param>
+        /// <param name="groupName">Name der Gruppe, zu der die App gehört (für Logging).</param>
+        /// <param name="reason">Kurztext für den Grund des Killens (z.B. "Pausenmodus", "Tageslimit").</param>
+        private void TerminateProcesses(
+            string appName,
+            Process[] processes,
+            string groupName,
+            string reason)
         {
-            try
+            foreach (var proc in processes)
             {
-                // Hole die Prozesse, die den Namen des appName haben
-                Process[] processes = Process.GetProcessesByName(appName);
-
-                foreach (var process in processes)
+                try
                 {
-                    // Beende den Prozess
-                    process.Kill();
-                    Logger.Instance.Log($"Prozess {process} wurde beendet", LogLevel.Warn);
+                    proc.Kill();
+                    Logger.Instance.Log(
+                        $"Prozess {appName} (PID {proc.Id}) in Gruppe {groupName} beendet: {reason}.",
+                        LogLevel.Info);
                 }
-
-                // Falls keine Prozesse mit diesem Namen gefunden wurden, gebe eine Nachricht aus
-                if (processes.Length == 0)
+                catch (Exception ex)
                 {
-                    //Logger.Instance.Log($"Der Prozess {processes} wurde nicht gefunden.");
+                    Logger.Instance.Log(
+                        $"Fehler beim Beenden von {appName} (PID {proc.Id}) in Gruppe {groupName} " +
+                        $"({reason}): {ex.Message}",
+                        LogLevel.Error);
                 }
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Beenden des Prozesses '{appName}': {ex.Message}", LogLevel.Error);
             }
         }
 
@@ -152,12 +199,72 @@ namespace ScreenZen
         ///<param name="selectedGroup">Name der Gruppe</param>
         public void RemoveSelectedProcessesFromFile(string selectedGroup, string processName)
         {
-            configReader.DeleteAppFromGroup(selectedGroup, processName);
+            Gruppe? group = configReader.GetGroupByName(selectedGroup);
+            if (group != null)
+            {
+                AppSZ? app = configReader.GetAppFromGroup(group, processName);
+                configReader.DeleteAppFromGroup(group, app);
+            }
         }
 
-        public bool GetGroupActivity(string groupName)
+        public bool GetGroupActivity(Gruppe group)
         {
-            return configReader.ReadActiveStatus(groupName);
+            return configReader.GetGroupActiveStatus(group);
+        }
+
+        public void SetGroupActivity(Gruppe group, bool isActive)
+        {
+            configReader.SetGroupActiveStatus(group, isActive);
+        }
+
+        public long GetDailyTimeMs(Gruppe gruppe, AppSZ app)
+        {
+            return configReader.GetDailyAppTime(gruppe, app);
+        }
+
+        public void SetDailyTimeMs(Gruppe group, AppSZ app, long dailyTimeMs)
+        {
+            configReader.SetDailyAppTime(group, app, dailyTimeMs);
+        }
+
+        public void AddTimeToLog(AppSZ app, DateOnly date, long timeMs)
+        {
+            if (app == null || date == default || timeMs < 0)
+            {
+                Logger.Instance.Log("Ungültige Parameter für AddTimeToLog. App, Datum oder Zeit sind ungültig.", LogLevel.Error);
+                return;
+            }
+            var log = app.Logs.FirstOrDefault(l => l.Date == date);
+            if (log != null)
+            {
+                log.TimeMs += timeMs;
+            }
+        }
+
+        public void SetAppDateTime(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        {
+            configReader.SetAppDateTimeMs(group, app, date, timeMs);
+        }
+
+        public long GetDailyTimeLeft(Gruppe group, AppSZ app, DateOnly date)
+        {
+            if (group == null || app == null)
+            {
+                Logger.Instance.Log("Gruppe oder App ist null. Kann die tägliche Zeit nicht abrufen.", LogLevel.Error);
+                return 0;
+            }
+            long timeLeftMs = configReader.GetDailyAppTime(group, app) - configReader.GetAppDateTimeMs(group, app, date);
+            return timeLeftMs;
+        }
+
+        public void SetDaílyTimeMs(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        {
+            if (group == null || app == null)
+            {
+                Logger.Instance.Log("Gruppe oder App ist null. Kann die Zeit nicht setzen.", LogLevel.Error);
+                return;
+            }
+            configReader.SetAppDateTimeMs(group, app, date, timeMs);
         }
 
         public void Dispose()
@@ -171,8 +278,6 @@ namespace ScreenZen
             if (disposed) return;
             if (disposing)
             {
-                // Hier ggf. weitere Ressourcen freigeben
-                blockedApps.Clear();
                 Logger.Instance.Log("AppManager wurde disposed.", LogLevel.Info);
             }
             disposed = true;

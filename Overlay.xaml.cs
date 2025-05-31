@@ -16,7 +16,7 @@ namespace ScreenZen
         private bool _timerActive = false;
         private bool _messageActive = false;
         private bool _showTimer = true;
-
+        private bool _overlayEnabled = true;
         public bool GetShowTimer() => _showTimer;
         public bool SetShowTimer(bool value)
         {
@@ -226,16 +226,47 @@ namespace ScreenZen
 
         private void UpdateOverlayVisibility()
         {
-            // Fenster nur anzeigen, wenn eines der Flags gesetzt ist
+            // Neu: Wenn Overlay global deaktiviert ist, verstecke es sofort.
+            if (!_overlayEnabled)
+            {
+                if (IsVisible)
+                    Hide();
+                return;
+            }
+
+            // Alte Logik: Nur anzeigen, wenn Timer aktiv sein darf UND _timerActive, oder eine Message aktiv ist.
             if ((_showTimer && _timerActive) || _messageActive)
             {
-                if (!IsVisible) Show();
+                if (!IsVisible)
+                    Show();
             }
             else
             {
-                if (IsVisible) Hide();
+                if (IsVisible)
+                    Hide();
             }
         }
+
+        /// <summary>
+        /// Aktiviert das Overlay (also erlaubt, dass es wieder sichtbar wird, 
+        /// sofern gerade ein Timer oder eine Message aktiv ist).
+        /// </summary>
+        public void EnableOverlay()
+        {
+            _overlayEnabled = true;
+            Dispatcher.Invoke(UpdateOverlayVisibility);
+        }
+
+        /// <summary>
+        /// Deaktiviert das Overlay komplett (versteckt es sofort, 
+        /// selbst wenn gerade ein Timer läuft oder eine Nachricht angezeigt wird).
+        /// </summary>
+        public void DisableOverlay()
+        {
+            _overlayEnabled = false;
+            Dispatcher.Invoke(UpdateOverlayVisibility);
+        }
+
 
         public void Dispose()
         {
