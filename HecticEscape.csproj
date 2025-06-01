@@ -20,12 +20,12 @@
     </Content>
     <Content Include="Config.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-      <CustomToolNamespace>ScreenZen</CustomToolNamespace>
+      <CustomToolNamespace>HecticEscape</CustomToolNamespace>
     </Content>
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="MainSZ.csproj" />
+    <None Include="MainHE.csproj" />
   </ItemGroup>
 
   <ItemGroup>

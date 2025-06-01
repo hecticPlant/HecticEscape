@@ -1,4 +1,4 @@
-﻿namespace ScreenZen
+﻿namespace HecticEscape
 {
     /// <summary>
     /// Verwaltet die Arbeits-, Pausen- und Prüf-Timer für die App- und Webseiten-Blockierung.

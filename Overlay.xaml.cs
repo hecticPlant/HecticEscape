@@ -6,7 +6,7 @@ using System.Windows;
 using System.Windows.Interop;
 using System.Windows.Media;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     public partial class Overlay : Window, IDisposable
     {

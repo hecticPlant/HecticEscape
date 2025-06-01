@@ -5,12 +5,12 @@ using Titanium.Web.Proxy.EventArguments;
 using Titanium.Web.Proxy.Models;
 using System;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     /// <summary>
     /// Blockiert bestimmte Domains über einen lokalen Proxy-Server.
     /// </summary>
-    public class WebProxySZ : IDisposable
+    public class WebProxyHE : IDisposable
     {
         private List<string> blockedDomains = new List<string>();
         private readonly ProxyServer proxy;
@@ -22,7 +22,7 @@ namespace ScreenZen
         /// <summary>
         /// Konstruktor: Initialisiert den Proxy-Server mit HTTPS-Unterstützung.
         /// </summary>
-        public WebProxySZ()
+        public WebProxyHE()
         {
             proxy = new ProxyServer();
             proxy.BeforeRequest += OnRequestAsync;
@@ -35,7 +35,7 @@ namespace ScreenZen
             proxy.AddEndPoint(proxyEndPoint);
 
             isProxyRunning = false;
-            Logger.Instance.Log("WebProxySZ initialisiert.", LogLevel.Info);
+            Logger.Instance.Log("WebProxyHE initialisiert.", LogLevel.Info);
         }
 
         public bool IsProxyRunning
@@ -225,7 +225,7 @@ namespace ScreenZen
             if (disposing)
             {
                 StopProxy().Wait();
-                Logger.Instance.Log("WebProxySZ wurde disposed.", LogLevel.Info);
+                Logger.Instance.Log("WebProxyHE wurde disposed.", LogLevel.Info);
             }
             disposed = true;
         }

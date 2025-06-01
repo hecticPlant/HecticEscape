@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MessageBox = System.Windows.MessageBox;
 using Org.BouncyCastle.Pkix;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     public partial class MainWindow : Window
     {
@@ -139,7 +139,7 @@ namespace ScreenZen
                 // Optional: Fallback-Icon oder kein Icon setzen
             }
             _notifyIcon.Visible = true;
-            _notifyIcon.Text = "ScreenZen läuft im Hintergrund";
+            _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
             _notifyIcon.DoubleClick += (s, e) =>
             {
                 this.Show();
@@ -162,8 +162,8 @@ namespace ScreenZen
                 if (WindowState == WindowState.Minimized)
                 {
                     this.Hide();
-                    _notifyIcon.BalloonTipTitle = "ScreenZen";
-                    _notifyIcon.BalloonTipText = "ScreenZen läuft im Hintergrund.";
+                    _notifyIcon.BalloonTipTitle = "HecticEscape";
+                    _notifyIcon.BalloonTipText = "HecticEscape läuft im Hintergrund.";
                     _notifyIcon.ShowBalloonTip(1000);
                 }
             };
@@ -526,7 +526,7 @@ namespace ScreenZen
             if (selectedGroup == null || selectedProcess == null) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppSZ app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHZ app = _configReader.GetAppFromGroup(group, selectedProcess);
 
             _appManager.SetDailyTimeMs(group, app, dailyTimeMsValue);
             UpdateDailyTimeTextBox();
@@ -545,7 +545,7 @@ namespace ScreenZen
             if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppSZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
             if (app == null)
             {
                 if (DailyTimeTextBox != null)
@@ -574,7 +574,7 @@ namespace ScreenZen
             if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppSZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
             if (app == null)
             {
                 if (DailyTimeLeftTextBox != null)
@@ -597,7 +597,7 @@ namespace ScreenZen
             if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppSZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
             if (app == null) return;
             _appManager.SetDaílyTimeMs(group, app, today, 0);
             UpdateDailyTimeTextBox();
@@ -1012,8 +1012,8 @@ namespace ScreenZen
             {
                 e.Cancel = true;
                 this.Hide();
-                _notifyIcon.BalloonTipTitle = "ScreenZen";
-                _notifyIcon.BalloonTipText = "ScreenZen läuft weiter im Hintergrund.";
+                _notifyIcon.BalloonTipTitle = "HecticEscape";
+                _notifyIcon.BalloonTipText = "HecticEscape läuft weiter im Hintergrund.";
                 _notifyIcon.ShowBalloonTip(1000);
             }
             else

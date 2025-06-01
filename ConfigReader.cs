@@ -4,11 +4,11 @@ using System.IO;
 using System.Linq;
 using System.Text.Json;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     /// <summary>
     /// Diese Klasse verwaltet die Config.json Datei und arbeitet
-    /// nun mit Instanzen von Gruppe und AppSZ, statt nur mit String-Namen.
+    /// nun mit Instanzen von Gruppe und AppHE, statt nur mit String-Namen.
     /// </summary>
     public class ConfigReader
     {
@@ -97,7 +97,7 @@ namespace ScreenZen
             {
                 Name = "Gruppe 1",
                 Aktiv = true,
-                Apps = new List<AppSZ>(),
+                Apps = new List<AppHZ>(),
                 Websites = new List<Website>(),
             };
             _config.Gruppen.Add(defaultGroup.Name, defaultGroup);
@@ -137,7 +137,7 @@ namespace ScreenZen
             foreach (var kvp in _config.Gruppen)
             {
                 var grp = kvp.Value;
-                if (grp.Apps == null) grp.Apps = new List<AppSZ>();
+                if (grp.Apps == null) grp.Apps = new List<AppHZ>();
                 if (grp.Websites == null) grp.Websites = new List<Website>();
 
                 foreach (var app in grp.Apps)
@@ -195,7 +195,7 @@ namespace ScreenZen
             {
                 Name = newName,
                 Aktiv = true,
-                Apps = new List<AppSZ>(),
+                Apps = new List<AppHZ>(),
                 Websites = new List<Website>(),
             };
 
@@ -295,11 +295,11 @@ namespace ScreenZen
         // -------------------- App-Verwaltung --------------------
 
         /// <summary>
-        /// Gibt alle AppSZ-Instanzen zurück, die in aktiven Gruppen enthalten sind.
+        /// Gibt alle AppHE-Instanzen zurück, die in aktiven Gruppen enthalten sind.
         /// </summary>
-        public List<AppSZ> GetActiveGroupsApps()
+        public List<AppHZ> GetActiveGroupsApps()
         {
-            var apps = new List<AppSZ>();
+            var apps = new List<AppHZ>();
             foreach (var grp in _config.Gruppen.Values)
             {
                 if (grp.Aktiv)
@@ -312,9 +312,9 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Fügt eine existierende AppSZ-Instanz in die angegebene Gruppe ein.
+        /// Fügt eine existierende AppHE-Instanz in die angegebene Gruppe ein.
         /// </summary>
-        public bool AddAppToGroup(Gruppe group, AppSZ app)
+        public bool AddAppToGroup(Gruppe group, AppHZ app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -337,9 +337,9 @@ namespace ScreenZen
         }
 
         /// <summary>
-        /// Entfernt eine AppSZ-Instanz aus der angegebenen Gruppe.
+        /// Entfernt eine AppHE-Instanz aus der angegebenen Gruppe.
         /// </summary>
-        public bool DeleteAppFromGroup(Gruppe group, AppSZ app)
+        public bool DeleteAppFromGroup(Gruppe group, AppHZ app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -363,7 +363,7 @@ namespace ScreenZen
         /// <summary>
         /// Setzt die tägliche Zeit (in Millisekunden) für eine App in einer Gruppe.
         /// </summary>
-        public void SetDailyAppTime(Gruppe group, AppSZ app, long dailyTimeMs)
+        public void SetDailyAppTime(Gruppe group, AppHZ app, long dailyTimeMs)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -387,7 +387,7 @@ namespace ScreenZen
         /// <summary>
         /// Liest die tägliche Zeit (in Millisekunden) für eine App in einer Gruppe.
         /// </summary>
-        public long GetDailyAppTime(Gruppe group, AppSZ app)
+        public long GetDailyAppTime(Gruppe group, AppHZ app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -409,7 +409,7 @@ namespace ScreenZen
         /// <summary>
         /// Gibt alle Log-Einträge für eine App in einer Gruppe zurück.
         /// </summary>
-        public List<Log> GetAppLogs(Gruppe group, AppSZ app)
+        public List<Log> GetAppLogs(Gruppe group, AppHZ app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -431,7 +431,7 @@ namespace ScreenZen
         /// <summary>
         /// Liest die aufgelaufene Zeit (TimeMs) für eine App an einem bestimmten Datum.
         /// </summary>
-        public long GetAppDateTimeMs(Gruppe group, AppSZ app, DateOnly date)
+        public long GetAppDateTimeMs(Gruppe group, AppHZ app, DateOnly date)
         {
             if(group == null || app == null)
             {
@@ -449,11 +449,11 @@ namespace ScreenZen
             Logger.Instance.Log($"GetAppDateTimeMs: Kein Log für App '{app.Name}' am {date} gefunden. Erstelle Log.", LogLevel.Warn);
             if(app.Logs == null)
             {
-                CreateLog(group, app, date, 0);
+                CreateLog(group, app, date);
             }
             return 0;
         }
-        public void CreateLog(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        public void CreateLog(Gruppe group, AppHZ app, DateOnly date, long timeMs = 7200000)
         {
             if (group == null || app == null)
             {
@@ -479,7 +479,7 @@ namespace ScreenZen
         /// <summary>
         /// Fügt (oder aktualisiert) einen Log-Eintrag für eine App an einem bestimmten Datum hinzu.
         /// </summary>
-        public void SetAppDateTimeMs(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        public void SetAppDateTimeMs(Gruppe group, AppHZ app, DateOnly date, long timeMs)
         {
             var logs = GetAppLogs(group, app);
             var entry = logs.FirstOrDefault(l => l.Date == date);
@@ -496,12 +496,12 @@ namespace ScreenZen
             SaveConfig();
         }
 
-        public AppSZ GetAppFromGroup(Gruppe group, string appName)
+        public AppHZ GetAppFromGroup(Gruppe group, string appName)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
                 Logger.Instance.Log($"GetAppFromGroup: Gruppe nicht gefunden.", LogLevel.Warn);
-                return new AppSZ();
+                return new AppHZ();
             }
             var app = group.Apps.FirstOrDefault(a => a.Name.Equals(appName, StringComparison.OrdinalIgnoreCase));
             if (app != null)
@@ -510,7 +510,7 @@ namespace ScreenZen
                 return app;
             }
             Logger.Instance.Log($"GetAppFromGroup: App '{appName}' nicht in Gruppe '{group.Name}' gefunden.", LogLevel.Warn);
-            return new AppSZ();
+            return new AppHZ();
         }
 
         /// <summary>

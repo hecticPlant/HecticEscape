@@ -1,7 +1,7 @@
 ﻿using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     /// <summary>
     /// Interaction logic for App.xaml
@@ -15,7 +15,7 @@ namespace ScreenZen
             Logger.Instance.Log("App Konstruktor gestartet", LogLevel.Info);
             var services = new ServiceCollection();
             services.AddSingleton<ConfigReader>();
-            services.AddSingleton<WebProxySZ>();
+            services.AddSingleton<WebProxyHE>();
             services.AddSingleton(Logger.Instance);
             services.AddSingleton<Overlay>();
             services.AddSingleton<AppManager>();

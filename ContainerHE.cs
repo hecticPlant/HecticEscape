@@ -1,9 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace ScreenZen
+namespace HecticEscape
 {
-    public class ContainerSZ
+    public class ContainerHE
     {
         private readonly Dictionary<Type, object> _singletons = new();
         private readonly Dictionary<Type, Func<object>> _registrations = new();

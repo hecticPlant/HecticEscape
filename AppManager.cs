@@ -4,7 +4,7 @@ using System.Text.RegularExpressions;
 using System.Windows.Automation.Peers;
 using System.Windows.Forms;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     /// <summary>
     /// Verwaltet die Apps
@@ -65,7 +65,7 @@ namespace ScreenZen
         public void SaveSelectedProcessesToFile(Gruppe selectedGroup, string processName)
         {
             string newProcessName = CleanProcessName(processName);
-            AppSZ app = new AppSZ
+            AppHZ app = new AppHZ
             {
                 Name = newProcessName,
                 DailyTimeMs = 0,
@@ -202,7 +202,7 @@ namespace ScreenZen
             Gruppe? group = configReader.GetGroupByName(selectedGroup);
             if (group != null)
             {
-                AppSZ? app = configReader.GetAppFromGroup(group, processName);
+                AppHZ? app = configReader.GetAppFromGroup(group, processName);
                 configReader.DeleteAppFromGroup(group, app);
             }
         }
@@ -217,17 +217,17 @@ namespace ScreenZen
             configReader.SetGroupActiveStatus(group, isActive);
         }
 
-        public long GetDailyTimeMs(Gruppe gruppe, AppSZ app)
+        public long GetDailyTimeMs(Gruppe gruppe, AppHZ app)
         {
             return configReader.GetDailyAppTime(gruppe, app);
         }
 
-        public void SetDailyTimeMs(Gruppe group, AppSZ app, long dailyTimeMs)
+        public void SetDailyTimeMs(Gruppe group, AppHZ app, long dailyTimeMs)
         {
             configReader.SetDailyAppTime(group, app, dailyTimeMs);
         }
 
-        public void AddTimeToLog(AppSZ app, DateOnly date, long timeMs)
+        public void AddTimeToLog(AppHZ app, DateOnly date, long timeMs)
         {
             if (app == null || date == default || timeMs < 0)
             {
@@ -241,12 +241,12 @@ namespace ScreenZen
             }
         }
 
-        public void SetAppDateTime(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        public void SetAppDateTime(Gruppe group, AppHZ app, DateOnly date, long timeMs)
         {
             configReader.SetAppDateTimeMs(group, app, date, timeMs);
         }
 
-        public long GetDailyTimeLeft(Gruppe group, AppSZ app, DateOnly date)
+        public long GetDailyTimeLeft(Gruppe group, AppHZ app, DateOnly date)
         {
             if (group == null || app == null)
             {
@@ -257,7 +257,7 @@ namespace ScreenZen
             return timeLeftMs;
         }
 
-        public void SetDaílyTimeMs(Gruppe group, AppSZ app, DateOnly date, long timeMs)
+        public void SetDaílyTimeMs(Gruppe group, AppHZ app, DateOnly date, long timeMs)
         {
             if (group == null || app == null)
             {

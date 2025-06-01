@@ -1,12 +1,12 @@
 ﻿using System.Collections.Generic;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     public class Gruppe
     {
         public bool Aktiv { get; set; }
         public string Name { get; set; }
-        public List<AppSZ> Apps { get; set; }
+        public List<AppHZ> Apps { get; set; }
         public List<Website> Websites { get; set; }
     }
 
@@ -17,7 +17,7 @@ namespace ScreenZen
         public long TimeMs { get; set; }
     }
 
-    public class AppSZ
+    public class AppHZ
     {
         public string Name { get; set; }
         public long DailyTimeMs { get; set; }

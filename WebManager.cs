@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     /// <summary>
     /// Verwaltet die Websites und den Proxy
@@ -8,13 +8,13 @@ namespace ScreenZen
     public class WebManager : IDisposable
     {
         private ConfigReader configReader;
-        private WebProxySZ webProxy;
+        private WebProxyHE webProxy;
         private bool disposed = false;
 
         public bool IsProxyRunning => webProxy.IsProxyRunning;
         public event Action<bool> ProxyStatusChanged;
 
-        public WebManager(ConfigReader configReader, WebProxySZ webProxy)
+        public WebManager(ConfigReader configReader, WebProxyHE webProxy)
         {
             this.configReader = configReader;
             this.webProxy = webProxy;
@@ -135,7 +135,7 @@ namespace ScreenZen
                     StopProxy();
                 }
                 catch { /* Fehlerbehandlung optional */ }
-                // Falls WebProxySZ IDisposable implementiert:
+                // Falls WebProxyHE IDisposable implementiert:
                 (webProxy as IDisposable)?.Dispose();
             }
             // Hier ggf. unmanaged Ressourcen freigeben

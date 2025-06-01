@@ -1,15 +1,15 @@
 ﻿using System.Windows;
 
-namespace ScreenZen
+namespace HecticEscape
 {
     /// <summary>
     /// Initiert und Startet das Progam
     /// </summary>
-    class MainSZ
+    class MainHE
     {
-        public MainSZ()
+        public MainHE()
         {
-            Logger.Instance.Log("MainSZ Konstruktor aufgerufen", LogLevel.Info);
+            Logger.Instance.Log("MainHE Konstruktor aufgerufen", LogLevel.Info);
             Start();
         }
 
@@ -19,18 +19,18 @@ namespace ScreenZen
         [STAThread]
         public void Start()
         {
-            Logger.Instance.Log("Start-Methode von MainSZ aufgerufen", LogLevel.Info);
-            var container = new ContainerSZ();
+            Logger.Instance.Log("Start-Methode von MainHE aufgerufen", LogLevel.Info);
+            var container = new ContainerHE();
 
             try
             {
                 Logger.Instance.Log("Registriere Singletons im Container", LogLevel.Debug);
                 container.RegisterSingleton(new ConfigReader());
-                container.RegisterSingleton(new WebProxySZ());
+                container.RegisterSingleton(new WebProxyHE());
                 container.RegisterSingleton(Logger.Instance);
                 container.RegisterSingleton(new Overlay());
                 container.RegisterSingleton(new AppManager(container.Resolve<ConfigReader>()));
-                container.RegisterSingleton(new WebManager(container.Resolve<ConfigReader>(), container.Resolve<WebProxySZ>()));
+                container.RegisterSingleton(new WebManager(container.Resolve<ConfigReader>(), container.Resolve<WebProxyHE>()));
                 container.RegisterSingleton(new TimeManagement(
                     container.Resolve<AppManager>(), 
                     container.Resolve<WebManager>(), 
@@ -53,7 +53,7 @@ namespace ScreenZen
             }
             catch (Exception ex)
             {
-                Logger.Instance.Log($"Fehler bei der Initialisierung in MainSZ: {ex}", LogLevel.Error);
+                Logger.Instance.Log($"Fehler bei der Initialisierung in MainHE: {ex}", LogLevel.Error);
                 MessageBox.Show("Fehler bei der Initialisierung. Siehe Log für Details.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
                 Application.Current?.Shutdown();
             }

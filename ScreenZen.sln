@@ -1,9 +1,9 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.12.35707.178 d17.12
+VisualStudioVersion = 17.12.35707.178
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ScreenZen", "ScreenZen.csproj", "{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "HecticEscape", "HecticEscape.csproj", "{D6BB87A8-A5B9-4B63-984F-0F232CF87FA5}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -18,5 +18,8 @@ Global
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {05E677C7-FADD-477A-9EE4-00746FADAD1C}
 	EndGlobalSection
 EndGlobal
