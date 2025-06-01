@@ -77,7 +77,7 @@
             "PauseBeginnt": "Pause beginnt",
             "PauseBeginntIn": "Pause beginnt in ",
             "PauseVorbei": "Pause vorbei",
-            "PauseIn1": "Pause in"
+            "PauseIn": "Pause in"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Ungültiges Zeitformat. Bitte geben Sie die Zeit im Format HH:MM ein.",
@@ -171,9 +171,9 @@
           },
           "Overlay": {
             "PauseBeginnt": "Break starts",
-            "PauseBeginntIn": "Break starts in ",
+            "PauseBeginntIn": "Break starts in",
             "PauseVorbei": "Pause vorbei",
-            "PauseIn": "Pause in",
+            "PauseIn": "Pause in"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Invalid time format. Please enter the time in HH:MM format.",

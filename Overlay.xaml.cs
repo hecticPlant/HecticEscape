@@ -187,8 +187,8 @@ namespace HecticEscape
             {
                 for (int i = seconds; i > 0; i--)
                 {
-                    Dispatcher.Invoke(() =>
-                        OverlayMessageTextBlock.Text = $"{"Overlay.PauseIn1"} in {i} {"Misc.Seconds"}"
+                    Dispatcher.Invoke(() => 
+                        OverlayMessageTextBlock.Text = $"{_languageManager.Get("Overlay.PauseIn")}" + $" {i} {_languageManager.Get("Misc.Seconds")}"
                     );
                     await Task.Delay(1000, cts.Token);
                 }

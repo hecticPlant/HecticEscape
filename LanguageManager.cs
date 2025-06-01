@@ -38,8 +38,9 @@ namespace HecticEscape
                 "GruppenTab" => _mw.GruppenTab,
                 "SteuerungTab" => _mw.SteuerungTab,
                 "StatusBar" => _mw.StatusBar,
-                "Overlay" => _mw.StatusBar,
+                "Overlay" => _mw.Overlay,
                 "ErrorMessages" => _mw.ErrorMessages,
+                "Misc" => _mw.Misc,
                 _ => null
             };
 
