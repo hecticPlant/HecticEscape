@@ -44,145 +44,143 @@ namespace HecticEscape
         }
 
         // DI-Konstruktor
-        public MainWindow(
-            TimeManagement timeManagement,
-            AppManager appManager,
-            WebManager webManager,
-            Overlay overlay,
-            ConfigReader configReader,
-            LanguageManager languageManager)
-        {
-            Logger.Instance.Log("MainWindow DI-Konstruktor aufgerufen", LogLevel.Info);
-
-            _timeManagement = timeManagement;
-            _appManager = appManager;
-            _webManager = webManager;
-            _overlay = overlay;
-            _configReader = configReader;
-            _languageManager = languageManager;
-
-            InitializeComponent();
-            Logger.Instance.Log("MainWindow initialisiert", LogLevel.Info);
-
-            // Null-Checks für Abhängigkeiten
-            if (_timeManagement == null)
-                Logger.Instance.Log("TimeManagement ist null!", LogLevel.Error);
-            if (_appManager == null)
-                Logger.Instance.Log("AppManager ist null!", LogLevel.Error);
-            if (_webManager == null)
-                Logger.Instance.Log("WebManager ist null!", LogLevel.Error);
-            if (_overlay == null)
-                Logger.Instance.Log("Overlay ist null!", LogLevel.Error);
-            if (_configReader == null)
-                Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
-            if (_languageManager == null)
-                Logger.Instance.Log("LanguageManager ist null!", LogLevel.Error);
-
-            // Texte aus der Sprachdatei initialisieren
-            try
+        public MainWindow(TimeManagement timeManagement,AppManager appManager,WebManager webManager,Overlay overlay,ConfigReader configReader,LanguageManager languageManager)
             {
-                InitializeTexts();
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler in InitializeTexts(): {ex.Message}", LogLevel.Error);
-            }
+                Logger.Instance.Log("MainWindow DI-Konstruktor aufgerufen", LogLevel.Info);
 
-            try
-            {
-                _timeManagement.StatusChanged += OnStatusChanged;
-            }
-            catch
-            {
-                Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error);
-            }
+                _timeManagement = timeManagement;
+                _appManager = appManager;
+                _webManager = webManager;
+                _overlay = overlay;
+                _configReader = configReader;
+                _languageManager = languageManager;
 
-            try { LoadGroups(); }
-            catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
-            try { LoadLanguages(); }
-            catch { Logger.Instance.Log("LoadLanguages() fehlgeschlagen.", LogLevel.Error); }
-            try { GetCurrentLanguage(); }
-            catch { Logger.Instance.Log("GetCurrentLanguage() fehlgeschlagen.", LogLevel.Error); }
+                InitializeComponent();
+                Logger.Instance.Log("MainWindow initialisiert", LogLevel.Info);
 
-            try { ListTimers(); }
-            catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
-
-            try
-            {
-                _timeManagement.OverlayToggleRequested += ToggleEnableOverlay;
-            }
-            catch
-            {
-                Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error);
-            }
-
-            statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
-            statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
-            statusUpdateTimer.Start();
-            Logger.Instance.Log("Initialisiert");
-
-            try
-            {
+                // Null-Checks für Abhängigkeiten
+                if (_timeManagement == null)
+                    Logger.Instance.Log("TimeManagement ist null!", LogLevel.Error);
+                if (_appManager == null)
+                    Logger.Instance.Log("AppManager ist null!", LogLevel.Error);
+                if (_webManager == null)
+                    Logger.Instance.Log("WebManager ist null!", LogLevel.Error);
+                if (_overlay == null)
+                    Logger.Instance.Log("Overlay ist null!", LogLevel.Error);
                 if (_configReader == null)
-                {
                     Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
-                    return;
-                }
+                if (_languageManager == null)
+                    Logger.Instance.Log("LanguageManager ist null!", LogLevel.Error);
 
-                WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
-                AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
-
-                WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
-                ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
-
-                StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
-                ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log("Fehler beim Laden der Konfiguration: " + ex.Message, LogLevel.Error);
-            }
-
-            Closing += MainWindow_Closing;
-
-            _notifyIcon = new NotifyIcon();
-            try
-            {
-                _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
-            }
-            _notifyIcon.Visible = true;
-            _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
-            _notifyIcon.DoubleClick += (s, e) =>
-            {
-                this.Show();
-                this.WindowState = WindowState.Normal;
-                this.Activate();
-            };
-
-            var contextMenu = new ContextMenuStrip();
-            contextMenu.Items.Add("Öffnen", null, (s, e) => { this.Show(); this.WindowState = WindowState.Normal; });
-            contextMenu.Items.Add("Beenden", null, (s, e) =>
-            {
-                _closeToTray = false;
-                this.Close();
-                System.Windows.Application.Current.Shutdown();
-            });
-            _notifyIcon.ContextMenuStrip = contextMenu;
-
-            this.StateChanged += (s, e) =>
-            {
-                if (WindowState == WindowState.Minimized)
+                // Texte aus der Sprachdatei initialisieren
+                try
                 {
-                    this.Hide();
-                    _notifyIcon.BalloonTipTitle = "HecticEscape";
-                    _notifyIcon.BalloonTipText = "HecticEscape läuft im Hintergrund.";
-                    _notifyIcon.ShowBalloonTip(1000);
+                    InitializeTexts();
                 }
-            };
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log($"Fehler in InitializeTexts(): {ex.Message}", LogLevel.Error);
+                }
+
+                try
+                {
+                    _timeManagement.StatusChanged += OnStatusChanged;
+                }
+                catch
+                {
+                    Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error);
+                }
+
+                try { LoadGroups(); }
+                catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
+                try { LoadLanguages(); }
+                catch { Logger.Instance.Log("LoadLanguages() fehlgeschlagen.", LogLevel.Error); }
+                try { GetCurrentLanguage(); }
+                catch { Logger.Instance.Log("GetCurrentLanguage() fehlgeschlagen.", LogLevel.Error); }
+
+                try { ListTimers(); }
+                catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
+
+                try
+                {
+                    _timeManagement.OverlayToggleRequested += ToggleEnableOverlay;
+                }
+                catch
+                {
+                    Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error);
+                }
+
+                statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
+                statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
+                statusUpdateTimer.Start();
+                Logger.Instance.Log("Initialisiert");
+
+                try
+                {
+                    if (_configReader == null)
+                    {
+                        Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
+                        return;
+                    }
+
+                    WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
+                    AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
+
+                    WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
+                    ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
+
+                    StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
+                    ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log("Fehler beim Laden der Konfiguration: " + ex.Message, LogLevel.Error);
+                }
+
+                Closing += MainWindow_Closing;
+
+                _notifyIcon = new NotifyIcon();
+                try
+                {
+                    _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
+                }
+                _notifyIcon.Visible = true;
+                _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
+                _notifyIcon.DoubleClick += (s, e) =>
+                {
+                    this.Show();
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
+                };
+
+                var contextMenu = new ContextMenuStrip();
+                contextMenu.Items.Add("Öffnen", null, (s, e) => { this.Show(); this.WindowState = WindowState.Normal; });
+                contextMenu.Items.Add("Beenden", null, (s, e) =>
+                {
+                    _closeToTray = false;
+                    this.Close();
+                    System.Windows.Application.Current.Shutdown();
+                });
+                _notifyIcon.ContextMenuStrip = contextMenu;
+
+                this.StateChanged += (s, e) =>
+                {
+                    if (WindowState == WindowState.Minimized)
+                    {
+                        this.Hide();
+                        _notifyIcon.BalloonTipTitle = "HecticEscape";
+                        _notifyIcon.BalloonTipText = "HecticEscape läuft im Hintergrund.";
+                        _notifyIcon.ShowBalloonTip(1000);
+                    }
+                };
+            if (_configReader != null)
+            {
+                ResetDailyTimeButton.Visibility = _configReader.GetEnableDebugMode() ? Visibility.Visible : Visibility.Collapsed;
+            }
         }
 
         // -------------------- Status & UI --------------------
@@ -434,9 +432,6 @@ namespace HecticEscape
             DebugStatusTextBlock.Text = _languageManager.Get("StatusBar.DebugStatusTextBlock");
             VerboseStatusTextBlock.Text = _languageManager.Get("StatusBar.VerboseStatusTextBlock");
         }
-
-
-
 
 
         // -------------------- Gruppen-Tab --------------------
@@ -963,6 +958,7 @@ namespace HecticEscape
                 Logger.Instance.Log("Debug-Modus aktiviert: Pause = 45s, Intervall = 15s", LogLevel.Info);
             }
             UpdateStatusTextBlocks();
+            ResetDailyTimeButton.Visibility = _configReader.GetEnableDebugMode() ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void VerboseButton_Click(object sender, RoutedEventArgs e)

@@ -86,5 +86,8 @@ namespace HecticEscape
 
         [JsonPropertyName("ErrorMessages")]
         public Dictionary<string, string> ErrorMessages { get; set; }
+
+        [JsonPropertyName("Misc")]
+        public Dictionary<string, string> Misc { get; set; }
     }
 }

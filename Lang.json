@@ -76,7 +76,8 @@
           "Overlay": {
             "PauseBeginnt": "Pause beginnt",
             "PauseBeginntIn": "Pause beginnt in ",
-            "PauseVorbei": "Pause vorbei"
+            "PauseVorbei": "Pause vorbei",
+            "PauseIn1": "Pause in"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Ungültiges Zeitformat. Bitte geben Sie die Zeit im Format HH:MM ein.",
@@ -89,6 +90,9 @@
             "LanguageChanged": "Sprache geändert. Bitte die App neustarten.",
             "LanguageChangedHeader": "Sprache geändert",
             "NoTimerSelected": "Bitte wählen Sie einen Timer aus."
+          },
+          "Misc": {
+            "Seconds": "Sekunden"
           }
         }
       }
@@ -168,7 +172,8 @@
           "Overlay": {
             "PauseBeginnt": "Break starts",
             "PauseBeginntIn": "Break starts in ",
-            "PauseVorbei": "Pause vorbei"
+            "PauseVorbei": "Pause vorbei",
+            "PauseIn": "Pause in",
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Invalid time format. Please enter the time in HH:MM format.",
@@ -180,6 +185,9 @@
             "WebsiteNotFound": "Website not found.",
             "LanguageChanged": "Language changed to English. Please restart the app.",
             "LanguageChangedHeader": "Language changed"
+          },
+          "Misc": {
+            "Seconds": "Seconds"
           }
         }
       }

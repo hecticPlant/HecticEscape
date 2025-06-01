@@ -418,7 +418,7 @@
                 {
                     alreadyAnnounced.Add(t);
                     _overlay.Dispatcher.Invoke(() =>
-                        _overlay.ShowMessage($"{_languageManager.Get("Overlay.PausVorbei")}, {FormatTimeSpan(t)}"));
+                        _overlay.ShowMessage($"{_languageManager.Get("Overlay.PauseVorbei")}, {FormatTimeSpan(t)}"));
                 }
             }
 

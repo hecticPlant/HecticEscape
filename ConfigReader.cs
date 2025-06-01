@@ -101,7 +101,8 @@ namespace HecticEscape
                             SteuerungTab = new Dictionary<string, string>(),
                             StatusBar = new Dictionary<string, string>(),
                             Overlay = new Dictionary<string, string>(),
-                            ErrorMessages = new Dictionary<string, string>()
+                            ErrorMessages = new Dictionary<string, string>(),
+                            Misc = new Dictionary<string, string>()
                         }
                     }
                 };
