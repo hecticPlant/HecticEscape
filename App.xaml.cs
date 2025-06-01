@@ -1,52 +1,85 @@
-﻿using System.Windows;
+﻿using System;
+using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace HecticEscape
 {
-    /// <summary>
-    /// Interaction logic for App.xaml
-    /// </summary>
     public partial class App : Application
     {
-        public IServiceProvider Services { get; private set; }
+        public IServiceProvider Services { get; }
 
         public App()
         {
-            Logger.Instance.Log("App Konstruktor gestartet", LogLevel.Info);
             var services = new ServiceCollection();
-            services.AddSingleton<ConfigReader>();
-            services.AddSingleton<WebProxyHE>();
-            services.AddSingleton(Logger.Instance);
-            services.AddSingleton<Overlay>();
-            services.AddSingleton<AppManager>();
-            services.AddSingleton<WebManager>();
-            services.AddSingleton<TimeManagement>(provider =>
-                new TimeManagement(
-                    provider.GetRequiredService<AppManager>(),
-                    provider.GetRequiredService<WebManager>(),
-                    provider.GetRequiredService<Overlay>(), // Overlay wird übergeben
-                    provider.GetRequiredService<ConfigReader>() // ConfigReader hinzugefügt
-                ));
-            services.AddSingleton<MainWindow>();
+            ConfigureServices(services);
             Services = services.BuildServiceProvider();
-            Logger.Instance.Log("ServiceProvider erstellt", LogLevel.Info);
+        }
+
+        private void ConfigureServices(IServiceCollection services)
+        {
+            services.AddSingleton<ConfigReader>();
+
+            services.AddSingleton<LanguageManager>(sp =>
+            {
+                var cfg = sp.GetRequiredService<ConfigReader>();
+                if (cfg.CurrentLanguage.Content.TryGetValue("MainWindow", out var mwSection))
+                {
+                    return new LanguageManager(mwSection);
+                }
+                else
+                {
+                    Logger.Instance.Log("In CurrentLanguage.Content fehlt der 'MainWindow'-Key. Erzeuge leeren MainWindowSection.",
+                                        LogLevel.Warn);
+                    var emptySection = new MainWindowSection
+                    {
+                        TimerTab = new Dictionary<string, string>(),
+                        WebsitesTab = new Dictionary<string, string>(),
+                        ProzesseTab = new Dictionary<string, string>(),
+                        GruppenTab = new Dictionary<string, string>(),
+                        SteuerungTab = new Dictionary<string, string>(),
+                        StatusBar = new Dictionary<string, string>()
+                    };
+                    return new LanguageManager(emptySection);
+                }
+            });
+
+            services.AddSingleton<WebProxyHE>();
+            services.AddSingleton<Logger>(sp => Logger.Instance);
+            services.AddSingleton<Overlay>();
+
+            services.AddSingleton<AppManager>(sp =>
+                new AppManager(sp.GetRequiredService<ConfigReader>()));
+
+            services.AddSingleton<WebManager>(sp =>
+                new WebManager(
+                    sp.GetRequiredService<ConfigReader>(),
+                    sp.GetRequiredService<WebProxyHE>()));
+
+            services.AddSingleton<TimeManagement>(sp =>
+                new TimeManagement(
+                    sp.GetRequiredService<AppManager>(),
+                    sp.GetRequiredService<WebManager>(),
+                    sp.GetRequiredService<Overlay>(),
+                    sp.GetRequiredService<ConfigReader>()));
+            services.AddTransient<MainWindow>();
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
-            Logger.Instance.Log("OnStartup gestartet", LogLevel.Info);
-            AppDomain.CurrentDomain.UnhandledException += (s, ex) =>
-            {
-                Logger.Instance.Log($"Unhandled Exception: {ex.ExceptionObject}", LogLevel.Error);
-            };
             base.OnStartup(e);
-        }
 
-        protected override void OnExit(ExitEventArgs e)
-        {
-            Logger.Instance.Log("Application Exit. Ressourcen werden freigegeben.", LogLevel.Info);
-            // Hier ggf. globale Ressourcen aufräumen
-            base.OnExit(e);
+            try
+            {
+                var mainWindow = Services.GetRequiredService<MainWindow>();
+                mainWindow.Show();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Starten von MainWindow: {ex}", LogLevel.Error);
+                MessageBox.Show("Fehler beim Starten der Anwendung. Siehe Log für Details.",
+                                "Fehler", MessageBoxButton.OK, MessageBoxImage.Error);
+                Current.Shutdown();
+            }
         }
     }
 }

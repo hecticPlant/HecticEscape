@@ -1,0 +1,178 @@
+{
+  "Title": "HecticEscape",
+  "Sprachen": {
+    "Deutsch": {
+      "Name": "Deutsch",
+      "Content": {
+        "MainWindow": {
+          "Timer-Tab": {
+            "Header": "Timer",
+            "TimerSteuerungTextBox": "Timer-Steuerung",
+            "SetTimerButton": "Zeit Setzen",
+            "StartTimerButton": "Start Timer",
+            "StopTimerButton": "Stop Timer"
+          },
+          "WebsitesTab": {
+            "Header": "Websites",
+            "WebseitenVerwaltungText": "Webseiten-Verwaltung",
+            "ShowBlockedWebsitesButton": "Blockierte Website anzeigen",
+            "SaveWebsiteButton": "Website speichern",
+            "DeleteWebsiteButton": "L�sche Website"
+          },
+          "ProzesseTab": {
+            "Header": "Prozesse",
+            "ProzessVerwaltungText": "Prozess-Verwaltung",
+            "ShowBlockedAppsButton": "Blockierte Apps anzeigen",
+            "SaveProcessButton": "Speichere Prozess",
+            "ShowRunningProcessesButton": "Laufende Prozesse",
+            "DeleteProcessButton": "Lösche Prozess",
+            "DailyTimesText": "Tägliche Zeiten",
+            "SaveDailyTimeButton": "Speichere Tägliche Zeit",
+            "HeuteVerbliebenLabel": "Heute Verblieben:",
+            "ResetDailyTimeButton": "Reset Daily Time"
+          },
+          "GruppenTab": {
+            "Header": "Gruppen",
+            "GruppenVerwaltungText": "Gruppen-Verwaltung",
+            "CreateGroupButton": "Neue Gruppe Erstellen",
+            "DeleteGroupButton": "Gruppe Löschen",
+            "ActivateGroupButton": "Aktiviere Gruppe",
+            "DeactivateGroupButton": "Deaktiviere Gruppe"
+          },
+          "SteuerungTab": {
+            "Header": "Steuerung",
+            "AllgemeinText": "Allgemein",
+            "StartBlockingButton": "Start",
+            "DebugButton": "Toggle Debug",
+            "VerboseButton": "Toggle Verbose",
+            "ToggleOverlayButton": "Toggle Overlay",
+            "TimerText": "Timer",
+            "StopAllTimersButton": "Stop All Timers",
+            "ForceBreakButton": "Force Break",
+            "EndBreakButton": "End Break",
+            "StartTimerAtStartupCheckBox": "Timer beim Start automatisch starten",
+            "ShowTimerInOverlay": "Timer im Overlay anzeigen",
+            "ProzesseText": "Prozesse",
+            "AppBlockingCheckBox": "App-Blocking aktiv",
+            "WebText": "Web",
+            "StartProxyButton": "Start Proxy",
+            "StopProxyButton": "Stop Proxy",
+            "WebsiteBlockingCheckBox": "Website-Blocking aktiv",
+            "LanguageText": "Sprache",
+            "ChangeLanguageButton": "Sprache wechseln",
+            "AktuelleSpracheLabel": "Aktuelle Sprache"
+          },
+          "StatusBar": {
+            "ProxyStatusTextBlock": "Proxy inaktiv",
+            "PauseStatusTextBlock": "Momentan keine Pause",
+            "FreeTimerStatusTextBlock": "Free-Timer: inaktiv",
+            "BreakTimerStatusTextBlock": "Break-Timer: inaktiv",
+            "CheckTimerStatusTextBlock": "Check-Timer: inaktiv",
+            "TimerStatusTextBlock": "Timer: --:--",
+            "OverlayStatusTextBlock": "Overlay: inaktiv",
+            "DebugStatusTextBlock": "Debug aus",
+            "VerboseStatusTextBlock": "Verbose"
+          },
+          "ErrorMessages": {
+            "InvalidTimeFormat": "Ungültiges Zeitformat. Bitte geben Sie die Zeit im Format HH:MM ein.",
+            "WebsiteAlreadyExists": "Diese Website ist bereits blockiert.",
+            "ProcessAlreadyExists": "Dieser Prozess ist bereits blockiert.",
+            "GroupAlreadyExists": "Diese Gruppe existiert bereits.",
+            "GroupNotFound": "Gruppe nicht gefunden.",
+            "ProcessNotFound": "Prozess nicht gefunden.",
+            "WebsiteNotFound": "Website nicht gefunden.",
+            "LanguageChanged": "Sprache geändert. Bitte die App neustarten.",
+            "LanguageChangedHeader": "Sprache geändert",
+            "NoTimerSelected" : "Bitte wählen Sie einen Timer aus."
+          }
+        }
+      }
+    },
+    "English": {
+      "Name": "English",
+      "Content": {
+        "MainWindow": {
+          "Timer-Tab": {
+            "Header": "Timer",
+            "TimerSteuerungTextBox": "Timer Control",
+            "SetTimerButton": "Set Time",
+            "StartTimerButton": "Start Timer",
+            "StopTimerButton": "Stop Timer"
+          },
+          "WebsitesTab": {
+            "Header": "Websites",
+            "WebseitenVerwaltungText": "Website Management",
+            "ShowBlockedWebsitesButton": "Show Blocked Website",
+            "SaveWebsiteButton": "Save Website",
+            "DeleteWebsiteButton": "Delete Website"
+          },
+          "ProzesseTab": {
+            "Header": "Processes",
+            "ProzessVerwaltungText": "Process Management",
+            "ShowBlockedAppsButton": "Show Blocked Apps",
+            "SaveProcessButton": "Save Process",
+            "ShowRunningProcessesButton": "Show Running Processes",
+            "DeleteProcessButton": "Delete Process",
+            "DailyTimesText": "Daily Times",
+            "SaveDailyTimeButton": "Save Daily Time",
+            "HeuteVerbliebenLabel": "Remaining Today:",
+            "ResetDailyTimeButton": "Reset Daily Time"
+          },
+          "GruppenTab": {
+            "Header": "Groups",
+            "GruppenVerwaltungText": "Group Management",
+            "CreateGroupButton": "Create Group",
+            "DeleteGroupButton": "Delete Group",
+            "ActivateGroupButton": "Activate Group",
+            "DeactivateGroupButton": "Deactivate Group"
+          },
+          "SteuerungTab": {
+            "Header": "Control",
+            "AllgemeinText": "General",
+            "StartBlockingButton": "Start",
+            "DebugButton": "Toggle Debug",
+            "VerboseButton": "Toggle Verbose",
+            "ToggleOverlayButton": "Toggle Overlay",
+            "TimerText": "Timer",
+            "StopAllTimersButton": "Stop All Timers",
+            "ForceBreakButton": "Force Break",
+            "EndBreakButton": "End Break",
+            "StartTimerAtStartupCheckBox": "Start timer on startup",
+            "ShowTimerInOverlay": "Show timer in overlay",
+            "ProzesseText": "Processes",
+            "AppBlockingCheckBox": "App blocking active",
+            "WebText": "Web",
+            "StartProxyButton": "Start Proxy",
+            "StopProxyButton": "Stop Proxy",
+            "WebsiteBlockingCheckBox": "Website blocking active",
+            "LanguageText": "Language",
+            "ChangeLanguageButton": "Change Language",
+            "AktuelleSpracheLabel": "Current Language: "
+          },
+          "StatusBar": {
+            "ProxyStatusTextBlock": "Proxy inactive",
+            "PauseStatusTextBlock": "Currently no break",
+            "FreeTimerStatusTextBlock": "Free-Timer: inactive",
+            "BreakTimerStatusTextBlock": "Break-Timer: inactive",
+            "CheckTimerStatusTextBlock": "Check-Timer: inactive",
+            "TimerStatusTextBlock": "Timer: --:--",
+            "OverlayStatusTextBlock": "Overlay: inactive",
+            "DebugStatusTextBlock": "Debug off",
+            "VerboseStatusTextBlock": "Verbose"
+          },
+          "ErrorMessages": {
+            "InvalidTimeFormat": "Invalid time format. Please enter the time in HH:MM format.",
+            "WebsiteAlreadyExists": "This website is already blocked.",
+            "ProcessAlreadyExists": "This process is already blocked.",
+            "GroupAlreadyExists": "This group already exists.",
+            "GroupNotFound": "Group not found.",
+            "ProcessNotFound": "Process not found.",
+            "WebsiteNotFound": "Website not found.",
+            "LanguageChanged": "Language changed to English. Please restart the app.",
+            "LanguageChangedHeader": "Language changed"
+          }
+        }
+      }
+    }
+  }
+}

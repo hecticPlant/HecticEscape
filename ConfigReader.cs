@@ -13,18 +13,30 @@ namespace HecticEscape
     public class ConfigReader
     {
         private Config _config;
-        private readonly string _filePath = "Config.json";
+        public LanguageFile LanguageFile { get; private set; }
+        public LanguageData CurrentLanguage { get; private set; }
+        private readonly string _filePathConfig = "Config.json";
+        private readonly string _langFilePath = "Lang.json";
 
         public ConfigReader()
         {
             Logger.Instance.Log("Starte Initialisierung des ConfigReaders.", LogLevel.Info);
+            SetupConfig();
+            LoadLanguages();
 
-            if (File.Exists(_filePath))
+
+
+            Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
+        }
+
+        private void SetupConfig()
+        {
+            if (File.Exists(_filePathConfig))
             {
-                Logger.Instance.Log($"{_filePath} existiert.", LogLevel.Info);
+                Logger.Instance.Log($"{_filePathConfig} existiert.", LogLevel.Info);
                 try
                 {
-                    string json = File.ReadAllText(_filePath);
+                    string json = File.ReadAllText(_filePathConfig);
                     Logger.Instance.Log($"Config-Inhalt geladen: {json}", LogLevel.Info);
                     // Falls Deserialisierung fehlschlägt, erzeuge Default
                     _config = JsonSerializer.Deserialize<Config>(json)
@@ -67,8 +79,73 @@ namespace HecticEscape
                     Logger.Instance.Log($"Fehler beim Setzen des Debug-Modus: {ex.Message}", LogLevel.Error);
                 }
             }
+        }
 
-            Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
+        private void LoadLanguages()
+        {
+            if (!File.Exists(_langFilePath))
+            {
+                Logger.Instance.Log($"{_langFilePath} nicht gefunden. Erstelle leeres Sprach-Setup.", LogLevel.Warn);
+                LanguageFile = new LanguageFile { Sprachen = new Dictionary<string, LanguageData>() };
+                CurrentLanguage = new LanguageData
+                {
+                    Name = "Deutsch",
+                    Content = new Dictionary<string, MainWindowSection>
+                    {
+                        ["MainWindow"] = new MainWindowSection
+                        {
+                            TimerTab = new Dictionary<string, string>(),
+                            WebsitesTab = new Dictionary<string, string>(),
+                            ProzesseTab = new Dictionary<string, string>(),
+                            GruppenTab = new Dictionary<string, string>(),
+                            SteuerungTab = new Dictionary<string, string>(),
+                            StatusBar = new Dictionary<string, string>()
+                        }
+                    }
+                };
+                return;
+            }
+            Logger.Instance.Log($"{_langFilePath} gefunden. Lese Sprachdatei ein.", LogLevel.Info);
+            var json = File.ReadAllText(_langFilePath);
+            LanguageFile = JsonSerializer.Deserialize<LanguageFile>(json, new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                ReadCommentHandling = JsonCommentHandling.Skip,
+                AllowTrailingCommas = true
+            }) ?? new LanguageFile { Sprachen = new Dictionary<string, LanguageData>() };
+            if (LanguageFile.Sprachen != null && LanguageFile.Sprachen.TryGetValue(GetActiveLanguageFromConfig(), out var langData))
+            {
+                CurrentLanguage = langData;
+                Logger.Instance.Log($"Aktive Sprache '{CurrentLanguage.Name}' geladen.", LogLevel.Info);
+            }
+            else
+            {
+                CurrentLanguage = LanguageFile.Sprachen?.Values.FirstOrDefault()
+                                   ?? new LanguageData
+                                   {
+                                       Name = "Deutsch",
+                                       Content = new Dictionary<string, MainWindowSection>()
+                                   };
+            }
+            if (CurrentLanguage.Content == null || !CurrentLanguage.Content.ContainsKey("MainWindow"))
+            {
+                Logger.Instance.Log(
+                    "LanguageData.Content enthält keinen Key \"MainWindow\" – lege leere Sektion an.",
+                    LogLevel.Warn);
+
+                CurrentLanguage.Content = new Dictionary<string, MainWindowSection>
+                {
+                    ["MainWindow"] = new MainWindowSection
+                    {
+                        TimerTab = new Dictionary<string, string>(),
+                        WebsitesTab = new Dictionary<string, string>(),
+                        ProzesseTab = new Dictionary<string, string>(),
+                        GruppenTab = new Dictionary<string, string>(),
+                        SteuerungTab = new Dictionary<string, string>(),
+                        StatusBar = new Dictionary<string, string>()
+                    }
+                };
+            }
         }
 
         /// <summary>
@@ -89,7 +166,8 @@ namespace HecticEscape
                 StartTimerAtStartup = false,
                 IntervalFreeMs = 2 * 3600 * 1000,
                 IntervalBreakMs = 15 * 60 * 1000,
-                IntervalCheckMs = 1000
+                IntervalCheckMs = 1000,
+                ActiveLanguageNameString = "Deutsch",
             };
 
             // Eine Startgruppe anlegen
@@ -105,7 +183,7 @@ namespace HecticEscape
             SaveConfig();
 
             Logger.Instance.Log("Eine neue Konfigurationsdatei mit Standard-Gruppe wurde erstellt.", LogLevel.Info);
-            string json = File.ReadAllText(_filePath);
+            string json = File.ReadAllText(_filePathConfig);
             Logger.Instance.Log($"Neue Config-Inhalte: {json}", LogLevel.Info);
         }
 
@@ -117,8 +195,8 @@ namespace HecticEscape
             try
             {
                 string json = JsonSerializer.Serialize(_config, new JsonSerializerOptions { WriteIndented = true });
-                File.WriteAllText(_filePath, json);
-                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Info);
+                File.WriteAllText(_filePathConfig, json);
+                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Debug);
             }
             catch (Exception ex)
             {
@@ -453,6 +531,7 @@ namespace HecticEscape
             }
             return 0;
         }
+
         public void CreateLog(Gruppe group, AppHZ app, DateOnly date, long timeMs = 7200000)
         {
             if (group == null || app == null)
@@ -773,6 +852,52 @@ namespace HecticEscape
             _config.EnableOverlay = value;
             Logger.Instance.Log($"Setze EnableOverlay auf {value}.", LogLevel.Verbose);
             SaveConfig();
+        }
+
+        public string GetActiveLanguage()
+        {
+            if (CurrentLanguage != null && CurrentLanguage.Name != null)
+            {
+                Logger.Instance.Log($"Aktive Sprache: {CurrentLanguage.Name}", LogLevel.Verbose);
+                return CurrentLanguage.Name;
+            }
+            Logger.Instance.Log("Keine aktive Sprache gesetzt.", LogLevel.Warn);
+            return "Deutsch"; // Fallback
+        }
+        public string GetActiveLanguageFromConfig()
+        {
+            if (!string.IsNullOrEmpty(_config.ActiveLanguageNameString))
+            {
+                Logger.Instance.Log($"Aktive Sprache aus Config: {_config.ActiveLanguageNameString}", LogLevel.Verbose);
+                return _config.ActiveLanguageNameString;
+            }
+            return "Deutsch"; // Fallback
+        }
+
+        public void SetActiveLanguage(string languageName)
+        {
+            if(LanguageFile.Sprachen != null && LanguageFile.Sprachen.ContainsKey(languageName))
+            {
+                _config.ActiveLanguageNameString = languageName;
+                CurrentLanguage = LanguageFile.Sprachen[languageName];
+                Logger.Instance.Log($"Aktive Sprache auf '{languageName}' gesetzt.", LogLevel.Info);
+                SaveConfig();
+            }
+            else
+            {
+                Logger.Instance.Log($"SetActiveLanguage: Sprache '{languageName}' nicht gefunden.", LogLevel.Warn);
+            }
+        }
+
+        public List<LanguageData> GetAllLanguages()
+        {             
+            if (LanguageFile.Sprachen != null)
+            {
+                Logger.Instance.Log($"GetAllLanguages: {LanguageFile.Sprachen.Count} Sprachen gefunden.", LogLevel.Verbose);
+                return LanguageFile.Sprachen.Values.ToList();
+            }
+            Logger.Instance.Log("GetAllLanguages: Keine Sprachen gefunden.", LogLevel.Warn);
+            return new List<LanguageData>();
         }
     }
 }

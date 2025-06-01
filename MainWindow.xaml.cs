@@ -8,6 +8,11 @@ using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using MessageBox = System.Windows.MessageBox;
 using Org.BouncyCastle.Pkix;
+using System;
+using System.Collections.Generic;
+using System.Windows;
+using System.Windows.Threading;
+using System.Windows.Forms; // Für NotifyIcon
 
 namespace HecticEscape
 {
@@ -18,9 +23,10 @@ namespace HecticEscape
         private readonly WebManager _webManager;
         private readonly Overlay _overlay;
         private readonly ConfigReader _configReader;
+        private readonly LanguageManager _languageManager;
         private readonly DispatcherTimer statusUpdateTimer = new();
         private NotifyIcon _notifyIcon;
-        private bool _closeToTray = true; // Optional: Verhalten steuern
+        private bool _closeToTray = true;
 
         // Parameterloser Konstruktor (XAML)
         public MainWindow() : this(
@@ -28,7 +34,8 @@ namespace HecticEscape
             ResolveDependency<AppManager>("AppManager"),
             ResolveDependency<WebManager>("WebManager"),
             ResolveDependency<Overlay>("Overlay"),
-            ResolveDependency<ConfigReader>("ConfigReader"))
+            ResolveDependency<ConfigReader>("ConfigReader"),
+            ResolveDependency<LanguageManager>("LanguageManager"))
         {
             Logger.Instance.Log("MainWindow Konstruktor (XAML) aufgerufen", LogLevel.Debug);
             UpdateStatusTextBlocks();
@@ -48,7 +55,8 @@ namespace HecticEscape
             AppManager appManager,
             WebManager webManager,
             Overlay overlay,
-            ConfigReader configReader)
+            ConfigReader configReader,
+            LanguageManager languageManager)
         {
             Logger.Instance.Log("MainWindow DI-Konstruktor aufgerufen", LogLevel.Info);
 
@@ -57,47 +65,62 @@ namespace HecticEscape
             _webManager = webManager;
             _overlay = overlay;
             _configReader = configReader;
+            _languageManager = languageManager;
 
             InitializeComponent();
             Logger.Instance.Log("MainWindow initialisiert", LogLevel.Info);
 
             // Null-Checks für Abhängigkeiten
             if (_timeManagement == null)
-            {
                 Logger.Instance.Log("TimeManagement ist null!", LogLevel.Error);
-                return;
-            }
             if (_appManager == null)
-            {
                 Logger.Instance.Log("AppManager ist null!", LogLevel.Error);
-            }
             if (_webManager == null)
-            {
                 Logger.Instance.Log("WebManager ist null!", LogLevel.Error);
-            }
             if (_overlay == null)
-            {
                 Logger.Instance.Log("Overlay ist null!", LogLevel.Error);
-            }
             if (_configReader == null)
-            {
                 Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
+            if (_languageManager == null)
+                Logger.Instance.Log("LanguageManager ist null!", LogLevel.Error);
+
+            // Texte aus der Sprachdatei initialisieren
+            try
+            {
+                InitializeTexts();
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler in InitializeTexts(): {ex.Message}", LogLevel.Error);
             }
 
             try
             {
                 _timeManagement.StatusChanged += OnStatusChanged;
             }
-            catch { Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error); }
+            catch
+            {
+                Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error);
+            }
 
-            try { LoadGroups(); } catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
-            try { ListTimers(); } catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
+            try { LoadGroups(); }
+            catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
+            try { LoadLanguages(); }
+            catch { Logger.Instance.Log("LoadLanguages() fehlgeschlagen.", LogLevel.Error); }
+            try { GetCurrentLanguage(); }
+            catch { Logger.Instance.Log("GetCurrentLanguage() fehlgeschlagen.", LogLevel.Error); }
+
+            try { ListTimers(); }
+            catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
 
             try
             {
                 _timeManagement.OverlayToggleRequested += ToggleEnableOverlay;
             }
-            catch { Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error); }
+            catch
+            {
+                Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error);
+            }
 
             statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
             statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
@@ -106,11 +129,12 @@ namespace HecticEscape
 
             try
             {
-                if(_configReader == null)
+                if (_configReader == null)
                 {
                     Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
                     return;
                 }
+
                 WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
                 AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
 
@@ -119,7 +143,6 @@ namespace HecticEscape
 
                 StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
                 ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
-
             }
             catch (Exception ex)
             {
@@ -136,7 +159,6 @@ namespace HecticEscape
             catch (Exception ex)
             {
                 Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
-                // Optional: Fallback-Icon oder kein Icon setzen
             }
             _notifyIcon.Visible = true;
             _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
@@ -147,13 +169,13 @@ namespace HecticEscape
                 this.Activate();
             };
 
-            var contextMenu = new System.Windows.Forms.ContextMenuStrip();
+            var contextMenu = new ContextMenuStrip();
             contextMenu.Items.Add("Öffnen", null, (s, e) => { this.Show(); this.WindowState = WindowState.Normal; });
             contextMenu.Items.Add("Beenden", null, (s, e) =>
             {
                 _closeToTray = false;
                 this.Close();
-                System.Windows.Application.Current.Shutdown(); // Anwendung wirklich beenden
+                System.Windows.Application.Current.Shutdown();
             });
             _notifyIcon.ContextMenuStrip = contextMenu;
 
@@ -339,6 +361,90 @@ namespace HecticEscape
             UpdateDailyTimeLeftTextBox();
         }
 
+        // -------------------- Sprachdatei --------------------
+
+        private void InitializeTexts()
+        {
+            // --- Tab-Header ---
+            TimerTab.Header = _languageManager.Get("Timer-Tab.Header");
+            WebsitesTab.Header = _languageManager.Get("WebsitesTab.Header");
+            ProzesseTab.Header = _languageManager.Get("ProzesseTab.Header");
+            GruppenTab.Header = _languageManager.Get("GruppenTab.Header");
+            SteuerungTab.Header = _languageManager.Get("SteuerungTab.Header");
+
+            // --- Timer-Tab ---
+            TimerSteuerungTextBox.Text = _languageManager.Get("Timer-Tab.TimerSteuerungTextBox");
+            SetTimerButton.Content = _languageManager.Get("Timer-Tab.SetTimerButton");
+            StartTimerButton.Content = _languageManager.Get("Timer-Tab.StartTimerButton");
+            StopTimerButton.Content = _languageManager.Get("Timer-Tab.StopTimerButton");
+
+            // --- Websites-Tab ---
+            WebseitenVerwaltungTextBlock.Text = _languageManager.Get("WebsitesTab.WebseitenVerwaltungText");
+            ShowBlockedWebsitesButton.Content = _languageManager.Get("WebsitesTab.ShowBlockedWebsitesButton");
+            SaveWebsiteButton.Content = _languageManager.Get("WebsitesTab.SaveWebsiteButton");
+            DeleteWebsiteButton.Content = _languageManager.Get("WebsitesTab.DeleteWebsiteButton");
+
+            // --- Prozesse-Tab ---
+            ProzessVerwaltungTextBlock.Text = _languageManager.Get("ProzesseTab.ProzessVerwaltungText");
+            ShowBlockedAppsButton.Content = _languageManager.Get("ProzesseTab.ShowBlockedAppsButton");
+            SaveProcessButton.Content = _languageManager.Get("ProzesseTab.SaveProcessButton");
+            ShowRunningProcessesButton.Content = _languageManager.Get("ProzesseTab.ShowRunningProcessesButton");
+            DeleteProcessButton.Content = _languageManager.Get("ProzesseTab.DeleteProcessButton");
+            DailyTimesTextBlock.Text = _languageManager.Get("ProzesseTab.DailyTimesText");
+            SaveDailyTimeButton.Content = _languageManager.Get("ProzesseTab.SaveDailyTimeButton");
+            HeuteVerbliebenLabel.Text = _languageManager.Get("ProzesseTab.HeuteVerbliebenLabel");
+            ResetDailyTimeButton.Content = _languageManager.Get("ProzesseTab.ResetDailyTimeButton");
+
+            // --- Gruppen-Tab ---
+            GruppenVerwaltungTextBlock.Text = _languageManager.Get("GruppenTab.GruppenVerwaltungText");
+            CreateGroupButton.Content = _languageManager.Get("GruppenTab.CreateGroupButton");
+            DeleteGroupButton.Content = _languageManager.Get("GruppenTab.DeleteGroupButton");
+            ActivateGroupButton.Content = _languageManager.Get("GruppenTab.ActivateGroupButton");
+            DeactivateGroupButton.Content = _languageManager.Get("GruppenTab.DeactivateGroupButton");
+
+            // --- Steuerung-Tab ---
+            AllgemeinTextBlock.Text = _languageManager.Get("SteuerungTab.AllgemeinText");
+            StartBlockingButton.Content = _languageManager.Get("SteuerungTab.StartBlockingButton");
+            DebugButton.Content = _languageManager.Get("SteuerungTab.DebugButton");
+            VerboseButton.Content = _languageManager.Get("SteuerungTab.VerboseButton");
+            ToggleOverlayButton.Content = _languageManager.Get("SteuerungTab.ToggleOverlayButton");
+
+            TimerTextBlock.Text = _languageManager.Get("SteuerungTab.TimerText");
+            StopAllTimersButton.Content = _languageManager.Get("SteuerungTab.StopAllTimersButton");
+            ForceBreakButton.Content = _languageManager.Get("SteuerungTab.ForceBreakButton");
+            EndBreakButton.Content = _languageManager.Get("SteuerungTab.EndBreakButton");
+            StartTimerAtStartupCheckBox.Content = _languageManager.Get("SteuerungTab.StartTimerAtStartupCheckBox");
+            ShowTimerInOverlay.Content = _languageManager.Get("SteuerungTab.ShowTimerInOverlay");
+
+            ProzesseTextBlock.Text = _languageManager.Get("SteuerungTab.ProzesseText");
+            AppBlockingCheckBox.Content = _languageManager.Get("SteuerungTab.AppBlockingCheckBox");
+
+            WebTextBlock.Text = _languageManager.Get("SteuerungTab.WebText");
+            StartProxyButton.Content = _languageManager.Get("SteuerungTab.StartProxyButton");
+            StopProxyButton.Content = _languageManager.Get("SteuerungTab.StopProxyButton");
+            WebsiteBlockingCheckBox.Content = _languageManager.Get("SteuerungTab.WebsiteBlockingCheckBox");
+
+            LanguageTextBlock.Text = _languageManager.Get("SteuerungTab.LanguageText");
+            ChangeLanguageButton.Content = _languageManager.Get("SteuerungTab.ChangeLanguageButton");
+            AktuelleSpracheLabel.Text = _languageManager.Get("SteuerungTab.AktuelleSpracheLabel");
+
+            // --- StatusBar ---
+            ProxyStatusTextBlock.Text = _languageManager.Get("StatusBar.ProxyStatusTextBlock");
+            PauseStatusTextBlock.Text = _languageManager.Get("StatusBar.PauseStatusTextBlock");
+            FreeTimerStatusTextBlock.Text = _languageManager.Get("StatusBar.FreeTimerStatusTextBlock");
+            BreakTimerStatusTextBlock.Text = _languageManager.Get("StatusBar.BreakTimerStatusTextBlock");
+            CheckTimerStatusTextBlock.Text = _languageManager.Get("StatusBar.CheckTimerStatusTextBlock");
+            TimerStatusTextBlock.Text = _languageManager.Get("StatusBar.TimerStatusTextBlock");
+
+            OverlayStatusTextBlock.Text = _languageManager.Get("StatusBar.OverlayStatusTextBlock");
+            DebugStatusTextBlock.Text = _languageManager.Get("StatusBar.DebugStatusTextBlock");
+            VerboseStatusTextBlock.Text = _languageManager.Get("StatusBar.VerboseStatusTextBlock");
+        }
+
+
+
+
+
         // -------------------- Gruppen-Tab --------------------
 
         private void LoadGroups()
@@ -513,7 +619,7 @@ namespace HecticEscape
             // Eingabe im Format hh:mm:ss parsen
             if (!TimeSpan.TryParse(DailyTimeMaskedBox?.Text, out var timeSpan))
             {
-                MessageBox.Show("Bitte geben Sie die Zeit im Format hh:mm:ss ein.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{_languageManager.Get("ErrorMessages.InvalidTimeFormat")}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Ungültiges Zeitformat: '{DailyTimeMaskedBox?.Text}'");
                 return;
             }
@@ -690,7 +796,7 @@ namespace HecticEscape
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
             {
-                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{_languageManager.Get("ErrorMessages.NoTimerSelected")}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Kein Timer gewählt");
                 return;
             }
@@ -698,7 +804,7 @@ namespace HecticEscape
             // Eingabe im Format hh:mm:ss parsen
             if (!TimeSpan.TryParse(TimerCurrentTimeMaskedBox?.Text, out var timeSpan))
             {
-                MessageBox.Show("Bitte geben Sie die Zeit im Format hh:mm:ss ein.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{_languageManager.Get("ErrorMessages.InvalidTimeFormat")}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Ungültiges Zeitformat: '{TimerCurrentTimeMaskedBox?.Text}'");
                 return;
             }
@@ -731,7 +837,7 @@ namespace HecticEscape
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
             {
-                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{_languageManager.Get("ErrorMessages.NoTimerSelected")}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Kein Timer gewählt");
                 return;
             }
@@ -758,7 +864,7 @@ namespace HecticEscape
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
             {
-                MessageBox.Show("Bitte wählen sie einen Timer aus.", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
+                MessageBox.Show($"{_languageManager.Get("ErrorMessages.NoTimerSelected")}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
                 Logger.Instance.Log($"Kein Timer gewählt");
                 return;
             }
@@ -926,6 +1032,58 @@ namespace HecticEscape
             _configReader.SetIntervalFreeMs(freeMs);
             _configReader.SetIntervalBreakMs(breakMs);
             _configReader.SetIntervalCheckMs(checkMs);
+        }
+
+        private void LanguageSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+        }
+        private void GetCurrentLanguage()
+        {
+            if (_configReader == null) return;
+            string? currentLanguage = _configReader.GetActiveLanguage();
+            if (currentLanguage != null && LanguageSelectionCombobox != null)
+            {
+                AktuelleSpracheTextblock.Text = currentLanguage;
+            }
+            else
+            {
+                AktuelleSpracheTextblock.Text = "Error";
+                Logger.Instance.Log("Aktuelle Sprache konnte nicht geladen werden.", LogLevel.Warn);
+            }
+        }
+
+        private void LoadLanguages()
+        {
+            if (_configReader == null)
+            {
+                Logger.Instance.Log("LoadGroups: ConfigReader ist null!", LogLevel.Error);
+                return;
+            }
+            List<LanguageData> allLanguages = _configReader.GetAllLanguages();
+            LanguageSelectionCombobox?.Items.Clear();
+
+            if (allLanguages != null)
+            {
+                foreach (var language in allLanguages)
+                {
+                    if (language != null)
+                    {
+                        LanguageSelectionCombobox?.Items.Add(language.Name);
+                    }
+                }
+            }
+            else
+            {
+                Logger.Instance.Log("LoadGroups: Keine Sprachen gefunden.", LogLevel.Warn);
+            }
+        }
+        private void ChangeLanguageButton_Click(object sender, RoutedEventArgs e) 
+        { 
+            if (_configReader == null) return;
+            string? selectedLanguage = LanguageSelectionCombobox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedLanguage)) return;
+            _configReader.SetActiveLanguage(selectedLanguage);
+            MessageBox.Show($"{_languageManager.Get("ErrorMessages.LanguageChanged")}", $"{_languageManager.Get("ErrorMessages.LanguageChangedHeader")}", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         // -------------------- Overlay --------------------

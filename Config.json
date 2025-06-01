@@ -27,5 +27,6 @@
   "EnableDebugMode": false,
   "EnableVerboseMode": false,
   "EnableShowTimeInOverlay": false,
-  "EnableOverlay": true
+  "EnableOverlay": true,
+  "ActiveLanguageFile": "Deutsch"
 }
