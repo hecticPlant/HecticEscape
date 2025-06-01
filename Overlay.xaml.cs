@@ -11,7 +11,7 @@ namespace HecticEscape
     public partial class Overlay : Window, IDisposable
     {
         private bool disposed = false;
-
+        private readonly LanguageManager _languageManager;
         // Status-Flags
         private bool _timerActive = false;
         private bool _messageActive = false;
@@ -43,7 +43,7 @@ namespace HecticEscape
         [DllImport("user32.dll")] private static extern int GetWindowLong(IntPtr hWnd, int nIndex);
         [DllImport("user32.dll")] private static extern int SetWindowLong(IntPtr hWnd, int nIndex, int dwNewLong);
 
-        public Overlay()
+        public Overlay(LanguageManager languageManager)
         {
             InitializeComponent();
 
@@ -63,6 +63,7 @@ namespace HecticEscape
             // Initial versteckt
             OverlayMessageBorder.Visibility = Visibility.Hidden;
             OverlayTimerBorder.Visibility = Visibility.Hidden;
+            _languageManager = languageManager;
         }
 
         protected override void OnSourceInitialized(EventArgs e)

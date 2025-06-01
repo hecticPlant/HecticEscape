@@ -29,10 +29,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="MainHE.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
     <PackageReference Include="Extended.Wpf.Toolkit" Version="4.7.25104.5739" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="9.0.5" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />

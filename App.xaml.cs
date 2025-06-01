@@ -45,7 +45,8 @@ namespace HecticEscape
 
             services.AddSingleton<WebProxyHE>();
             services.AddSingleton<Logger>(sp => Logger.Instance);
-            services.AddSingleton<Overlay>();
+            services.AddSingleton<Overlay>(sp =>
+                new Overlay(sp.GetRequiredService<LanguageManager>()));
 
             services.AddSingleton<AppManager>(sp =>
                 new AppManager(sp.GetRequiredService<ConfigReader>()));
@@ -60,8 +61,9 @@ namespace HecticEscape
                     sp.GetRequiredService<AppManager>(),
                     sp.GetRequiredService<WebManager>(),
                     sp.GetRequiredService<Overlay>(),
-                    sp.GetRequiredService<ConfigReader>()));
-            services.AddTransient<MainWindow>();
+                    sp.GetRequiredService<ConfigReader>(),
+                    sp.GetRequiredService<LanguageManager>()));
+                        services.AddSingleton<MainWindow>();
         }
 
         protected override void OnStartup(StartupEventArgs e)

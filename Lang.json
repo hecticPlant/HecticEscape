@@ -73,6 +73,11 @@
             "DebugStatusTextBlock": "Debug aus",
             "VerboseStatusTextBlock": "Verbose"
           },
+          "Overlay": {
+            "PauseBeginnt": "Pause beginnt",
+            "PauseBeginntIn": "Pause beginnt in ",
+            "PauseVorbei": "Pause vorbei"
+          },
           "ErrorMessages": {
             "InvalidTimeFormat": "Ungültiges Zeitformat. Bitte geben Sie die Zeit im Format HH:MM ein.",
             "WebsiteAlreadyExists": "Diese Website ist bereits blockiert.",
@@ -83,7 +88,7 @@
             "WebsiteNotFound": "Website nicht gefunden.",
             "LanguageChanged": "Sprache geändert. Bitte die App neustarten.",
             "LanguageChangedHeader": "Sprache geändert",
-            "NoTimerSelected" : "Bitte wählen Sie einen Timer aus."
+            "NoTimerSelected": "Bitte wählen Sie einen Timer aus."
           }
         }
       }
@@ -159,6 +164,11 @@
             "OverlayStatusTextBlock": "Overlay: inactive",
             "DebugStatusTextBlock": "Debug off",
             "VerboseStatusTextBlock": "Verbose"
+          },
+          "Overlay": {
+            "PauseBeginnt": "Break starts",
+            "PauseBeginntIn": "Break starts in ",
+            "PauseVorbei": "Pause vorbei"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Invalid time format. Please enter the time in HH:MM format.",

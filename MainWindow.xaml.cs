@@ -7,12 +7,6 @@ using System.Windows.Threading;
 using System.Windows.Forms;
 using Microsoft.Extensions.DependencyInjection;
 using MessageBox = System.Windows.MessageBox;
-using Org.BouncyCastle.Pkix;
-using System;
-using System.Collections.Generic;
-using System.Windows;
-using System.Windows.Threading;
-using System.Windows.Forms; // Für NotifyIcon
 
 namespace HecticEscape
 {

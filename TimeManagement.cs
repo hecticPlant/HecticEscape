@@ -10,6 +10,7 @@
 
         private AppManager appManager;
         private WebManager webManager;
+        private readonly LanguageManager _languageManager;
         private readonly Overlay _overlay;
         private readonly ConfigReader configReader;
 
@@ -43,12 +44,13 @@
         };
         private HashSet<TimeSpan> alreadyAnnounced = new();
 
-        public TimeManagement(AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader)
+        public TimeManagement(AppManager appManager, WebManager webManager, Overlay overlay, ConfigReader configReader, LanguageManager languageManager)
         {
             this.webManager = webManager;
             this.appManager = appManager;
             this._overlay = overlay;
-            this.configReader = configReader; // Zuweisung des übergebenen Parameters
+            this.configReader = configReader;
+            this._languageManager = languageManager;
 
             // Werte aus der Config laden
             intervalFreeMs = configReader.GetIntervalFreeMs();
@@ -124,7 +126,7 @@
                 StatusChanged?.Invoke("Momentan Pause");
 
                 // Overlay: Pause beginnt
-                _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage("Pause beginnt!", 2500));
+                _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage($"{_languageManager.Get("Overlay.PauseBeginnt")}", 2500));
                 breakTimer.Stop();
                 breakTimerEnd = DateTime.Now.AddMilliseconds(breakTimer.Interval);
                 breakTimer.Start();
@@ -159,7 +161,7 @@
                 StatusChanged?.Invoke("Momentan freie Zeit");
 
                 // Overlay: Pause ist vorbei
-                _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage("Pause vorbei!", 2500));
+                _overlay.Dispatcher.Invoke(() => _overlay.ShowMessage($"{_languageManager.Get("Overlay.PauseVorbei")}", 2500));
                 workTimer.Stop();
                 workTimerEnd = DateTime.Now.AddMilliseconds(workTimer.Interval);
                 workTimer.Start();
@@ -416,7 +418,7 @@
                 {
                     alreadyAnnounced.Add(t);
                     _overlay.Dispatcher.Invoke(() =>
-                        _overlay.ShowMessage($"Pause in {FormatTimeSpan(t)}"));
+                        _overlay.ShowMessage($"{_languageManager.Get("Overlay.PausVorbei")}, {FormatTimeSpan(t)}"));
                 }
             }
 

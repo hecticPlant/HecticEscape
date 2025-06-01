@@ -81,6 +81,9 @@ namespace HecticEscape
         [JsonPropertyName("StatusBar")]
         public Dictionary<string, string> StatusBar { get; set; }
 
+        [JsonPropertyName("Overlay")]
+        public Dictionary<string, string> Overlay { get; set; }
+
         [JsonPropertyName("ErrorMessages")]
         public Dictionary<string, string> ErrorMessages { get; set; }
     }

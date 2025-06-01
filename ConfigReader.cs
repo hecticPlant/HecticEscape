@@ -99,7 +99,9 @@ namespace HecticEscape
                             ProzesseTab = new Dictionary<string, string>(),
                             GruppenTab = new Dictionary<string, string>(),
                             SteuerungTab = new Dictionary<string, string>(),
-                            StatusBar = new Dictionary<string, string>()
+                            StatusBar = new Dictionary<string, string>(),
+                            Overlay = new Dictionary<string, string>(),
+                            ErrorMessages = new Dictionary<string, string>()
                         }
                     }
                 };
