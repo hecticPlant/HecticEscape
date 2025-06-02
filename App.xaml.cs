@@ -28,18 +28,8 @@ namespace HecticEscape
                 }
                 else
                 {
-                    Logger.Instance.Log("In CurrentLanguage.Content fehlt der 'MainWindow'-Key. Erzeuge leeren MainWindowSection.",
-                                        LogLevel.Warn);
-                    var emptySection = new MainWindowSection
-                    {
-                        TimerTab = new Dictionary<string, string>(),
-                        WebsitesTab = new Dictionary<string, string>(),
-                        ProzesseTab = new Dictionary<string, string>(),
-                        GruppenTab = new Dictionary<string, string>(),
-                        SteuerungTab = new Dictionary<string, string>(),
-                        StatusBar = new Dictionary<string, string>()
-                    };
-                    return new LanguageManager(emptySection);
+                    Logger.Instance.Log("In CurrentLanguage.Content fehlt der 'MainWindow'-Key", LogLevel.Error);
+                    return new LanguageManager(new MainWindowSection { }) ;
                 }
             });
 
