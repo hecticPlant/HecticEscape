@@ -15,16 +15,28 @@ namespace HecticEscape
         private Config _config;
         public LanguageFile LanguageFile { get; private set; }
         public LanguageData CurrentLanguage { get; private set; }
-        private readonly string _filePathConfig = "Config.json";
-        private readonly string _langFilePath = "Lang.json";
+        private readonly string _filePathConfig = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "HecticEscape",
+            "Config.json");
+        private readonly string _langFilePath;
+        private readonly string _logFilePath;
 
         public ConfigReader()
         {
             Logger.Instance.Log("Starte Initialisierung des ConfigReaders.", LogLevel.Info);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(_filePathConfig)!);
+
+            string appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "HecticEscape");
+            Directory.CreateDirectory(appDataPath); // Falls noch nicht vorhanden
+            _langFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lang.json");
+            _logFilePath = Path.Combine(appDataPath, "log.txt");
+
             SetupConfig();
             LoadLanguages();
-
-
 
             Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
         }

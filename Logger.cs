@@ -30,11 +30,14 @@ namespace HecticEscape
 
         private Logger()
         {
-            string logDirectory = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "log");
-            Directory.CreateDirectory(logDirectory);
+            // Logverzeichnis im Benutzerprofil (AppData\Roaming\HecticEscape\log)
+            string appDataPath = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                "HecticEscape", "log");
+            Directory.CreateDirectory(appDataPath);
 
             string timestamp = DateTime.Now.ToString("yyyy-MM-dd_HH-mm-ss");
-            logFilePath = Path.Combine(logDirectory, $"app_{timestamp}.log");
+            logFilePath = Path.Combine(appDataPath, $"app_{timestamp}.log");
 
             logTask = Task.Run(ProcessLogQueue);
         }
@@ -56,16 +59,10 @@ namespace HecticEscape
                 return;
             }
 
-            // Kürzen des Dateinamens (ohne Pfad und ohne Endung) für Caller-Info
             string callerInfo = $"{Path.GetFileNameWithoutExtension(callerFilePath)}.{callerMemberName}:{callerLineNumber}";
-
-            // Zeitstempel + Level + Caller + Nachricht
             string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] [{callerInfo}] {message}{Environment.NewLine}";
-
-            // In die Queue schieben (z. B. BlockingCollection<string> oder ConcurrentQueue<string>)
             logQueue.Add(logEntry);
         }
-
 
         public Task LogAsync(
             string message,
@@ -88,7 +85,7 @@ namespace HecticEscape
                 }
                 catch
                 {
-                    // Fehler beim Schreiben ins Log ignorieren, um Endlosschleifen zu vermeiden
+                    // Fehler beim Schreiben ins Log ignorieren
                 }
             }
         }
