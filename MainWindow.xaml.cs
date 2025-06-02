@@ -1,12 +1,16 @@
-﻿using System.Diagnostics;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Win32;
+using System.Diagnostics;
 using System.IO;
+using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Forms;
 using System.Windows.Media;
 using System.Windows.Threading;
-using System.Windows.Forms;
-using Microsoft.Extensions.DependencyInjection;
 using MessageBox = System.Windows.MessageBox;
+using Microsoft.Win32;
+using System.Reflection;
 
 namespace HecticEscape
 {
@@ -136,12 +140,14 @@ namespace HecticEscape
 
                 WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
                 AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
+                EnableStartOnWindowsStartupCheckBox.IsChecked = _configReader.GetEnableStartOnWindowsStartup();
 
                 WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
                 ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
 
                 StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
                 ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
+                EnableUpdateCheckBox.IsChecked = _configReader.GetEnableUpdateCheck();
             }
             catch (Exception ex)
             {
@@ -205,6 +211,11 @@ namespace HecticEscape
 
         private async void CheckForUpdatesAndApply()
         {
+            if (!_configReader.GetEnableUpdateCheck())
+            {
+                Logger.Instance.Log("Update-Prüfung deaktiviert.", LogLevel.Info);
+                return;
+            }
             try
             {
                 string? latestVersion = await _updateService.GetLatestVersionAsync();
@@ -385,9 +396,9 @@ namespace HecticEscape
                     VerboseStatusTextBlock.Visibility = Visibility.Collapsed; // Ausblenden, wenn nicht aktiv
                 }
             }
-            
+
             // Overlay-Status
-            if( OverlayStatusTextBlock != null)
+            if (OverlayStatusTextBlock != null)
             {
                 if (_configReader.GetEnableOverlay())
                 {
@@ -457,6 +468,7 @@ namespace HecticEscape
             EndBreakButton.Content = _languageManager.Get("SteuerungTab.EndBreakButton");
             StartTimerAtStartupCheckBox.Content = _languageManager.Get("SteuerungTab.StartTimerAtStartupCheckBox");
             ShowTimerInOverlay.Content = _languageManager.Get("SteuerungTab.ShowTimerInOverlay");
+            EnableStartOnWindowsStartupCheckBox.Content = _languageManager.Get("SteuerungTab.EnableStartOnWindowsStartupCheckBox");
 
             ProzesseTextBlock.Text = _languageManager.Get("SteuerungTab.ProzesseText");
             AppBlockingCheckBox.Content = _languageManager.Get("SteuerungTab.AppBlockingCheckBox");
@@ -498,7 +510,7 @@ namespace HecticEscape
 
             if (allGroups != null)
             {
-            foreach (var group in allGroups)
+                foreach (var group in allGroups)
                 {
                     if (!string.IsNullOrEmpty(group))
                     {
@@ -530,7 +542,7 @@ namespace HecticEscape
             if (_configReader == null) return;
             string? groupNameToDelete = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupNameToDelete)) return;
-            Gruppe? group =_configReader.GetGroupByName(groupNameToDelete);
+            Gruppe? group = _configReader.GetGroupByName(groupNameToDelete);
             if (group == null) return;
             _configReader.DeleteGroup(group);
             LoadGroups();
@@ -698,7 +710,7 @@ namespace HecticEscape
                 return;
             }
             string? dailyTimeMs = _appManager.GetDailyTimeMs(group, app).ToString();
-            if (string.IsNullOrEmpty(dailyTimeMs)) 
+            if (string.IsNullOrEmpty(dailyTimeMs))
             {
                 if (DailyTimeTextBox != null)
                     DailyTimeTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
@@ -821,7 +833,8 @@ namespace HecticEscape
             TimerTypeComboBox?.Items.Clear();
             TimerTypeComboBox?.Items.Add("Freizeit");
             TimerTypeComboBox?.Items.Add("Pause");
-            TimerTypeComboBox?.Items.Add("Check");
+            if (_configReader.GetEnableDebugMode())
+                TimerTypeComboBox?.Items.Add("Check");
             if (TimerTypeComboBox != null)
             {
                 TimerTypeComboBox.SelectedIndex = 0; // Intervalltimer als Standard
@@ -1008,6 +1021,7 @@ namespace HecticEscape
                 Logger.Instance.Log("Debug-Modus aktiviert: Pause = 45s, Intervall = 15s", LogLevel.Info);
             }
             UpdateStatusTextBlocks();
+            ListTimers();
             ResetDailyTimeButton.Visibility = _configReader.GetEnableDebugMode() ? Visibility.Visible : Visibility.Collapsed;
         }
 
@@ -1016,11 +1030,14 @@ namespace HecticEscape
             _configReader.SetEnablVerbosetMode(!_configReader.GetEnableVerboseMode());
             _configReader.SaveConfig();
             UpdateStatusTextBlocks();
-            Logger.Instance.Log($"Verbose {( _configReader.GetEnableVerboseMode() ? "aktiviert" : "deaktiviert")}", LogLevel.Info);
+            Logger.Instance.Log($"Verbose {(_configReader.GetEnableVerboseMode() ? "aktiviert" : "deaktiviert")}", LogLevel.Info);
         }
 
         private void WebsiteBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
+            MessageBox.Show($"{_languageManager.Get("ErrorMessages.WebsiteBlockingMissing")}", $"{_languageManager.Get("Misc.Error")}", MessageBoxButton.OK, MessageBoxImage.Information);
+            WebsiteBlockingCheckBox.IsChecked = false; // Checkbox deaktivieren
+            return; // Temporär deaktiviert, bis Proxy implementiert ist
             Logger.Instance.Log("Website-Blocking aktiviert", LogLevel.Info);
             _configReader.SetWebsiteBlockingEnabled(true);
             WebsitesTab.IsEnabled = true;
@@ -1028,6 +1045,7 @@ namespace HecticEscape
 
         private void WebsiteBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
+            return; // Temporär deaktiviert, bis Proxy implementiert ist
             Logger.Instance.Log("Website-Blocking deaktiviert", LogLevel.Info);
             _configReader.SetWebsiteBlockingEnabled(false);
             WebsitesTab.IsEnabled = false;
@@ -1117,13 +1135,57 @@ namespace HecticEscape
                 Logger.Instance.Log("LoadGroups: Keine Sprachen gefunden.", LogLevel.Warn);
             }
         }
-        private void ChangeLanguageButton_Click(object sender, RoutedEventArgs e) 
-        { 
+
+        private void ChangeLanguageButton_Click(object sender, RoutedEventArgs e)
+        {
             if (_configReader == null) return;
             string? selectedLanguage = LanguageSelectionCombobox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedLanguage)) return;
             _configReader.SetActiveLanguage(selectedLanguage);
             MessageBox.Show($"{_languageManager.Get("ErrorMessages.LanguageChanged")}", $"{_languageManager.Get("ErrorMessages.LanguageChangedHeader")}", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        private void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnableStartOnWindowsStartup(true);
+            Logger.Instance.Log("Autostart aktiviert", LogLevel.Info);
+
+            try
+            {
+                string appName = "HecticEscape";
+                string exePath = Assembly.GetExecutingAssembly().Location;
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                {
+                    key.SetValue(appName, $"\"{exePath}\"");
+                }
+                Logger.Instance.Log("Autostart-Registry-Eintrag gesetzt.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen des Autostart-Registry-Eintrags: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        private void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnableStartOnWindowsStartup(false);
+            Logger.Instance.Log("Autostart deaktiviert", LogLevel.Info);
+
+            try
+            {
+                string appName = "HecticEscape";
+                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
+                    @"Software\Microsoft\Windows\CurrentVersion\Run", true))
+                {
+                    key.DeleteValue(appName, false);
+                }
+                Logger.Instance.Log("Autostart-Registry-Eintrag entfernt.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Entfernen des Autostart-Registry-Eintrags: {ex.Message}", LogLevel.Error);
+            }
         }
 
         // -------------------- Overlay --------------------
@@ -1158,6 +1220,18 @@ namespace HecticEscape
                 Logger.Instance.Log("Overlay aktiviert", LogLevel.Info);
             }
             UpdateStatusTextBlocks();
+        }
+
+        private void EnableUpdateCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnableUpdateCheck(true);
+            Logger.Instance.Log("Update-Check aktiviert", LogLevel.Info);
+        }
+
+        private void EnableUpdateCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnableUpdateCheck(false);
+            Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Info);
         }
 
         // -------------------- Hilfsmethoden --------------------
@@ -1220,5 +1294,7 @@ namespace HecticEscape
                 _notifyIcon.Dispose();
             }
         }
+
+        
     }
 }

@@ -43,8 +43,9 @@ namespace HecticEscape
         public bool EnableShowTimeInOverlay { get; set; } = true;
         public bool EnableVerboseMode { get; set; } = false;
         public bool EnableOverlay { get; set; } = true;
-
         public string ActiveLanguageNameString { get; set; }
+        public bool EnableUpdateCheck { get; set; } = true;
+        public bool EnableStartOnWindowsStartup { get; set; } = true;
     }
 
     public class LanguageFile

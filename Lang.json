@@ -60,7 +60,8 @@
             "WebsiteBlockingCheckBox": "Website-Blocking aktiv",
             "LanguageText": "Sprache",
             "ChangeLanguageButton": "Sprache wechseln",
-            "AktuelleSpracheLabel": "Aktuelle Sprache"
+            "AktuelleSpracheLabel": "Aktuelle Sprache",
+            "EnableStartOnWindowsStartupCheckBox": "App beim Windows-Start ausführen"
           },
           "StatusBar": {
             "ProxyStatusTextBlock": "Proxy inaktiv",
@@ -89,10 +90,12 @@
             "WebsiteNotFound": "Website nicht gefunden.",
             "LanguageChanged": "Sprache geändert. Bitte die App neustarten.",
             "LanguageChangedHeader": "Sprache geändert",
-            "NoTimerSelected": "Bitte wählen Sie einen Timer aus."
+            "NoTimerSelected": "Bitte wählen Sie einen Timer aus.",
+            "WebsiteBlockingMissing": "Website-Blocking ist in der aktuellen Version noch nicht verfügbar"
           },
           "Misc": {
-            "Seconds": "Sekunden"
+            "Seconds": "Sekunden",
+            "Error": "Error"
           }
         }
       }
@@ -156,7 +159,8 @@
             "WebsiteBlockingCheckBox": "Website blocking active",
             "LanguageText": "Language",
             "ChangeLanguageButton": "Change Language",
-            "AktuelleSpracheLabel": "Current Language: "
+            "AktuelleSpracheLabel": "Current Language: ",
+            "EnableStartOnWindowsStartupCheckBox": "Run app on Windows startup"
           },
           "StatusBar": {
             "ProxyStatusTextBlock": "Proxy inactive",
@@ -184,10 +188,12 @@
             "ProcessNotFound": "Process not found.",
             "WebsiteNotFound": "Website not found.",
             "LanguageChanged": "Language changed to English. Please restart the app.",
-            "LanguageChangedHeader": "Language changed"
+            "LanguageChangedHeader": "Language changed",
+            "WebsiteBlockingMissing": "Website-Blocking is not yet implemented in this version."
           },
           "Misc": {
-            "Seconds": "Seconds"
+            "Seconds": "Seconds",
+            "Error": "Error"
           }
         }
       }

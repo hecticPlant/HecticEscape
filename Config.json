@@ -28,5 +28,7 @@
   "EnableVerboseMode": false,
   "EnableShowTimeInOverlay": false,
   "EnableOverlay": true,
-  "ActiveLanguageFile": "Deutsch"
+  "ActiveLanguageFile": "Deutsch",
+  "EnableUpdateCheck": true,
+  "EnableStartOnWindowsStartup": true
 }

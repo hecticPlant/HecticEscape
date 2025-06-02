@@ -171,6 +171,8 @@ namespace HecticEscape
                 IntervalBreakMs = 15 * 60 * 1000,
                 IntervalCheckMs = 1000,
                 ActiveLanguageNameString = "Deutsch",
+                EnableUpdateCheck = false,
+                EnableStartOnWindowsStartup = true
             };
 
             // Eine Startgruppe anlegen
@@ -514,7 +516,7 @@ namespace HecticEscape
         /// </summary>
         public long GetAppDateTimeMs(Gruppe group, AppHZ app, DateOnly date)
         {
-            if(group == null || app == null)
+            if (group == null || app == null)
             {
                 Logger.Instance.Log("GetAppDateTimeMs: Gruppe oder App ist null.", LogLevel.Error);
                 return 0;
@@ -528,7 +530,7 @@ namespace HecticEscape
             }
 
             Logger.Instance.Log($"GetAppDateTimeMs: Kein Log für App '{app.Name}' am {date} gefunden. Erstelle Log.", LogLevel.Warn);
-            if(app.Logs == null)
+            if (app.Logs == null)
             {
                 CreateLog(group, app, date);
             }
@@ -879,7 +881,7 @@ namespace HecticEscape
 
         public void SetActiveLanguage(string languageName)
         {
-            if(LanguageFile.Sprachen != null && LanguageFile.Sprachen.ContainsKey(languageName))
+            if (LanguageFile.Sprachen != null && LanguageFile.Sprachen.ContainsKey(languageName))
             {
                 _config.ActiveLanguageNameString = languageName;
                 CurrentLanguage = LanguageFile.Sprachen[languageName];
@@ -893,7 +895,7 @@ namespace HecticEscape
         }
 
         public List<LanguageData> GetAllLanguages()
-        {             
+        {
             if (LanguageFile.Sprachen != null)
             {
                 Logger.Instance.Log($"GetAllLanguages: {LanguageFile.Sprachen.Count} Sprachen gefunden.", LogLevel.Verbose);
@@ -901,6 +903,31 @@ namespace HecticEscape
             }
             Logger.Instance.Log("GetAllLanguages: Keine Sprachen gefunden.", LogLevel.Warn);
             return new List<LanguageData>();
+        }
+
+        public void SetEnableUpdateCheck(bool value)
+        {
+            _config.EnableUpdateCheck = value;
+            Logger.Instance.Log($"Setze EnableUpdateCheck auf {value}.", LogLevel.Verbose);
+            SaveConfig();
+        }
+
+        public bool GetEnableUpdateCheck()
+        {
+            Logger.Instance.Log($"Abfrage: EnableUpdateCheck = {_config.EnableUpdateCheck}", LogLevel.Verbose);
+            return _config.EnableUpdateCheck;
+        }
+
+        public void SetEnableStartOnWindowsStartup(bool value)
+        {
+            _config.EnableStartOnWindowsStartup = value;
+            Logger.Instance.Log($"Setze EnableStartOnWindowsStartup auf {value}.", LogLevel.Verbose);
+            SaveConfig();
+        }
+        public bool GetEnableStartOnWindowsStartup()
+        {
+            Logger.Instance.Log($"Abfrage: EnableStartOnWindowsStartup = {_config.EnableStartOnWindowsStartup}", LogLevel.Verbose);
+            return _config.EnableStartOnWindowsStartup;
         }
     }
 }
