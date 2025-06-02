@@ -147,6 +147,8 @@ namespace HecticEscape
 
                 StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
                 ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
+                if(_overlay != null)
+                    _overlay.SetShowTimer(_configReader.GetShowTimeInOverlayEnable());
                 EnableUpdateCheckBox.IsChecked = _configReader.GetEnableUpdateCheck();
                 EnableStartOnWindowsStartupCheckBox.IsChecked = _configReader.GetEnableStartOnWindowsStartup();
             }
