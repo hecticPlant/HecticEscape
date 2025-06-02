@@ -148,6 +148,7 @@ namespace HecticEscape
                 StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
                 ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
                 EnableUpdateCheckBox.IsChecked = _configReader.GetEnableUpdateCheck();
+                EnableStartOnWindowsStartupCheckBox.IsChecked = _configReader.GetEnableStartOnWindowsStartup();
             }
             catch (Exception ex)
             {
@@ -1153,7 +1154,7 @@ namespace HecticEscape
             try
             {
                 string appName = "HecticEscape";
-                string exePath = Assembly.GetExecutingAssembly().Location;
+                string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
                 using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
                     @"Software\Microsoft\Windows\CurrentVersion\Run", true))
                 {
