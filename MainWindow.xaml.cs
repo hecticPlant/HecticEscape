@@ -1191,21 +1191,7 @@ namespace HecticEscape
             _configReader.SetEnableStartOnWindowsStartup(true);
             Logger.Instance.Log("Autostart aktiviert", LogLevel.Info);
 
-            try
-            {
-                string appName = "HecticEscape";
-                string exePath = Process.GetCurrentProcess().MainModule?.FileName ?? "";
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Run", true))
-                {
-                    key.SetValue(appName, $"\"{exePath}\"");
-                }
-                Logger.Instance.Log("Autostart-Registry-Eintrag gesetzt.", LogLevel.Info);
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Setzen des Autostart-Registry-Eintrags: {ex.Message}", LogLevel.Error);
-            }
+            
         }
 
         private void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
@@ -1213,20 +1199,6 @@ namespace HecticEscape
             _configReader.SetEnableStartOnWindowsStartup(false);
             Logger.Instance.Log("Autostart deaktiviert", LogLevel.Info);
 
-            try
-            {
-                string appName = "HecticEscape";
-                using (RegistryKey key = Registry.CurrentUser.OpenSubKey(
-                    @"Software\Microsoft\Windows\CurrentVersion\Run", true))
-                {
-                    key.DeleteValue(appName, false);
-                }
-                Logger.Instance.Log("Autostart-Registry-Eintrag entfernt.", LogLevel.Info);
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Entfernen des Autostart-Registry-Eintrags: {ex.Message}", LogLevel.Error);
-            }
         }
 
         // -------------------- Overlay --------------------
@@ -1241,6 +1213,10 @@ namespace HecticEscape
         {
             _configReader.SetShowTimeInOverlayEnable(false);
             _overlay.SetShowTimer(false);
+        }
+
+        private void StartOnWindowsStartup(bool enable)
+        {
         }
 
         private void ToggleEnableOverlay()

@@ -180,16 +180,11 @@ namespace HecticEscape
                 try
                 {
                     proc.Kill();
-                    Logger.Instance.Log(
-                        $"Prozess {appName} (PID {proc.Id}) in Gruppe {groupName} beendet: {reason}.",
-                        LogLevel.Info);
+                    Logger.Instance.Log($"Prozess {appName} (PID {proc.Id}) in Gruppe {groupName} beendet: {reason}.", LogLevel.Info);
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.Log(
-                        $"Fehler beim Beenden von {appName} (PID {proc.Id}) in Gruppe {groupName} " +
-                        $"({reason}): {ex.Message}",
-                        LogLevel.Error);
+                    Logger.Instance.Log($"Fehler beim Beenden von {appName} (PID {proc.Id}) in Gruppe {groupName} ({reason}): {ex.Message}", LogLevel.Error);
                 }
             }
         }
