@@ -210,6 +210,44 @@ namespace HecticEscape
             }
         }
 
+        protected override async void OnSourceInitialized(EventArgs e)
+        {
+            base.OnSourceInitialized(e);
+            await Task.Delay(1000); // 1 Sekunde warten
+
+            // Tray-Icon erst jetzt initialisieren
+            if (_notifyIcon == null)
+            {
+                _notifyIcon = new NotifyIcon();
+                try
+                {
+                    _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
+                }
+                _notifyIcon.Visible = true;
+                _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
+                _notifyIcon.DoubleClick += (s, args) =>
+                {
+                    this.Show();
+                    this.WindowState = WindowState.Normal;
+                    this.Activate();
+                };
+
+                var contextMenu = new ContextMenuStrip();
+                contextMenu.Items.Add("Öffnen", null, (s, args) => { this.Show(); this.WindowState = WindowState.Normal; });
+                contextMenu.Items.Add("Beenden", null, (s, args) =>
+                {
+                    _closeToTray = false;
+                    this.Close();
+                    System.Windows.Application.Current.Shutdown();
+                });
+                _notifyIcon.ContextMenuStrip = contextMenu;
+            }
+        }
+
         private async void CheckForUpdatesAndApply()
         {
             if (!_configReader.GetEnableUpdateCheck())
