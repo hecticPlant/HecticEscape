@@ -192,7 +192,7 @@ namespace HecticEscape
             {
                 Name = "Gruppe 1",
                 Aktiv = true,
-                Apps = new List<AppHZ>(),
+                Apps = new List<AppHE>(),
                 Websites = new List<Website>(),
             };
             _config.Gruppen.Add(defaultGroup.Name, defaultGroup);
@@ -232,7 +232,7 @@ namespace HecticEscape
             foreach (var kvp in _config.Gruppen)
             {
                 var grp = kvp.Value;
-                if (grp.Apps == null) grp.Apps = new List<AppHZ>();
+                if (grp.Apps == null) grp.Apps = new List<AppHE>();
                 if (grp.Websites == null) grp.Websites = new List<Website>();
 
                 foreach (var app in grp.Apps)
@@ -290,7 +290,7 @@ namespace HecticEscape
             {
                 Name = newName,
                 Aktiv = true,
-                Apps = new List<AppHZ>(),
+                Apps = new List<AppHE>(),
                 Websites = new List<Website>(),
             };
 
@@ -392,9 +392,9 @@ namespace HecticEscape
         /// <summary>
         /// Gibt alle AppHE-Instanzen zurück, die in aktiven Gruppen enthalten sind.
         /// </summary>
-        public List<AppHZ> GetActiveGroupsApps()
+        public List<AppHE> GetActiveGroupsApps()
         {
-            var apps = new List<AppHZ>();
+            var apps = new List<AppHE>();
             foreach (var grp in _config.Gruppen.Values)
             {
                 if (grp.Aktiv)
@@ -409,7 +409,7 @@ namespace HecticEscape
         /// <summary>
         /// Fügt eine existierende AppHE-Instanz in die angegebene Gruppe ein.
         /// </summary>
-        public bool AddAppToGroup(Gruppe group, AppHZ app)
+        public bool AddAppToGroup(Gruppe group, AppHE app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -434,7 +434,7 @@ namespace HecticEscape
         /// <summary>
         /// Entfernt eine AppHE-Instanz aus der angegebenen Gruppe.
         /// </summary>
-        public bool DeleteAppFromGroup(Gruppe group, AppHZ app)
+        public bool DeleteAppFromGroup(Gruppe group, AppHE app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -458,7 +458,7 @@ namespace HecticEscape
         /// <summary>
         /// Setzt die tägliche Zeit (in Millisekunden) für eine App in einer Gruppe.
         /// </summary>
-        public void SetDailyAppTime(Gruppe group, AppHZ app, long dailyTimeMs)
+        public void SetDailyAppTime(Gruppe group, AppHE app, long dailyTimeMs)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -482,7 +482,7 @@ namespace HecticEscape
         /// <summary>
         /// Liest die tägliche Zeit (in Millisekunden) für eine App in einer Gruppe.
         /// </summary>
-        public long GetDailyAppTime(Gruppe group, AppHZ app)
+        public long GetDailyAppTime(Gruppe group, AppHE app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -504,7 +504,7 @@ namespace HecticEscape
         /// <summary>
         /// Gibt alle Log-Einträge für eine App in einer Gruppe zurück.
         /// </summary>
-        public List<Log> GetAppLogs(Gruppe group, AppHZ app)
+        public List<Log> GetAppLogs(Gruppe group, AppHE app)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
@@ -526,7 +526,7 @@ namespace HecticEscape
         /// <summary>
         /// Liest die aufgelaufene Zeit (TimeMs) für eine App an einem bestimmten Datum.
         /// </summary>
-        public long GetAppDateTimeMs(Gruppe group, AppHZ app, DateOnly date)
+        public long GetAppDateTimeMs(Gruppe group, AppHE app, DateOnly date)
         {
             if (group == null || app == null)
             {
@@ -549,7 +549,7 @@ namespace HecticEscape
             return 0;
         }
 
-        public void CreateLog(Gruppe group, AppHZ app, DateOnly date, long timeMs = 7200000)
+        public void CreateLog(Gruppe group, AppHE app, DateOnly date, long timeMs = 7200000)
         {
             if (group == null || app == null)
             {
@@ -575,7 +575,7 @@ namespace HecticEscape
         /// <summary>
         /// Fügt (oder aktualisiert) einen Log-Eintrag für eine App an einem bestimmten Datum hinzu.
         /// </summary>
-        public void SetAppDateTimeMs(Gruppe group, AppHZ app, DateOnly date, long timeMs)
+        public void SetAppDateTimeMs(Gruppe group, AppHE app, DateOnly date, long timeMs)
         {
             var logs = GetAppLogs(group, app);
             var entry = logs.FirstOrDefault(l => l.Date == date);
@@ -592,12 +592,12 @@ namespace HecticEscape
             SaveConfig();
         }
 
-        public AppHZ GetAppFromGroup(Gruppe group, string appName)
+        public AppHE GetAppFromGroup(Gruppe group, string appName)
         {
             if (!_config.Gruppen.Values.Contains(group))
             {
                 Logger.Instance.Log($"GetAppFromGroup: Gruppe nicht gefunden.", LogLevel.Warn);
-                return new AppHZ();
+                return new AppHE();
             }
             var app = group.Apps.FirstOrDefault(a => a.Name.Equals(appName, StringComparison.OrdinalIgnoreCase));
             if (app != null)
@@ -606,7 +606,7 @@ namespace HecticEscape
                 return app;
             }
             Logger.Instance.Log($"GetAppFromGroup: App '{appName}' nicht in Gruppe '{group.Name}' gefunden.", LogLevel.Warn);
-            return new AppHZ();
+            return new AppHE();
         }
 
         /// <summary>
@@ -624,6 +624,25 @@ namespace HecticEscape
             var names = group.Apps.Select(a => a.Name).ToList();
             Logger.Instance.Log($"GetAppNamesFromGroup: {names.Count} Apps in '{group.Name}'.", LogLevel.Verbose);
             return names;
+        }
+
+        public AppHE GetAppByNameFromGroup(Gruppe group, string appName)
+        {
+            if (!_config.Gruppen.Values.Contains(group))
+            {
+                Logger.Instance.Log($"GetAppByNameFromGroup: Gruppe nicht gefunden.", LogLevel.Warn);
+                return null;
+            }
+            var app = group.Apps.FirstOrDefault(a => a.Name.Equals(appName, StringComparison.OrdinalIgnoreCase));
+            if (app != null)
+            {
+                return app;
+            }
+            else
+            {
+                Logger.Instance.Log($"GetAppByNameFromGroup: App '{appName}' nicht in Gruppe '{group.Name}' gefunden.", LogLevel.Warn);
+                return null;
+            }
         }
 
         // -------------------- Website-Verwaltung --------------------

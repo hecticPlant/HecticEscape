@@ -11,6 +11,7 @@ using System.Windows.Threading;
 using MessageBox = System.Windows.MessageBox;
 using Microsoft.Win32;
 using System.Reflection;
+using System.Windows.Interop;
 
 namespace HecticEscape
 {
@@ -23,10 +24,11 @@ namespace HecticEscape
         private readonly ConfigReader _configReader;
         private readonly LanguageManager _languageManager;
         private readonly DispatcherTimer statusUpdateTimer = new();
-        private NotifyIcon _notifyIcon;
+        private NotifyIcon? _notifyIcon;
         private bool _closeToTray = true;
         private readonly UpdateManager _updateService = new UpdateManager();
         private readonly UpdateManager _updateManager;
+        private bool _isInitialized = false;
 
         // Parameterloser Konstruktor (XAML)
         public MainWindow() : this(
@@ -86,8 +88,6 @@ namespace HecticEscape
                 Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
             if (_languageManager == null)
                 Logger.Instance.Log("LanguageManager ist null!", LogLevel.Error);
-
-            // Texte aus der Sprachdatei initialisieren
             try
             {
                 InitializeTexts();
@@ -158,38 +158,9 @@ namespace HecticEscape
             }
 
             Closing += MainWindow_Closing;
-
-            _notifyIcon = new NotifyIcon();
-            try
-            {
-                _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
-            }
-            _notifyIcon.Visible = true;
-            _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
-            _notifyIcon.DoubleClick += (s, e) =>
-            {
-                this.Show();
-                this.WindowState = WindowState.Normal;
-                this.Activate();
-            };
-
-            var contextMenu = new ContextMenuStrip();
-            contextMenu.Items.Add("Öffnen", null, (s, e) => { this.Show(); this.WindowState = WindowState.Normal; });
-            contextMenu.Items.Add("Beenden", null, (s, e) =>
-            {
-                _closeToTray = false;
-                this.Close();
-                System.Windows.Application.Current.Shutdown();
-            });
-            _notifyIcon.ContextMenuStrip = contextMenu;
-
             this.StateChanged += (s, e) =>
             {
-                if (WindowState == WindowState.Minimized)
+                if (WindowState == WindowState.Minimized && _notifyIcon != null)
                 {
                     this.Hide();
                     _notifyIcon.BalloonTipTitle = "HecticEscape";
@@ -212,42 +183,103 @@ namespace HecticEscape
             }
         }
 
-        protected override async void OnSourceInitialized(EventArgs e)
+        protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-            await Task.Delay(1000); // 1 Sekunde warten
-
-            // Tray-Icon erst jetzt initialisieren
-            if (_notifyIcon == null)
+            
+            Logger.Instance.Log("OnSourceInitialized wird ausgeführt", LogLevel.Info);
+            
+            InitializeNotifyIcon();
+            var source = PresentationSource.FromVisual(this) as HwndSource;
+            if (source != null)
             {
-                _notifyIcon = new NotifyIcon();
+                source.AddHook(WndProc);
+                Logger.Instance.Log("Windows Message Hook installiert", LogLevel.Info);
+            }
+
+            _isInitialized = true;
+        }
+
+        private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
+        {
+            const int WM_TASKBARCREATED = 0x8000; // System Tray wurde erstellt
+            
+            if (msg == WM_TASKBARCREATED && _isInitialized)
+            {
+                // System Tray ist jetzt verfügbar
+                InitializeNotifyIcon();
+                handled = true;
+            }
+            
+            return IntPtr.Zero;
+        }
+
+        private void InitializeNotifyIcon()
+        {
+            try
+            {
+                if (_notifyIcon != null)
+                {
+                    _notifyIcon.Visible = false;
+                    _notifyIcon.Dispose();
+                }
+
+                _notifyIcon = new NotifyIcon
+                {
+                    Visible = false,
+                    Text = "HecticEscape läuft im Hintergrund"
+                };
+
                 try
                 {
                     _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
                 }
                 catch (Exception ex)
                 {
-                    Logger.Instance.Log("Fehler beim Laden des Tray-Icons: " + ex.Message, LogLevel.Error);
+                    Logger.Instance.Log($"Fehler beim Laden des Tray-Icons: {ex.Message}", LogLevel.Error);
+                    return;
                 }
-                _notifyIcon.Visible = true;
-                _notifyIcon.Text = "HecticEscape läuft im Hintergrund";
-                _notifyIcon.DoubleClick += (s, args) =>
-                {
-                    this.Show();
-                    this.WindowState = WindowState.Normal;
-                    this.Activate();
-                };
+
+                // Tray Settings
+                _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
 
                 var contextMenu = new ContextMenuStrip();
-                contextMenu.Items.Add("Öffnen", null, (s, args) => { this.Show(); this.WindowState = WindowState.Normal; });
-                contextMenu.Items.Add("Beenden", null, (s, args) =>
-                {
-                    _closeToTray = false;
-                    this.Close();
-                    System.Windows.Application.Current.Shutdown();
-                });
+                contextMenu.Items.Add("Öffnen", null, NotifyIcon_OpenClick);
+                contextMenu.Items.Add("Beenden", null, NotifyIcon_ExitClick);
                 _notifyIcon.ContextMenuStrip = contextMenu;
+
+                _notifyIcon.Visible = true;
+
+                Logger.Instance.Log("NotifyIcon erfolgreich initialisiert", LogLevel.Info);
             }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler bei NotifyIcon Initialisierung: {ex.Message}", LogLevel.Error);
+            }
+        }
+
+        private void NotifyIcon_DoubleClick(object? sender, EventArgs e)
+        {
+            ShowMainWindow();
+        }
+
+        private void NotifyIcon_OpenClick(object? sender, EventArgs e)
+        {
+            ShowMainWindow();
+        }
+
+        private void NotifyIcon_ExitClick(object? sender, EventArgs e)
+        {
+            _closeToTray = false;
+            Close();
+            System.Windows.Application.Current.Shutdown();
+        }
+
+        private void ShowMainWindow()
+        {
+            Show();
+            WindowState = WindowState.Normal;
+            Activate();
         }
 
         private async void CheckForUpdatesAndApply()
@@ -724,7 +756,7 @@ namespace HecticEscape
             if (selectedGroup == null || selectedProcess == null) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHZ app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHE app = _configReader.GetAppFromGroup(group, selectedProcess);
 
             _appManager.SetDailyTimeMs(group, app, dailyTimeMsValue);
             UpdateDailyTimeTextBox();
@@ -743,7 +775,7 @@ namespace HecticEscape
             if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHE? app = _configReader.GetAppFromGroup(group, selectedProcess);
             if (app == null)
             {
                 if (DailyTimeTextBox != null)
@@ -772,7 +804,7 @@ namespace HecticEscape
             if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHE? app = _configReader.GetAppFromGroup(group, selectedProcess);
             if (app == null)
             {
                 if (DailyTimeLeftTextBox != null)
@@ -795,7 +827,7 @@ namespace HecticEscape
             if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
             Gruppe? group = _configReader.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHZ? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            AppHE? app = _configReader.GetAppFromGroup(group, selectedProcess);
             if (app == null) return;
             _appManager.SetDaílyTimeMs(group, app, today, 0);
             UpdateDailyTimeTextBox();
@@ -1186,19 +1218,30 @@ namespace HecticEscape
             MessageBox.Show($"{_languageManager.Get("ErrorMessages.LanguageChanged")}", $"{_languageManager.Get("ErrorMessages.LanguageChangedHeader")}", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        private void EnableUpdateCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnableUpdateCheck(true);
+            Logger.Instance.Log("Update-Check aktiviert", LogLevel.Info);
+        }
+
+        private void EnableUpdateCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _configReader.SetEnableUpdateCheck(false);
+            Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Info);
+        }
+
         private void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _configReader.SetEnableStartOnWindowsStartup(true);
             Logger.Instance.Log("Autostart aktiviert", LogLevel.Info);
-
-            
+            StartOnWindowsStartup(true);
         }
 
         private void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _configReader.SetEnableStartOnWindowsStartup(false);
             Logger.Instance.Log("Autostart deaktiviert", LogLevel.Info);
-
+            StartOnWindowsStartup(false);
         }
 
         // -------------------- Overlay --------------------
@@ -1213,10 +1256,6 @@ namespace HecticEscape
         {
             _configReader.SetShowTimeInOverlayEnable(false);
             _overlay.SetShowTimer(false);
-        }
-
-        private void StartOnWindowsStartup(bool enable)
-        {
         }
 
         private void ToggleEnableOverlay()
@@ -1239,19 +1278,50 @@ namespace HecticEscape
             UpdateStatusTextBlocks();
         }
 
-        private void EnableUpdateCheckBox_Checked(object sender, RoutedEventArgs e)
-        {
-            _configReader.SetEnableUpdateCheck(true);
-            Logger.Instance.Log("Update-Check aktiviert", LogLevel.Info);
-        }
-
-        private void EnableUpdateCheckBox_Unchecked(object sender, RoutedEventArgs e)
-        {
-            _configReader.SetEnableUpdateCheck(false);
-            Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Info);
-        }
-
         // -------------------- Hilfsmethoden --------------------
+
+        public void StartOnWindowsStartup(bool enable)
+        {
+            try
+            {
+                string appPath = Assembly.GetExecutingAssembly().Location;
+                // Ersetze .dll mit .exe für published apps
+                appPath = appPath.Replace(".dll", ".exe");
+                
+                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(
+                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", 
+                    true))
+                {
+                    if (key != null)
+                    {
+                        if (enable)
+                        {
+                            // Füge /minimized Parameter hinzu um im System Tray zu starten
+                            key.SetValue("HecticEscape", $"\"{appPath}\" /minimized");
+                            Logger.Instance.Log("Anwendung zum Windows Autostart hinzugefügt", LogLevel.Info);
+                        }
+                        else
+                        {
+                            key.DeleteValue("HecticEscape", false);
+                            Logger.Instance.Log("Anwendung aus Windows Autostart entfernt", LogLevel.Info);
+                        }
+                    }
+                    else
+                    {
+                        Logger.Instance.Log("Registry-Schlüssel konnte nicht geöffnet werden", LogLevel.Error);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen des Autostarts: {ex.Message}", LogLevel.Error);
+                MessageBox.Show(
+                    "Fehler beim Setzen des Autostarts. Möglicherweise fehlen die erforderlichen Berechtigungen.",
+                    "Fehler",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+            }
+        }
 
         public string CleanGroupName(string input)
         {
@@ -1300,18 +1370,21 @@ namespace HecticEscape
             if (_closeToTray)
             {
                 e.Cancel = true;
-                this.Hide();
-                _notifyIcon.BalloonTipTitle = "HecticEscape";
-                _notifyIcon.BalloonTipText = "HecticEscape läuft weiter im Hintergrund.";
-                _notifyIcon.ShowBalloonTip(1000);
+                Hide();
+                
+                if (_notifyIcon != null)
+                {
+                    _notifyIcon.BalloonTipTitle = "HecticEscape";
+                    _notifyIcon.BalloonTipText = "HecticEscape läuft weiter im Hintergrund.";
+                    _notifyIcon.ShowBalloonTip(1000);
+                }
             }
-            else
+            else if (_notifyIcon != null)
             {
                 _notifyIcon.Visible = false;
                 _notifyIcon.Dispose();
+                _notifyIcon = null;
             }
         }
-
-        
     }
 }

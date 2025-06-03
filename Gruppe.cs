@@ -7,7 +7,7 @@ namespace HecticEscape
     {
         public bool Aktiv { get; set; }
         public string Name { get; set; }
-        public List<AppHZ> Apps { get; set; }
+        public List<AppHE> Apps { get; set; }
         public List<Website> Websites { get; set; }
     }
 
@@ -18,7 +18,7 @@ namespace HecticEscape
         public long TimeMs { get; set; }
     }
 
-    public class AppHZ
+    public class AppHE
     {
         public string Name { get; set; }
         public long DailyTimeMs { get; set; }

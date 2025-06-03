@@ -65,12 +65,12 @@ namespace HecticEscape
         public void SaveSelectedProcessesToFile(Gruppe selectedGroup, string processName)
         {
             string newProcessName = CleanProcessName(processName);
-            AppHZ app = new AppHZ
+            AppHE app = new AppHE
             {
                 Name = newProcessName,
-                DailyTimeMs = 0,
+                DailyTimeMs = 7200000, // Standardmäßig 2 Stunden (7200000 ms)
                 Logs = new List<Log>()
-            };
+            }; 
             configReader.AddAppToGroup(selectedGroup, app);
         }
 
@@ -84,7 +84,7 @@ namespace HecticEscape
             // Entfernt alles nach dem ersten Auftreten von " (ID: <Zahl>)"
             string pattern = @"\s?\(ID: \d+\)$";
             string newProcessName = Regex.Replace(processName, pattern, string.Empty).Trim();
-            Logger.Instance.Log($"'{processName}' wurde zu '{newProcessName}' bereinigt", LogLevel.Debug);
+            Logger.Instance.Log($"'{processName}' wurde zu '{newProcessName}' bereinigt", LogLevel.Verbose);
             return newProcessName;
         }
 
@@ -96,11 +96,11 @@ namespace HecticEscape
         public void BlockHandler(int intervalCheckMs, bool breakActive)
         {
             List<Gruppe> activeGroupList = configReader.GetAllActiveGroups();
-            Logger.Instance.Log($"Starte App-Blocking Handler {intervalCheckMs} {breakActive} mit {activeGroupList.Count} aktiven Gruppen", LogLevel.Debug);
+            Logger.Instance.Log($"Starte App-Blocking Handler {intervalCheckMs} {breakActive} mit {activeGroupList.Count} aktiven Gruppen", LogLevel.Verbose);
 
             if (!configReader.GetAppBlockingEnabled())
             {
-                Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Debug);
+                Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Verbose);
                 return;
             }
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
@@ -108,10 +108,10 @@ namespace HecticEscape
             {
                 if (!group.Aktiv)
                 {
-                    Logger.Instance.Log($"Gruppe {group.Name} ist nicht aktiv. Überspringe App-Blockierung.", LogLevel.Debug);
+                    Logger.Instance.Log($"Gruppe {group.Name} ist nicht aktiv. Überspringe App-Blockierung.", LogLevel.Verbose);
                     continue;
                 }
-                Logger.Instance.Log($"Verarbeite Gruppe: {group.Name}, aktiv: {group.Aktiv}", LogLevel.Debug);
+                Logger.Instance.Log($"Verarbeite Gruppe: {group.Name}, aktiv: {group.Aktiv}", LogLevel.Verbose);
                 foreach (var app in group.Apps)
                 {
                     if (app.Logs == null)
@@ -131,25 +131,25 @@ namespace HecticEscape
                         var processesForPause = Process.GetProcessesByName(app.Name);
                         if (processesForPause.Length > 0)
                         {
-                            Logger.Instance.Log($"Beende App {app.Name} aus Gruppe {group.Name} wegen Pause.", LogLevel.Warn);
+                            Logger.Instance.Log($"Beende App {app.Name} aus Gruppe {group.Name} wegen Pause.", LogLevel.Debug);
 
                             TerminateProcesses(appName: app.Name, processes: processesForPause, groupName: group.Name, reason: "Pausenmodus");
                         }
                         else
                         {
-                            Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden (Pausenmodus).", LogLevel.Debug);
+                            Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden (Pausenmodus).", LogLevel.Verbose);
                         }
                         continue;
                     }
                     var runningProcesses = Process.GetProcessesByName(app.Name);
                     if (runningProcesses.Length == 0)
                     {
-                        Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden.", LogLevel.Debug);
+                        Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden.", LogLevel.Verbose);
                         continue;
                     }
-                    Logger.Instance.Log($"Gefundene Prozesse für {app.Name}: {runningProcesses.Length}", LogLevel.Debug);
+                    Logger.Instance.Log($"Gefundene Prozesse für {app.Name}: {runningProcesses.Length}", LogLevel.Verbose);
                     AddTimeToLog(app, today, intervalCheckMs);
-                    Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Debug);
+                    Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Verbose);
                     if (log.TimeMs >= app.DailyTimeMs)
                     {
                         Logger.Instance.Log($"Beende App {app.Name}, da tägliche Zeit erreicht ist: {log.TimeMs}ms >= {app.DailyTimeMs}ms", LogLevel.Warn);
@@ -158,7 +158,7 @@ namespace HecticEscape
                 }
             }
         configReader.SaveConfig();
-        Logger.Instance.Log("App-Blocking Handler abgeschlossen.", LogLevel.Debug);
+        Logger.Instance.Log("App-Blocking Handler abgeschlossen.", LogLevel.Verbose);
         }
 
         /// <summary>
@@ -197,7 +197,7 @@ namespace HecticEscape
             Gruppe? group = configReader.GetGroupByName(selectedGroup);
             if (group != null)
             {
-                AppHZ? app = configReader.GetAppFromGroup(group, processName);
+                AppHE? app = configReader.GetAppFromGroup(group, processName);
                 configReader.DeleteAppFromGroup(group, app);
             }
         }
@@ -212,17 +212,17 @@ namespace HecticEscape
             configReader.SetGroupActiveStatus(group, isActive);
         }
 
-        public long GetDailyTimeMs(Gruppe gruppe, AppHZ app)
+        public long GetDailyTimeMs(Gruppe gruppe, AppHE app)
         {
             return configReader.GetDailyAppTime(gruppe, app);
         }
 
-        public void SetDailyTimeMs(Gruppe group, AppHZ app, long dailyTimeMs)
+        public void SetDailyTimeMs(Gruppe group, AppHE app, long dailyTimeMs)
         {
             configReader.SetDailyAppTime(group, app, dailyTimeMs);
         }
 
-        public void AddTimeToLog(AppHZ app, DateOnly date, long timeMs)
+        public void AddTimeToLog(AppHE app, DateOnly date, long timeMs)
         {
             if (app == null || date == default || timeMs < 0)
             {
@@ -236,12 +236,12 @@ namespace HecticEscape
             }
         }
 
-        public void SetAppDateTime(Gruppe group, AppHZ app, DateOnly date, long timeMs)
+        public void SetAppDateTime(Gruppe group, AppHE app, DateOnly date, long timeMs)
         {
             configReader.SetAppDateTimeMs(group, app, date, timeMs);
         }
 
-        public long GetDailyTimeLeft(Gruppe group, AppHZ app, DateOnly date)
+        public long GetDailyTimeLeft(Gruppe group, AppHE app, DateOnly date)
         {
             if (group == null || app == null)
             {
@@ -252,7 +252,7 @@ namespace HecticEscape
             return timeLeftMs;
         }
 
-        public void SetDaílyTimeMs(Gruppe group, AppHZ app, DateOnly date, long timeMs)
+        public void SetDaílyTimeMs(Gruppe group, AppHE app, DateOnly date, long timeMs)
         {
             if (group == null || app == null)
             {
@@ -260,6 +260,11 @@ namespace HecticEscape
                 return;
             }
             configReader.SetAppDateTimeMs(group, app, date, timeMs);
+        }
+
+        public AppHE GetAppByNameFromGroup(Gruppe group, string appName)
+        {
+            return configReader.GetAppByNameFromGroup(group, appName);
         }
 
         public void Dispose()
