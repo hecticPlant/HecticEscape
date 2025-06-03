@@ -15,6 +15,7 @@
     <None Remove="app.manifest" />
     <None Remove="Config.json" />
     <None Remove="Lang.json" />
+    <None Remove="Skripts\SetAutostart.ps1" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +30,9 @@
       <CustomToolNamespace>HecticEscape</CustomToolNamespace>
     </Content>
     <Content Include="Lang.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Skripts\SetAutostart.ps1">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

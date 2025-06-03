@@ -1284,42 +1284,66 @@ namespace HecticEscape
         {
             try
             {
-                string appPath = Assembly.GetExecutingAssembly().Location;
-                // Ersetze .dll mit .exe für published apps
-                appPath = appPath.Replace(".dll", ".exe");
-                
-                using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(
-                    @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run", 
-                    true))
+                // Pfad zum PowerShell-Skript relativ zum Anwendungsverzeichnis
+                string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Skripts", "SetAutostart.ps1");
+
+                if (!File.Exists(scriptPath))
                 {
-                    if (key != null)
+                    Logger.Instance.Log($"PowerShell-Skript nicht gefunden: {scriptPath}", LogLevel.Error);
+                    throw new FileNotFoundException("PowerShell-Skript nicht gefunden", scriptPath);
+                }
+
+                if (enable)
+                {
+                    // PowerShell-Prozess mit erhöhten Rechten starten
+                    using (Process process = new Process())
                     {
-                        if (enable)
+                        ProcessStartInfo startInfo = new ProcessStartInfo
                         {
-                            // Füge /minimized Parameter hinzu um im System Tray zu starten
-                            key.SetValue("HecticEscape", $"\"{appPath}\" /minimized");
-                            Logger.Instance.Log("Anwendung zum Windows Autostart hinzugefügt", LogLevel.Info);
+                            FileName = "powershell.exe",
+                            Arguments = $"-ExecutionPolicy Bypass -NoProfile -File \"{scriptPath}\" -Enable $true -ApplicationPath \"{Assembly.GetExecutingAssembly().Location}\"",
+                            UseShellExecute = false,
+                            RedirectStandardOutput = true,
+                            CreateNoWindow = true
+                        };
+
+                        process.StartInfo = startInfo;
+                        process.Start();
+                        process.WaitForExit();
+
+                        if (process.ExitCode == 0)
+                        {
+                            Logger.Instance.Log("Anwendung erfolgreich zum Windows Autostart hinzugefügt", LogLevel.Info);
                         }
                         else
+                        {
+                            Logger.Instance.Log($"Fehler beim Ausführen des PowerShell-Skripts. Exit Code: {process.ExitCode}", LogLevel.Error);
+                            throw new Exception($"PowerShell-Skript fehlgeschlagen mit Exit Code {process.ExitCode}");
+                        }
+                    }
+                }
+                else
+                {
+                    // Autostart-Eintrag entfernen
+                    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(
+                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+                        true))
+                    {
+                        if (key != null)
                         {
                             key.DeleteValue("HecticEscape", false);
                             Logger.Instance.Log("Anwendung aus Windows Autostart entfernt", LogLevel.Info);
                         }
-                    }
-                    else
-                    {
-                        Logger.Instance.Log("Registry-Schlüssel konnte nicht geöffnet werden", LogLevel.Error);
+                        else
+                        {
+                            Logger.Instance.Log("Registry-Schlüssel konnte nicht geöffnet werden", LogLevel.Error);
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler beim Setzen des Autostarts: {ex.Message}", LogLevel.Error);
-                MessageBox.Show(
-                    "Fehler beim Setzen des Autostarts. Möglicherweise fehlen die erforderlichen Berechtigungen.",
-                    "Fehler",
-                    MessageBoxButton.OK,
-                    MessageBoxImage.Error);
             }
         }
 
