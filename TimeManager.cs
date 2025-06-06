@@ -182,7 +182,7 @@ namespace HecticEscape
         {
             if (_workTimer.Enabled)
             {
-                int[] countdownIntervals = { 60 * 60, 30 * 60, 15 * 60, 10 * 60, 5 * 60, 1 * 60, 30, 20, 15 }; // in Sekunden
+                int[] countdownIntervals = { 60 * 60, 30 * 60, 15 * 60, 10 * 60, 5 * 60, 1 * 60, 30}; // in Sekunden
                 var remaining = GetRemainingWorkTime();
                 int remainingSeconds = (int)Math.Ceiling(remaining.TotalSeconds);
 

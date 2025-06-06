@@ -176,7 +176,7 @@ namespace HecticEscape
                 IntervalCheckMs = 1000,
                 ActiveLanguageNameString = "Deutsch",
                 EnableUpdateCheck = false,
-                EnableStartOnWindowsStartup = true
+                EnableStartOnWindowsStartup = false
             };
 
             var defaultGroup = new Gruppe
@@ -201,7 +201,7 @@ namespace HecticEscape
             {
                 string json = JsonSerializer.Serialize(Config, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(_filePathConfig, json);
-                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Debug);
+                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Verbose);
             }
             catch (Exception ex)
             {

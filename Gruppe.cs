@@ -39,13 +39,13 @@ namespace HecticEscape
         public int IntervalFreeMs { get; set; }
         public int IntervalBreakMs { get; set; }
         public int IntervalCheckMs { get; set; }
-        public bool EnableDebugMode { get; set; } = false;
-        public bool EnableShowTimeInOverlay { get; set; } = true;
-        public bool EnableVerboseMode { get; set; } = false;
-        public bool EnableOverlay { get; set; } = true;
+        public bool EnableDebugMode { get; set; }
+        public bool EnableShowTimeInOverlay { get; set; }
+        public bool EnableVerboseMode { get; set; }
+        public bool EnableOverlay { get; set; }
         public string ActiveLanguageNameString { get; set; }
-        public bool EnableUpdateCheck { get; set; } = true;
-        public bool EnableStartOnWindowsStartup { get; set; } = true;
+        public bool EnableUpdateCheck { get; set; }
+        public bool EnableStartOnWindowsStartup { get; set; }
     }
 
     public class LanguageFile

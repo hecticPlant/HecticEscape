@@ -19,6 +19,7 @@ namespace HecticEscape
         private readonly LanguageManager _languageManager;
         private readonly DispatcherTimer _statusUpdateTimer = new();
         private NotifyIcon? _notifyIcon;
+        private string _notifyIconPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "app.ico");
         private bool _closeToTray = true;
         private readonly UpdateManager _updateManager = new UpdateManager();
         private bool _isInitialized = false;
@@ -159,6 +160,7 @@ namespace HecticEscape
 
         private void InitializeNotifyIcon()
         {
+            Logger.Instance.Log("Initialisiere NotifyIcon...", LogLevel.Verbose);
             try
             {
                 if (_notifyIcon != null)
@@ -166,22 +168,25 @@ namespace HecticEscape
                     _notifyIcon.Visible = false;
                     _notifyIcon.Dispose();
                 }
-
+                else 
+                {
+                    Logger.Instance.Log("NotifyIcon ist null, initialisiere neu.", LogLevel.Warn);
+                }
                 _notifyIcon = new NotifyIcon
                 {
-                    Visible = false,
-                    Text = "HecticEscape läuft im Hintergrund"
+                    Visible = false
                 };
 
-                try
-                {
-                    _notifyIcon.Icon = new System.Drawing.Icon("app.ico");
-                }
-                catch (Exception ex)
-                {
-                    Logger.Instance.Log($"Fehler beim Laden des Tray-Icons: {ex.Message}", LogLevel.Error);
-                    return;
-                }
+                    try
+                    {
+                        _notifyIcon.Icon = new System.Drawing.Icon(_notifyIconPath);
+                        Logger.Instance.Log($"Tray-Icon gesetzt: {_notifyIcon.Icon}", LogLevel.Verbose);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Log($"Fehler beim Laden des Tray-Icons: {ex.Message}", LogLevel.Error);
+                        return;
+                    }
 
                 _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
 
@@ -1000,13 +1005,6 @@ namespace HecticEscape
             _windowManager.SetStartTimerAtStartup(false);
         }
 
-        private void UpdateTimerIntervals(int freeMs, int breakMs, int checkMs)
-        {
-            _windowManager.SetIntervalFreeMs(freeMs);
-            _windowManager.SetIntervalBreakMs(breakMs);
-            _windowManager.SetIntervalCheckMs(checkMs);
-        }
-
         private void LanguageSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
         }
@@ -1066,18 +1064,23 @@ namespace HecticEscape
             Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Info);
         }
 
-        private void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
+        private async void StartupCheckStartOnWindowsStartupAsync()
+        {
+            await StartOnWindowsStartupAsync(_windowManager.EnableStartOnWindowsStartup);
+        }
+
+        private async void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableStartOnWindowsStartup(true);
             Logger.Instance.Log("Autostart aktiviert", LogLevel.Info);
-            StartOnWindowsStartup(true);
+            await StartOnWindowsStartupAsync(true);
         }
 
-        private void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        private async void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableStartOnWindowsStartup(false);
             Logger.Instance.Log("Autostart deaktiviert", LogLevel.Info);
-            StartOnWindowsStartup(false);
+            await StartOnWindowsStartupAsync(false);
         }
 
         // -------------------- Overlay --------------------
@@ -1100,10 +1103,11 @@ namespace HecticEscape
 
         // -------------------- Hilfsmethoden --------------------
 
-        public void StartOnWindowsStartup(bool enable)
+        public async Task StartOnWindowsStartupAsync(bool enable)
         {
             try
             {
+                // Pfad zum Skript (relativ zum Programmverzeichnis)
                 string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Skripts", "SetAutostart.ps1");
 
                 if (!File.Exists(scriptPath))
@@ -1114,48 +1118,79 @@ namespace HecticEscape
 
                 if (enable)
                 {
-                    using (Process process = new Process())
+                    await Task.Run(() =>
                     {
-                        ProcessStartInfo startInfo = new ProcessStartInfo
+                        string pwshPath = Path.Combine(
+                            Environment.GetFolderPath(Environment.SpecialFolder.Windows),
+                            "System32",
+                            "WindowsPowerShell",
+                            "v1.0",
+                            "powershell.exe"
+                        );
+
+                        string appPath = Path.ChangeExtension(Assembly.GetExecutingAssembly().Location, ".exe");
+                        string enableValue = enable ? "True" : "False";
+
+                        var startInfo = new ProcessStartInfo
                         {
-                            FileName = "powershell.exe",
-                            Arguments = $"-ExecutionPolicy Bypass -NoProfile -File \"{scriptPath}\" -Enable $true -ApplicationPath \"{Assembly.GetExecutingAssembly().Location}\"",
+                            FileName = pwshPath,
+                            Arguments = $"-ExecutionPolicy Bypass -NoProfile -File \"{scriptPath}\" -Enable {enableValue} -ApplicationPath \"{appPath}\" -Verbose",
                             UseShellExecute = false,
                             RedirectStandardOutput = true,
+                            RedirectStandardError = true,
                             CreateNoWindow = true
                         };
 
-                        process.StartInfo = startInfo;
-                        process.Start();
-                        process.WaitForExit();
+                        using (var process = new Process { StartInfo = startInfo })
+                        {
+                            Logger.Instance.Log($"Starte PowerShell: \"{pwshPath}\" {startInfo.Arguments}", LogLevel.Debug);
+                            process.Start();
+                            
+                            string output = process.StandardOutput.ReadToEnd();
+                            string error = process.StandardError.ReadToEnd();
 
-                        if (process.ExitCode == 0)
-                        {
-                            Logger.Instance.Log("Anwendung erfolgreich zum Windows Autostart hinzugefügt", LogLevel.Info);
+                            process.WaitForExit();
+                            if (!string.IsNullOrWhiteSpace(output))
+                            {
+                                Logger.Instance.Log($"PowerShell-Output:\n{output}", LogLevel.Info);
+                            }
+
+                            if (!string.IsNullOrWhiteSpace(error))
+                            {
+                                Logger.Instance.Log($"PowerShell-Error:\n{error}", LogLevel.Error);
+                            }
+
+                            if (process.ExitCode == 0)
+                            {
+                                Logger.Instance.Log("Anwendung erfolgreich zum Windows-Autostart hinzugefügt", LogLevel.Info);
+                            }
+                            else
+                            {
+                                Logger.Instance.Log($"PowerShell-Skript fehlgeschlagen. ExitCode: {process.ExitCode}", LogLevel.Error);
+                                throw new Exception($"PowerShell-Skript fehlgeschlagen mit ExitCode {process.ExitCode}");
+                            }
                         }
-                        else
-                        {
-                            Logger.Instance.Log($"Fehler beim Ausführen des PowerShell-Skripts. Exit Code: {process.ExitCode}", LogLevel.Error);
-                            throw new Exception($"PowerShell-Skript fehlgeschlagen mit Exit Code {process.ExitCode}");
-                        }
-                    }
+                    });
                 }
                 else
                 {
-                    using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(
-                        @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
-                        true))
+                    await Task.Run(() =>
                     {
-                        if (key != null)
+                        using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(
+                            @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
+                            writable: true))
                         {
-                            key.DeleteValue("HecticEscape", false);
-                            Logger.Instance.Log("Anwendung aus Windows Autostart entfernt", LogLevel.Info);
+                            if (key != null)
+                            {
+                                key.DeleteValue("HecticEscape", throwOnMissingValue: false);
+                                Logger.Instance.Log("Anwendung aus Windows-Autostart entfernt", LogLevel.Info);
+                            }
+                            else
+                            {
+                                Logger.Instance.Log("Registry-Schlüssel konnte nicht geöffnet werden", LogLevel.Error);
+                            }
                         }
-                        else
-                        {
-                            Logger.Instance.Log("Registry-Schlüssel konnte nicht geöffnet werden", LogLevel.Error);
-                        }
-                    }
+                    });
                 }
             }
             catch (Exception ex)
@@ -1164,18 +1199,25 @@ namespace HecticEscape
             }
         }
 
+
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             if (_closeToTray)
             {
-                e.Cancel = true;
-                Hide();
-
-                if (_notifyIcon != null)
+                try
                 {
-                    _notifyIcon.BalloonTipTitle = "HecticEscape";
-                    _notifyIcon.BalloonTipText = "HecticEscape läuft weiter im Hintergrund.";
-                    _notifyIcon.ShowBalloonTip(1000);
+                    e.Cancel = true;
+                    Hide();
+                    if (_notifyIcon != null)
+                    {
+                        _notifyIcon.BalloonTipTitle = "HecticEscape";
+                        _notifyIcon.ShowBalloonTip(1000);
+                        Logger.Instance.Log("HecticEscape minimiert in den Systemtray.", LogLevel.Verbose);
+                    }
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log("Fehler beim Minimieren in den Systemtray: " + ex.Message, LogLevel.Warn);
                 }
             }
             else
