@@ -93,7 +93,7 @@
                         <Button x:Name="EndBreakButton" Content="End Break" Margin="0,0,10,0" Click="EndBreakButton_Click"/>
                     </WrapPanel>
                     <CheckBox x:Name="StartTimerAtStartupCheckBox" Content="Timer beim Start automatisch starten" Margin="0,0,10,0" Checked="StartTimerAtStartupCheckBox_Checked" Unchecked="StartTimerAtStartupCheckBox_Unchecked"/>
-                    <CheckBox x:Name="ShowTimerInOverlay" Content="Timer im Overlay anzeigen" Margin="0,0,10,0" Checked="ShowTimerInOverlay_Checked" Unchecked="ShowTimerInOverlay_Unchecked"/>
+                    <CheckBox x:Name="ShowTimerInOverlayCheckBox" Content="Timer im Overlay anzeigen" Margin="0,0,10,0" Checked="ShowTimerInOverlay_Checked" Unchecked="ShowTimerInOverlay_Unchecked"/>
                     <TextBlock x:Name="ProzesseTextBlock" Text="Prozesse" FontWeight="Bold" FontSize="14" Margin="0,0,10,0"/>
                     <CheckBox x:Name="AppBlockingCheckBox" Content="App-Blocking aktiv" Margin="0,0,10,0" Checked="AppBlockingCheckBox_Checked" Unchecked="AppBlockingCheckBox_Unchecked"/>
 

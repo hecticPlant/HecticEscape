@@ -2,12 +2,15 @@
 using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using System.Windows.Threading;
+using System.Threading; // <--- Hinzugefügt für Mutex
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace HecticEscape
 {
     public partial class App : Application
     {
-        private Mutex _mutex = null;
+        private Mutex? _mutex = null;
         public IServiceProvider Services { get; }
 
         public App()
@@ -42,18 +45,19 @@ namespace HecticEscape
         private void ConfigureServices(IServiceCollection services)
         {
             services.AddSingleton<ConfigReader>();
+            services.AddSingleton<GroupManager>();
 
             services.AddSingleton<LanguageManager>(sp =>
             {
                 var cfg = sp.GetRequiredService<ConfigReader>();
                 if (cfg.CurrentLanguage.Content.TryGetValue("MainWindow", out var mwSection))
                 {
-                    return new LanguageManager(mwSection);
+                    return new LanguageManager(mwSection, cfg);
                 }
                 else
                 {
                     Logger.Instance.Log("In CurrentLanguage.Content fehlt der 'MainWindow'-Key", LogLevel.Error);
-                    return new LanguageManager(new MainWindowSection { }) ;
+                    return new LanguageManager(new MainWindowSection { }, cfg); 
                 }
             });
 
@@ -61,54 +65,68 @@ namespace HecticEscape
             services.AddSingleton<WebProxyHE>();
             services.AddSingleton<Logger>(sp => Logger.Instance);
             services.AddSingleton<Overlay>(sp =>
-                new Overlay(sp.GetRequiredService<LanguageManager>()));
+            {
+                var languageManager = sp.GetRequiredService<LanguageManager>();
+                return new Overlay(languageManager);
+            });
+            services.AddSingleton<OverlayManager>(sp =>
+            {
+                var configReader = sp.GetRequiredService<ConfigReader>();
+                var languageManager = sp.GetRequiredService<LanguageManager>();
+                var overlay = sp.GetRequiredService<Overlay>();
+                var manager = new OverlayManager(configReader, languageManager, overlay);
+                overlay.OverlayManager = manager;
+                return manager;
+            });
 
             services.AddSingleton<AppManager>();
-            
+
             services.AddSingleton<WebManager>(sp =>
                 new WebManager(
                     sp.GetRequiredService<ConfigReader>(),
                     sp.GetRequiredService<WebProxyHE>()));
 
-            services.AddSingleton<TimeManagement>(sp =>
-                new TimeManagement(
+            services.AddSingleton<TimeManager>(sp =>
+                new TimeManager(
                     sp.GetRequiredService<AppManager>(),
                     sp.GetRequiredService<WebManager>(),
-                    sp.GetRequiredService<Overlay>(),
+                    sp.GetRequiredService<OverlayManager>(),
                     sp.GetRequiredService<ConfigReader>(),
-                    sp.GetRequiredService<LanguageManager>()));
-                        services.AddSingleton<MainWindow>();
-            
+                    sp.GetRequiredService<LanguageManager>()
+                    ));
 
+            services.AddSingleton<WindowManager>();
+            services.AddSingleton<MainWindow>();
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-            
+
             // Prüfe auf /minimized Parameter
             bool startMinimized = e.Args.Contains("/minimized");
-            
+
             try
             {
+                var windowManager = Services.GetRequiredService<WindowManager>();
                 var mainWindow = Services.GetRequiredService<MainWindow>();
-                MainWindow = mainWindow; // Wichtig: Setze das MainWindow
-                
+                windowManager.MainWindow = mainWindow;
+
+                MainWindow = mainWindow; 
+
                 if (startMinimized)
                 {
                     // Warte auf Shell-Initialisierung und starte minimiert
                     Dispatcher.BeginInvoke(async () =>
                     {
-                        // Warte kurz, bis Windows Shell initialisiert ist
-                        await Task.Delay(2000); // 2 Sekunden Verzögerung
-                        
+                        await Task.Delay(2000); 
+
                         if (MainWindow is MainWindow window)
                         {
-                            // Verstecke das Fenster bevor es angezeigt wird
                             window.WindowState = WindowState.Minimized;
                             window.ShowInTaskbar = false;
                             window.Show();
-                            window.Hide(); // Sofort verstecken
+                            window.Hide();
                         }
                     }, DispatcherPriority.Background);
                 }

@@ -1,145 +1,50 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Threading.Tasks;
 
 namespace HecticEscape
 {
     /// <summary>
-    /// Verwaltet die Websites und den Proxy
+    /// Verwaltet die Websites und den Proxy für das Website-Blocking.
     /// </summary>
-    public class WebManager : IDisposable
+    public class WebManager : AManager
     {
-        private ConfigReader configReader;
-        private WebProxyHE webProxy;
-        private bool disposed = false;
+        private readonly WebProxyHE _webProxy;
+        private bool _disposed = false;
 
-        public bool IsProxyRunning => webProxy.IsProxyRunning;
-        public event Action<bool> ProxyStatusChanged;
+        public bool IsProxyRunning => _webProxy.IsProxyRunning;
+
+        public event Action<bool>? ProxyStatusChanged;
 
         public WebManager(ConfigReader configReader, WebProxyHE webProxy)
+            : base(configReader)
         {
-            this.configReader = configReader;
-            this.webProxy = webProxy;
-            SetBlockedList();
-            Logger.Instance.Log("Initialisiert", LogLevel.Info);
-
-            webProxy.ProxyStatusChanged += (status) =>
-            {
-                ProxyStatusChanged?.Invoke(status);
-            };
+            _webProxy = webProxy ?? throw new ArgumentNullException(nameof(webProxy));
+            _webProxy.ProxyStatusChanged += status => ProxyStatusChanged?.Invoke(status);
+            Initialize();
         }
 
-        /// <summary>
-        /// Speichert eine Website
-        /// </summary>
-        /// <param name="selectedGroup">Name der Gruppe</param>
-        /// <param name="websiteName">Name der Website</param>
-        public void SaveSelectedWebsiteToFile(Gruppe group, Website website)
+        public override void Initialize()
         {
-            configReader.AddWebsiteToGroup(group, website);
-            SetBlockedList();
+            Logger.Instance.Log("WebManager initialisiert", LogLevel.Info);
         }
 
-        /// <summary>
-        /// Löscht eine Webite
-        /// </summary>
-        /// <param name="selectedGroup">Gruppen Name</param>
-        /// <param name="websiteName">Website Name</param>
-        public void RemoveSelectedWebsiteFromFile(Gruppe gruppe, Website website)
+        protected override void Dispose(bool disposing)
         {
-            configReader.DeleteWebsiteFromGroup(gruppe, website);
-            SetBlockedList();
-        }
-
-        /// <summary>
-        ///Startet den Proxy 
-        /// </summary>
-        public void StartProxy()
-        {
-            if (!configReader.GetWebsiteBlockingEnabled())
-            {
-                Logger.Instance.Log("Website-Blocking ist deaktiviert. Proxy wird nicht gestartet.", LogLevel.Info);
-                return;
-            }
-            webProxy.StartProxy();
-        }
-
-        /// <summary>
-        /// Startet den Proxy 
-        /// </summary>
-        public async Task StartProxyAsync()
-        {
-            await webProxy.StartProxy();
-        }
-
-        /// <summary>
-        /// Stoppe den Proxy
-        /// </summary>
-        public void StopProxy()
-        {
-            webProxy.StopProxy();
-        }
-
-        /// <summary>
-        /// Stoppe den Proxy
-        /// </summary>
-        public async Task StopProxyAsync()
-        {
-            await webProxy.StopProxy();
-        }
-
-        /// <summary>
-        /// Setzt die Liste der geblockten Domains
-        /// </summary>
-        public void SetBlockedList()
-        {
-            if (!configReader.GetWebsiteBlockingEnabled())
-            {
-                Logger.Instance.Log("Website-Blocking ist deaktiviert. Blocklist wird nicht gesetzt.", LogLevel.Info);
-                webProxy.SetBlockedDomains(new List<string>()); // Leere Liste setzen
-                return;
-            }
-            try
-            {
-                List<string> blockedDomains = new List<string>();
-                //var domains = configReader.GetActiveGroupsWebsites();
-
-                // Domains zur Blocklist hinzufügen
-                blockedDomains.AddRange("");
-
-                // Blockierte Domains im Proxy setzen
-                webProxy.SetBlockedDomains(blockedDomains);
-                Logger.Instance.Log("Blocklist erfolgreich gesetzt.", LogLevel.Info);
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Setzen der Blocklist: {ex.Message}", LogLevel.Error);
-            }
-        }
-
-        /// <summary>
-        /// Ressourcen aufräumen
-        /// </summary>
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposed) return;
+            if (_disposed) return;
             if (disposing)
             {
-                // Hier verwaltete Ressourcen freigeben
                 try
                 {
-                    StopProxy();
+                    (_webProxy as IDisposable)?.Dispose();
                 }
-                catch { /* Fehlerbehandlung optional */ }
-                // Falls WebProxyHE IDisposable implementiert:
-                (webProxy as IDisposable)?.Dispose();
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log($"Fehler beim Dispose von WebManager: {ex.Message}", LogLevel.Warn);
+                }
             }
-            // Hier ggf. unmanaged Ressourcen freigeben
-            disposed = true;
+            _disposed = true;
+            base.Dispose(disposing);
         }
     }
 }

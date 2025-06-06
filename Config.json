@@ -24,7 +24,7 @@
   "IntervalFreeMs": 7200000,
   "IntervalBreakMs": 900000,
   "IntervalCheckMs": 1000,
-  "EnableDebugMode": false,
+  "EnableDebugMode": true,
   "EnableVerboseMode": false,
   "EnableShowTimeInOverlay": false,
   "EnableOverlay": true,

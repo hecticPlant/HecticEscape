@@ -1,15 +1,24 @@
 ﻿using System;
 using System.Collections.Generic;
+using static Org.BouncyCastle.Math.EC.ECCurve;
 
 namespace HecticEscape
 {
-    public class LanguageManager
+    public class LanguageManager : AManager
     {
         private readonly MainWindowSection _mw;
 
-        public LanguageManager(MainWindowSection mainWindowSection)
+        public LanguageManager(MainWindowSection mainWindowSection, ConfigReader configReader)
+            : base(configReader)
         {
             _mw = mainWindowSection ?? throw new ArgumentNullException(nameof(mainWindowSection));
+        }
+
+        /// <summary>
+        /// Implementierung der abstrakten Methode aus AManager.
+        /// </summary>
+        public override void Initialize()
+        {
         }
 
         /// <summary>
@@ -58,5 +67,14 @@ namespace HecticEscape
 
             return text;
         }
+
+        public List<LanguageData> GetAllLanguages() => _configReader.GetAllLanguages();
+        public List<string> GetAllLanguageString() => _configReader.GetAllLanguageString();
+
+        public LanguageData GetCurrentLanguage() => _configReader.GetCurrentLanguage();
+        public string GetCurrentLanguageString() => _configReader.GetCurrentLanguageString();
+
+        public void SetCurrentLanguage(LanguageData languageData) => _configReader.SetCurrentLanguage(languageData);
+        public void SetCurrentLanguageString(string languageName) => _configReader.SetCurrentLanguageString(languageName);
     }
 }

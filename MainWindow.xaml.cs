@@ -8,41 +8,21 @@ using System.Windows.Controls;
 using System.Windows.Forms;
 using System.Windows.Media;
 using System.Windows.Threading;
-using MessageBox = System.Windows.MessageBox;
-using Microsoft.Win32;
-using System.Reflection;
 using System.Windows.Interop;
+using MessageBox = System.Windows.MessageBox;
 
 namespace HecticEscape
 {
     public partial class MainWindow : Window
     {
-        private readonly TimeManagement _timeManagement;
-        private readonly AppManager _appManager;
-        private readonly WebManager _webManager;
-        private readonly Overlay _overlay;
-        private readonly ConfigReader _configReader;
+        private readonly WindowManager _windowManager;
         private readonly LanguageManager _languageManager;
-        private readonly DispatcherTimer statusUpdateTimer = new();
+        private readonly DispatcherTimer _statusUpdateTimer = new();
         private NotifyIcon? _notifyIcon;
         private bool _closeToTray = true;
-        private readonly UpdateManager _updateService = new UpdateManager();
-        private readonly UpdateManager _updateManager;
+        private readonly UpdateManager _updateManager = new UpdateManager();
         private bool _isInitialized = false;
-
-        // Parameterloser Konstruktor (XAML)
-        public MainWindow() : this(
-            ResolveDependency<TimeManagement>("TimeManagement"),
-            ResolveDependency<AppManager>("AppManager"),
-            ResolveDependency<WebManager>("WebManager"),
-            ResolveDependency<Overlay>("Overlay"),
-            ResolveDependency<ConfigReader>("ConfigReader"),
-            ResolveDependency<LanguageManager>("LanguageManager"),
-            ResolveDependency<UpdateManager>("UpdateManager"))
-        {
-            Logger.Instance.Log("MainWindow Konstruktor (XAML) aufgerufen", LogLevel.Debug);
-            UpdateStatusTextBlocks();
-        }
+        private readonly HashSet<int> _alreadyAnnouncedMinutes = new();
 
         private static T ResolveDependency<T>(string dependencyName) where T : class
         {
@@ -54,103 +34,44 @@ namespace HecticEscape
 
         // DI-Konstruktor
         public MainWindow(
-            TimeManagement timeManagement,
-            AppManager appManager,
-            WebManager webManager,
-            Overlay overlay,
-            ConfigReader configReader,
             LanguageManager languageManager,
             UpdateManager updateManager)
         {
-            Logger.Instance.Log("MainWindow DI-Konstruktor aufgerufen", LogLevel.Info);
+            Logger.Instance.Log("MainWindow Konstruktor: Start", LogLevel.Info);
 
-            _timeManagement = timeManagement;
-            _appManager = appManager;
-            _webManager = webManager;
-            _overlay = overlay;
-            _configReader = configReader;
-            _languageManager = languageManager;
-            _updateManager = updateManager;
+            _languageManager = languageManager ?? throw new ArgumentNullException(nameof(languageManager));
+            _updateManager = updateManager ?? throw new ArgumentNullException(nameof(updateManager));
+            _windowManager = (App.Current as App)?.Services.GetRequiredService<WindowManager>();
 
             InitializeComponent();
-            Logger.Instance.Log("MainWindow initialisiert", LogLevel.Info);
+            Logger.Instance.Log("MainWindow Konstruktor: Nach InitializeComponent", LogLevel.Verbose);
 
-            // Null-Checks für Abhängigkeiten
-            if (_timeManagement == null)
-                Logger.Instance.Log("TimeManagement ist null!", LogLevel.Error);
-            if (_appManager == null)
-                Logger.Instance.Log("AppManager ist null!", LogLevel.Error);
-            if (_webManager == null)
-                Logger.Instance.Log("WebManager ist null!", LogLevel.Error);
-            if (_overlay == null)
-                Logger.Instance.Log("Overlay ist null!", LogLevel.Error);
-            if (_configReader == null)
-                Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
-            if (_languageManager == null)
-                Logger.Instance.Log("LanguageManager ist null!", LogLevel.Error);
-            try
-            {
-                InitializeTexts();
-            }
-            catch (Exception ex)
-            {
-                Logger.Instance.Log($"Fehler in InitializeTexts(): {ex.Message}", LogLevel.Error);
-            }
+            try { InitializeTexts(); } catch (Exception ex) { Logger.Instance.Log($"Fehler in InitializeTexts(): {ex.Message}", LogLevel.Error); }
+            try { _windowManager.TimeManager.StatusChanged += OnStatusChanged; } catch { Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error); }
+            try { LoadGroups(); } catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
+            try { LoadLanguages(); } catch { Logger.Instance.Log("LoadLanguages() fehlgeschlagen.", LogLevel.Error); }
+            try { GetCurrentLanguage(); } catch { Logger.Instance.Log("GetCurrentLanguage() fehlgeschlagen.", LogLevel.Error); }
+            try { ListTimers(); } catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
+            try { _windowManager.TimeManager.OverlayToggleRequested += ToggleEnableOverlay; } catch { Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error); }
 
-            try
-            {
-                _timeManagement.StatusChanged += OnStatusChanged;
-            }
-            catch
-            {
-                Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error);
-            }
-
-            try { LoadGroups(); }
-            catch { Logger.Instance.Log("LoadGroups() fehlgeschlagen.", LogLevel.Error); }
-            try { LoadLanguages(); }
-            catch { Logger.Instance.Log("LoadLanguages() fehlgeschlagen.", LogLevel.Error); }
-            try { GetCurrentLanguage(); }
-            catch { Logger.Instance.Log("GetCurrentLanguage() fehlgeschlagen.", LogLevel.Error); }
-
-            try { ListTimers(); }
-            catch { Logger.Instance.Log("ListTimers() fehlgeschlagen.", LogLevel.Error); }
-
-            try
-            {
-                _timeManagement.OverlayToggleRequested += ToggleEnableOverlay;
-            }
-            catch
-            {
-                Logger.Instance.Log("OverlayToggleRequested-Event konnte nicht abonniert werden.", LogLevel.Error);
-            }
-
-            statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
-            statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
-            statusUpdateTimer.Start();
+            _statusUpdateTimer.Interval = TimeSpan.FromSeconds(1);
+            _statusUpdateTimer.Tick += (s, e) => UpdateStatusTextBlocks();
+            _statusUpdateTimer.Start();
             Logger.Instance.Log("Initialisiert");
 
             try
             {
-                if (_configReader == null)
-                {
-                    Logger.Instance.Log("ConfigReader ist null!", LogLevel.Error);
-                    return;
-                }
+                WebsiteBlockingCheckBox.IsChecked = _windowManager.EnableWebsiteBlocking;
+                AppBlockingCheckBox.IsChecked = _windowManager.EnableAppBlocking;
+                EnableStartOnWindowsStartupCheckBox.IsChecked = _windowManager.EnableStartOnWindowsStartup;
 
-                WebsiteBlockingCheckBox.IsChecked = _configReader.GetWebsiteBlockingEnabled();
-                AppBlockingCheckBox.IsChecked = _configReader.GetAppBlockingEnabled();
-                EnableStartOnWindowsStartupCheckBox.IsChecked = _configReader.GetEnableStartOnWindowsStartup();
+                WebsitesTab.IsEnabled = _windowManager.EnableWebsiteBlocking;
+                ProzesseTab.IsEnabled = _windowManager.EnableAppBlocking;
 
-                WebsitesTab.IsEnabled = _configReader.GetWebsiteBlockingEnabled();
-                ProzesseTab.IsEnabled = _configReader.GetAppBlockingEnabled();
-
-                StartTimerAtStartupCheckBox.IsChecked = _configReader.GetStartTimerAtStartup();
-                ShowTimerInOverlay.IsChecked = _configReader.GetShowTimeInOverlayEnable();
-                if(_overlay != null)
-                    _overlay.SetShowTimer(_configReader.GetShowTimeInOverlayEnable());
-                EnableUpdateCheckBox.IsChecked = _configReader.GetEnableUpdateCheck();
-                EnableStartOnWindowsStartupCheckBox.IsChecked = _configReader.GetEnableStartOnWindowsStartup();
+                StartTimerAtStartupCheckBox.IsChecked = _windowManager.StartTimerAtStartup;
+                ShowTimerInOverlayCheckBox.IsChecked = _windowManager.EnableShowTimeInOverlay;
+                EnableUpdateCheckBox.IsChecked = _windowManager.EnableUpdateCheck;
+                EnableStartOnWindowsStartupCheckBox.IsChecked = _windowManager.EnableStartOnWindowsStartup;
             }
             catch (Exception ex)
             {
@@ -158,20 +79,19 @@ namespace HecticEscape
             }
 
             Closing += MainWindow_Closing;
-            this.StateChanged += (s, e) =>
+            StateChanged += (s, e) =>
             {
                 if (WindowState == WindowState.Minimized && _notifyIcon != null)
                 {
-                    this.Hide();
+                    Hide();
                     _notifyIcon.BalloonTipTitle = "HecticEscape";
                     _notifyIcon.BalloonTipText = "HecticEscape läuft im Hintergrund.";
                     _notifyIcon.ShowBalloonTip(1000);
                 }
             };
-            if (_configReader != null)
-            {
-                ResetDailyTimeButton.Visibility = _configReader.GetEnableDebugMode() ? Visibility.Visible : Visibility.Collapsed;
-            }
+
+            ResetDailyTimeButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
+
             try
             {
                 Logger.Instance.Log("Prüfe auf Updates...", LogLevel.Info);
@@ -181,14 +101,16 @@ namespace HecticEscape
             {
                 Logger.Instance.Log($"Fehler bei der Update-Prüfung: {ex.Message}", LogLevel.Error);
             }
+
+            Logger.Instance.Log("MainWindow Konstruktor: Ende", LogLevel.Verbose);
         }
 
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-            
-            Logger.Instance.Log("OnSourceInitialized wird ausgeführt", LogLevel.Info);
-            
+
+            Logger.Instance.Log("OnSourceInitialized wird ausgeführt", LogLevel.Verbose);
+
             InitializeNotifyIcon();
             var source = PresentationSource.FromVisual(this) as HwndSource;
             if (source != null)
@@ -202,15 +124,12 @@ namespace HecticEscape
 
         private IntPtr WndProc(IntPtr hwnd, int msg, IntPtr wParam, IntPtr lParam, ref bool handled)
         {
-            const int WM_TASKBARCREATED = 0x8000; // System Tray wurde erstellt
-            
+            const int WM_TASKBARCREATED = 0x8000;
             if (msg == WM_TASKBARCREATED && _isInitialized)
             {
-                // System Tray ist jetzt verfügbar
                 InitializeNotifyIcon();
                 handled = true;
             }
-            
             return IntPtr.Zero;
         }
 
@@ -240,7 +159,6 @@ namespace HecticEscape
                     return;
                 }
 
-                // Tray Settings
                 _notifyIcon.DoubleClick += NotifyIcon_DoubleClick;
 
                 var contextMenu = new ContextMenuStrip();
@@ -260,12 +178,12 @@ namespace HecticEscape
 
         private void NotifyIcon_DoubleClick(object? sender, EventArgs e)
         {
-            ShowMainWindow();
+            _windowManager.ShowMainWindow();
         }
 
         private void NotifyIcon_OpenClick(object? sender, EventArgs e)
         {
-            ShowMainWindow();
+            _windowManager.ShowMainWindow();
         }
 
         private void NotifyIcon_ExitClick(object? sender, EventArgs e)
@@ -275,36 +193,28 @@ namespace HecticEscape
             System.Windows.Application.Current.Shutdown();
         }
 
-        private void ShowMainWindow()
-        {
-            Show();
-            WindowState = WindowState.Normal;
-            Activate();
-        }
-
         private async void CheckForUpdatesAndApply()
         {
-            if (!_configReader.GetEnableUpdateCheck())
+            if (!_windowManager.EnableUpdateCheck)
             {
                 Logger.Instance.Log("Update-Prüfung deaktiviert.", LogLevel.Info);
                 return;
             }
             try
             {
-                string? latestVersion = await _updateService.GetLatestVersionAsync();
-                string currentVersion = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
+                string? latestVersion = await _updateManager.GetLatestVersionAsync();
+                string currentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
 
                 if (latestVersion != null && latestVersion != currentVersion)
                 {
-                    // Beispiel: Asset-Name und Zielpfad anpassen!
                     string assetName = "HecticEscapeInstaller.exe";
                     string downloadPath = Path.Combine(Path.GetTempPath(), assetName);
 
-                    await _updateService.DownloadLatestReleaseAssetAsync(assetName, downloadPath);
+                    await _updateManager.DownloadLatestReleaseAssetAsync(assetName, downloadPath);
 
                     MessageBox.Show("Update gefunden! Die Anwendung wird jetzt aktualisiert.", "Update", MessageBoxButton.OK, MessageBoxImage.Information);
 
-                    _updateService.ApplyUpdate(downloadPath);
+                    _updateManager.ApplyUpdate(downloadPath);
                 }
                 else
                 {
@@ -321,22 +231,48 @@ namespace HecticEscape
 
         private void OnStatusChanged(string newStatus)
         {
-            Dispatcher.BeginInvoke(new System.Action(() =>
+            Dispatcher.BeginInvoke(new Action(() =>
             {
                 if (PauseStatusTextBlock != null)
-                    PauseStatusTextBlock.Text = newStatus ?? "";
+                    PauseStatusTextBlock.Text = newStatus;
             }));
         }
 
         private void UpdateStatusTextBlocks()
         {
-            if (_timeManagement == null || _webManager == null)
-                return;
+            if (_windowManager.TimeManager == null) return;
+
+            // Timer-Status
+            if (TimerStatusTextBlock != null)
+            {
+                TimeSpan remaining = TimeSpan.Zero;
+                string timerName = string.Empty;
+
+                if (_windowManager.TimeManager.IsWorkTimerRunning())
+                {
+                    remaining = _windowManager.TimeManager.GetRemainingWorkTime();
+                    timerName = "Free-Timer";
+                }
+                else if (_windowManager.TimeManager.IsBreakTimerRunning())
+                {
+                    remaining = _windowManager.TimeManager.GetRemainingBreakTime();
+                    timerName = "Break-Timer";
+                }
+                else if (_windowManager.TimeManager.IsCheckTimerRunning())
+                {
+                    remaining = _windowManager.TimeManager.GetRemainingCheckTime();
+                    timerName = "Check-Timer";
+                }
+
+                TimerStatusTextBlock.Text = remaining.TotalSeconds > 0
+                    ? $"{timerName}: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2} verbleibend"
+                    : "Timer: --:--";
+            }
 
             // Free-Timer
             if (FreeTimerStatusTextBlock != null)
             {
-                if (_timeManagement.IsWorkTimerRunning())
+                if (_windowManager.TimeManager.IsWorkTimerRunning())
                 {
                     FreeTimerStatusTextBlock.Text = "Free-Timer aktiv";
                     FreeTimerStatusTextBlock.Foreground = Brushes.Green;
@@ -351,7 +287,7 @@ namespace HecticEscape
             // Break-Timer
             if (BreakTimerStatusTextBlock != null)
             {
-                if (_timeManagement.IsBreakTimerRunning())
+                if (_windowManager.TimeManager.IsBreakTimerRunning())
                 {
                     BreakTimerStatusTextBlock.Text = "Break-Timer aktiv";
                     BreakTimerStatusTextBlock.Foreground = Brushes.Green;
@@ -366,7 +302,7 @@ namespace HecticEscape
             // Check-Timer
             if (CheckTimerStatusTextBlock != null)
             {
-                if (_timeManagement.IsCheckTimerRunning())
+                if (_windowManager.TimeManager.IsCheckTimerRunning())
                 {
                     CheckTimerStatusTextBlock.Text = "Check-Timer aktiv";
                     CheckTimerStatusTextBlock.Foreground = Brushes.Green;
@@ -378,42 +314,10 @@ namespace HecticEscape
                 }
             }
 
-            // Timer-Status
-            if (TimerStatusTextBlock != null)
-            {
-                TimeSpan? remaining = null;
-                string timerName = "";
-
-                if (_timeManagement.IsWorkTimerRunning())
-                {
-                    remaining = _timeManagement.GetRemainingWorkTime();
-                    timerName = "Free-Timer";
-                }
-                else if (_timeManagement.IsBreakTimerRunning())
-                {
-                    remaining = _timeManagement.GetRemainingBreakTime();
-                    timerName = "Break-Timer";
-                }
-                else if (_timeManagement.IsCheckTimerRunning())
-                {
-                    remaining = _timeManagement.GetRemainingCheckTime();
-                    timerName = "Check-Timer";
-                }
-
-                if (remaining.HasValue && remaining.Value.TotalSeconds > 0)
-                {
-                    TimerStatusTextBlock.Text = $"{timerName}: {remaining.Value.Hours:D2}:{remaining.Value.Minutes:D2}:{remaining.Value.Seconds:D2} verbleibend";
-                }
-                else
-                {
-                    TimerStatusTextBlock.Text = "Timer: --:--";
-                }
-            }
-
             // Pause-Status
             if (PauseStatusTextBlock != null)
             {
-                if (_timeManagement.IsBreakActive())
+                if (_windowManager.TimeManager.IsBreakActive())
                 {
                     PauseStatusTextBlock.Text = "Pause aktiv";
                     PauseStatusTextBlock.Foreground = Brushes.Green;
@@ -428,7 +332,7 @@ namespace HecticEscape
             // Proxy-Status
             if (ProxyStatusTextBlock != null)
             {
-                if (_webManager.IsProxyRunning)
+                if (_windowManager.WebManager.IsProxyRunning)
                 {
                     ProxyStatusTextBlock.Text = "Proxy aktiv";
                     ProxyStatusTextBlock.Foreground = Brushes.Green;
@@ -443,7 +347,7 @@ namespace HecticEscape
             // Debug-Status
             if (DebugStatusTextBlock != null)
             {
-                if (_configReader.GetEnableDebugMode())
+                if (_windowManager.EnableDebugMode)
                 {
                     DebugStatusTextBlock.Text = "Debug an";
                     DebugStatusTextBlock.Foreground = Brushes.Red;
@@ -457,23 +361,23 @@ namespace HecticEscape
             // Verbose-Status
             if (VerboseStatusTextBlock != null)
             {
-                if (_configReader.GetEnableVerboseMode())
+                if (_windowManager.EnableVerboseMode)
                 {
-                    VerboseStatusTextBlock.Visibility = Visibility.Visible; // Sichtbar machen, wenn aktiv
+                    VerboseStatusTextBlock.Visibility = Visibility.Visible;
                     VerboseStatusTextBlock.Text = "Verbose";
                     VerboseStatusTextBlock.Foreground = Brushes.Red;
                 }
                 else
                 {
                     VerboseStatusTextBlock.Text = "";
-                    VerboseStatusTextBlock.Visibility = Visibility.Collapsed; // Ausblenden, wenn nicht aktiv
+                    VerboseStatusTextBlock.Visibility = Visibility.Collapsed;
                 }
             }
 
             // Overlay-Status
             if (OverlayStatusTextBlock != null)
             {
-                if (_configReader.GetEnableOverlay())
+                if (_windowManager.EnableOverlay)
                 {
                     OverlayStatusTextBlock.Text = "Overlay aktiv";
                     OverlayStatusTextBlock.Foreground = Brushes.Green;
@@ -485,6 +389,56 @@ namespace HecticEscape
                 }
             }
             UpdateDailyTimeLeftTextBox();
+
+            // OverlayTimer synchronisieren
+            if (_windowManager.OverlayManager.GetShowTimer())
+            {
+                if (_windowManager.TimeManager.IsWorkTimerRunning())
+                {
+                    var remaining = _windowManager.TimeManager.GetRemainingWorkTime();
+
+                    // --- Benachrichtigungs-Logik für bestimmte Restzeiten ---
+                    int[] announceMinutes = { 60, 30, 15, 5, 1 };
+                    foreach (int min in announceMinutes)
+                    {
+                        if (!_alreadyAnnouncedMinutes.Contains(min) &&
+                            remaining.TotalMinutes <= min && remaining.TotalMinutes > min - 1)
+                        {
+                            _alreadyAnnouncedMinutes.Add(min);
+                            string msg = $"{_languageManager.Get("Overlay.PauseIn")} {min} Minuten";
+                            _windowManager.OverlayManager.ShowMessage(msg, 2500);
+                        }
+                    }
+                    // Set zurücksetzen, wenn Timer neu gestartet wird
+                    if (remaining.TotalMinutes > 60)
+                        _alreadyAnnouncedMinutes.Clear();
+
+                    // Countdown-Logik wie gehabt ...
+                    if (remaining.TotalSeconds <= 10 && remaining.TotalSeconds > 0 && !_windowManager.TimeManager.IsCountdownActive())
+                    {
+                        _windowManager.OverlayManager.ShowCountdownAsync((int)Math.Ceiling(remaining.TotalSeconds));
+                        _windowManager.TimeManager.SetCountdownActive(true);
+                    }
+                    else if (remaining.TotalSeconds > 10)
+                    {
+                        _windowManager.TimeManager.SetCountdownActive(false);
+                    }
+
+                    _windowManager.OverlayManager.ShowTimer(remaining);
+                }
+                else
+                {
+                    _windowManager.OverlayManager.HideTimer();
+                    _windowManager.TimeManager.SetCountdownActive(false);
+                    _alreadyAnnouncedMinutes.Clear();
+                }
+            }
+            else
+            {
+                _windowManager.OverlayManager.HideTimer();
+                _windowManager.TimeManager.SetCountdownActive(false);
+                _alreadyAnnouncedMinutes.Clear();
+            }
         }
 
         // -------------------- Sprachdatei --------------------
@@ -540,7 +494,7 @@ namespace HecticEscape
             ForceBreakButton.Content = _languageManager.Get("SteuerungTab.ForceBreakButton");
             EndBreakButton.Content = _languageManager.Get("SteuerungTab.EndBreakButton");
             StartTimerAtStartupCheckBox.Content = _languageManager.Get("SteuerungTab.StartTimerAtStartupCheckBox");
-            ShowTimerInOverlay.Content = _languageManager.Get("SteuerungTab.ShowTimerInOverlay");
+            ShowTimerInOverlayCheckBox.Content = _languageManager.Get("SteuerungTab.ShowTimerInOverlay");
             EnableStartOnWindowsStartupCheckBox.Content = _languageManager.Get("SteuerungTab.EnableStartOnWindowsStartupCheckBox");
 
             ProzesseTextBlock.Text = _languageManager.Get("SteuerungTab.ProzesseText");
@@ -573,12 +527,7 @@ namespace HecticEscape
 
         private void LoadGroups()
         {
-            if (_configReader == null)
-            {
-                Logger.Instance.Log("LoadGroups: ConfigReader ist null!", LogLevel.Error);
-                return;
-            }
-            List<String> allGroups = _configReader.GetAllGroupNamesString();
+            var allGroups = _windowManager.GroupManager.GetAllGroupNames();
             GroupSelectionComboBox?.Items.Clear();
 
             if (allGroups != null)
@@ -605,41 +554,37 @@ namespace HecticEscape
 
         private void CreateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
-            _configReader.CreateGroup();
+            _windowManager.GroupManager.CreateGroup();
             LoadGroups();
         }
 
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
             string? groupNameToDelete = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupNameToDelete)) return;
-            Gruppe? group = _configReader.GetGroupByName(groupNameToDelete);
-            if (group == null) return;
-            _configReader.DeleteGroup(group);
+            var group = _windowManager.GroupManager.GetGroupByName(groupNameToDelete);
+            if (group == null || string.IsNullOrEmpty(group.Name)) return;
+            _windowManager.GroupManager.DeleteGroup(group);
             LoadGroups();
         }
 
         private void ActivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-            if (group == null) return;
-            _configReader.SetGroupActiveStatus(group, true);
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            if (group == null || string.IsNullOrEmpty(group.Name)) return;
+            _windowManager.GroupManager.SetGroupActiveStatus(group, true);
             UpdateGroupActivityTextBox();
         }
 
         private void DeactivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-            if (group == null) return;
-            _configReader.SetGroupActiveStatus(group, false);
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            if (group == null || string.IsNullOrEmpty(group.Name)) return;
+            _windowManager.GroupManager.SetGroupActiveStatus(group, false);
             UpdateGroupActivityTextBox();
         }
 
@@ -650,26 +595,28 @@ namespace HecticEscape
 
         private void UpdateGroupActivityTextBox()
         {
-            if (_configReader == null) return;
             if (GroupSelectionComboBox?.SelectedItem is string selectedGroup && !string.IsNullOrEmpty(selectedGroup))
             {
-                bool isActive = false;
                 try
                 {
-                    Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-                    if (group == null)
+                    var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+                    if (group == null || string.IsNullOrEmpty(group.Name))
                     {
                         Logger.Instance.Log($"Gruppe '{selectedGroup}' nicht gefunden.", LogLevel.Warn);
+                        if (GroupActivityTextBox != null)
+                            GroupActivityTextBox.Text = "nicht verfügbar";
                         return;
                     }
-                    isActive = _configReader.GetGroupActiveStatus(group);
+                    bool isActive = group.Aktiv;
+                    if (GroupActivityTextBox != null)
+                        GroupActivityTextBox.Text = isActive ? "aktiv" : "nicht aktiv";
                 }
-                catch
+                catch (Exception ex)
                 {
-                    Logger.Instance.Log($"Fehler beim Lesen des Aktiv-Status für Gruppe '{selectedGroup}'", LogLevel.Error);
+                    Logger.Instance.Log($"Fehler beim Lesen des Aktiv-Status für Gruppe '{selectedGroup}': {ex.Message}", LogLevel.Error);
+                    if (GroupActivityTextBox != null)
+                        GroupActivityTextBox.Text = "Fehler";
                 }
-                if (GroupActivityTextBox != null)
-                    GroupActivityTextBox.Text = isActive ? "aktiv" : "nicht aktiv";
             }
             else
             {
@@ -682,34 +629,41 @@ namespace HecticEscape
 
         private void SaveProcessButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_appManager == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-            if (group == null) return;
-            _appManager.SaveSelectedProcessesToFile(group, selectedProcess);
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            if (group == null || string.IsNullOrEmpty(group.Name)) return;
+            _windowManager.AppManager.AddAppToGroup(group, selectedProcess);
         }
 
         private void DeleteProcessButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_appManager == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
-            _appManager.RemoveSelectedProcessesFromFile(selectedGroup, selectedProcess);
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
+            _windowManager.AppManager.RemoveAppFromGroup(group, app);
             ShowBlockedAppsButton_Click(sender, e);
         }
 
         private void ShowBlockedAppsButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
             string? groupID = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupID)) return;
 
-            Gruppe? group = _configReader.GetGroupByName(groupID);
-            if (group == null) return;
-            List<string> apps = _configReader.GetAppNamesFromGroupString(group);
+            var group = _windowManager.GroupManager.GetGroupByName(groupID);
+            if (group == null || string.IsNullOrEmpty(group.Name))
+            {
+                Logger.Instance.Log($"Gruppe '{groupID}' nicht gefunden.", LogLevel.Warn);
+                return;
+            }
+
+            var apps = _windowManager.AppManager.GetAppsFromGroup(group)
+                .Select(a => a.Name)
+                .ToList();
+
             ProcessListBox?.Items.Clear();
             foreach (var app in apps)
             {
@@ -722,8 +676,7 @@ namespace HecticEscape
 
         private void ShowRunningProcessesButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_appManager == null) return;
-            Process[] processes = _appManager.GetRunningProcesses();
+            var processes = _windowManager.AppManager.GetRunningProcesses();
             ProcessListBox?.Items.Clear();
             if (processes != null)
             {
@@ -734,13 +687,11 @@ namespace HecticEscape
 
         private void SaveDailyTimeButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_appManager == null) return;
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             string? dailyTimeMs = DailyTimeTextBox?.Text?.Trim();
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess) || string.IsNullOrEmpty(dailyTimeMs)) return;
 
-            // Eingabe im Format hh:mm:ss parsen
             if (!TimeSpan.TryParse(DailyTimeMaskedBox?.Text, out var timeSpan))
             {
                 MessageBox.Show($"{_languageManager.Get("ErrorMessages.InvalidTimeFormat")}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -750,15 +701,13 @@ namespace HecticEscape
             Logger.Instance.Log($"Tägliche Zeit für App'{selectedProcess}' in Gruppe '{selectedGroup}' wird auf {dailyTimeMs} gesetzt.", LogLevel.Info);
 
             int timeInSeconds = (int)timeSpan.TotalSeconds;
-            // Umwandlung in Millisekunden
-            long dailyTimeMsValue = timeInSeconds * 1000; // Umwandlung in Millisekunden
+            long dailyTimeMsValue = timeInSeconds * 1000;
 
-            if (selectedGroup == null || selectedProcess == null) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHE app = _configReader.GetAppFromGroup(group, selectedProcess);
+            var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
 
-            _appManager.SetDailyTimeMs(group, app, dailyTimeMsValue);
+            _windowManager.AppManager.SetDailyTimeMs(group, app, dailyTimeMsValue);
             UpdateDailyTimeTextBox();
         }
 
@@ -772,27 +721,20 @@ namespace HecticEscape
         {
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
-            if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHE? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
             if (app == null)
             {
                 if (DailyTimeTextBox != null)
-                    DailyTimeTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
+                    DailyTimeTextBox.Text = "00:00:00";
                 return;
             }
-            string? dailyTimeMs = _appManager.GetDailyTimeMs(group, app).ToString();
-            if (string.IsNullOrEmpty(dailyTimeMs))
-            {
-                if (DailyTimeTextBox != null)
-                    DailyTimeTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
-                return;
-            }
+            long dailyTimeMs = app.DailyTimeMs;
             if (DailyTimeTextBox != null)
             {
-                long timeMs = long.Parse(dailyTimeMs);
-                DailyTimeTextBox.Text = TimeSpan.FromMilliseconds(timeMs).ToString(@"hh\:mm\:ss");
+                DailyTimeTextBox.Text = TimeSpan.FromMilliseconds(dailyTimeMs).ToString(@"hh\:mm\:ss");
             }
         }
 
@@ -801,22 +743,21 @@ namespace HecticEscape
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
-            if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
             if (group == null) return;
-            AppHE? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
             if (app == null)
             {
                 if (DailyTimeLeftTextBox != null)
-                    DailyTimeLeftTextBox.Text = "00:00:00"; // Standardwert, falls keine Zeit gesetzt ist
+                    DailyTimeLeftTextBox.Text = "00:00:00";
                 return;
             }
-            long timeLeftMs = _appManager.GetDailyTimeLeft(group, app, today);
+            long timeLeftMs = _windowManager.AppManager.GetDailyTimeLeft(group, app, today);
             if (DailyTimeLeftTextBox != null)
             {
                 DailyTimeLeftTextBox.Text = TimeSpan.FromMilliseconds(timeLeftMs).ToString(@"hh\:mm\:ss");
             }
-
         }
 
         private void ResetDailyTimeButton_Click(object sender, EventArgs e)
@@ -824,19 +765,17 @@ namespace HecticEscape
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
-            if (_appManager == null || (string.IsNullOrEmpty(selectedGroup)) || (string.IsNullOrEmpty(selectedProcess))) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-            if (group == null) return;
-            AppHE? app = _configReader.GetAppFromGroup(group, selectedProcess);
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
             if (app == null) return;
-            _appManager.SetDaílyTimeMs(group, app, today, 0);
+            _windowManager.AppManager.SetDailyTimeMs(group, app, 0);
             UpdateDailyTimeTextBox();
             UpdateDailyTimeLeftTextBox();
         }
 
         private void ProcessTabOpend(object sender, RoutedEventArgs e)
         {
-            // Beim Öffnen des Tabs die Liste der Prozesse aktualisieren
             ShowBlockedAppsButton_Click(sender, e);
         }
 
@@ -844,58 +783,21 @@ namespace HecticEscape
 
         private void ShowBlockedWebsitesButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
-            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(groupID)) return;
-
-            Gruppe? group = _configReader.GetGroupByName(groupID);
-            if (group == null) return;
-            List<string> domains = _configReader.GetWebsiteNamesFromGroupString(group);
-            WebsiteListBox?.Items.Clear();
-            if (domains.Count > 0)
-            {
-                foreach (var domain in domains)
-                {
-                    if (!string.IsNullOrEmpty(domain))
-                    {
-                        WebsiteListBox?.Items.Add(domain);
-                    }
-                }
-            }
+            
         }
 
         private void SaveWebsiteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
-            string? websiteName = WebsiteInputTextBox?.Text?.Trim();
-            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(websiteName)) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-            if (group == null) return;
-            Website? website = _configReader.GetWebsiteFromGroup(group, websiteName);
-            if (website != null) return;
-            _configReader.AddWebsiteToGroup(group, website);
-            WebsiteInputTextBox?.Clear();
-            ShowBlockedWebsitesButton_Click(sender, e);
+            
         }
 
         private void DeleteWebsiteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_webManager == null) return;
-            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
-            string? selectedWebsite = WebsiteListBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedWebsite)) return;
-            Gruppe? group = _configReader.GetGroupByName(selectedGroup);
-            if (group == null) return;
-            Website? website = _configReader.GetWebsiteFromGroup(group, selectedWebsite);
-            if (website == null) return;
-            _webManager.RemoveSelectedWebsiteFromFile(group, website);
-            ShowBlockedWebsitesButton_Click(sender, e);
+
         }
 
         private void WebsiteTabOpend(object sender, RoutedEventArgs e)
         {
-            // Beim Öffnen des Tabs die Liste der Websites aktualisieren
             ShowBlockedWebsitesButton_Click(sender, e);
         }
 
@@ -906,18 +808,18 @@ namespace HecticEscape
             TimerTypeComboBox?.Items.Clear();
             TimerTypeComboBox?.Items.Add("Freizeit");
             TimerTypeComboBox?.Items.Add("Pause");
-            if (_configReader.GetEnableDebugMode())
+            if (_windowManager.EnableDebugMode)
                 TimerTypeComboBox?.Items.Add("Check");
             if (TimerTypeComboBox != null)
             {
-                TimerTypeComboBox.SelectedIndex = 0; // Intervalltimer als Standard
-                UpdateTimerDurationTextBox(); // Direkt beim Start anzeigen
+                TimerTypeComboBox.SelectedIndex = 0;
+                UpdateTimerDurationTextBox();
             }
         }
 
         private void SetTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_timeManagement == null) return;
+            if (_windowManager.TimeManager == null) return;
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
             {
@@ -926,7 +828,6 @@ namespace HecticEscape
                 return;
             }
 
-            // Eingabe im Format hh:mm:ss parsen
             if (!TimeSpan.TryParse(TimerCurrentTimeMaskedBox?.Text, out var timeSpan))
             {
                 MessageBox.Show($"{_languageManager.Get("ErrorMessages.InvalidTimeFormat")}", "Fehler", MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -938,27 +839,26 @@ namespace HecticEscape
             switch (selectedTimer)
             {
                 case "Freizeit":
-                    _timeManagement.SetTimerTime("i", timeInSeconds);
+                    _windowManager.TimeManager.SetTimerInterval(TimerType.Work, timeInSeconds);
                     break;
                 case "Pause":
-                    _timeManagement.SetTimerTime("p", timeInSeconds);
+                    _windowManager.TimeManager.SetTimerInterval(TimerType.Break, timeInSeconds);
                     break;
                 case "Check":
-                    _timeManagement.SetTimerTime("c", timeInSeconds);
+                    _windowManager.TimeManager.SetTimerInterval(TimerType.Check, timeInSeconds);
                     break;
                 default:
                     Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
                     break;
             }
 
-            // Nach dem Setzen des Timers
             if (TimerDurationTextBox != null)
                 TimerDurationTextBox.Text = timeSpan.ToString(@"hh\:mm\:ss");
         }
 
         private void StartTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_timeManagement == null) return;
+            if (_windowManager.TimeManager == null) return;
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
             {
@@ -969,13 +869,13 @@ namespace HecticEscape
             switch (selectedTimer)
             {
                 case "Timer Intervall":
-                    _timeManagement.StartTimer("i");
+                    _windowManager.TimeManager.StartTimer(TimerType.Work);
                     break;
                 case "Timer Pause":
-                    _timeManagement.StartTimer("p");
+                    _windowManager.TimeManager.StartTimer(TimerType.Break);
                     break;
                 case "Timer Check":
-                    _timeManagement.StartTimer("c");
+                    _windowManager.TimeManager.StartTimer(TimerType.Check);
                     break;
                 default:
                     Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
@@ -985,7 +885,7 @@ namespace HecticEscape
 
         private void StopTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_timeManagement == null) return;
+            if (_windowManager.TimeManager == null) return;
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
             {
@@ -996,13 +896,13 @@ namespace HecticEscape
             switch (selectedTimer)
             {
                 case "Timer Intervall":
-                    _timeManagement.StopTimer("i");
+                    _windowManager.TimeManager.StopTimer(TimerType.Work);
                     break;
                 case "Timer Pause":
-                    _timeManagement.StopTimer("p");
+                    _windowManager.TimeManager.StopTimer(TimerType.Break);
                     break;
                 case "Timer Check":
-                    _timeManagement.StopTimer("c");
+                    _windowManager.TimeManager.StopTimer(TimerType.Check);
                     break;
                 default:
                     Logger.Instance.Log($"Ungültiger Timer: '{selectedTimer}'");
@@ -1017,7 +917,7 @@ namespace HecticEscape
 
         private void UpdateTimerDurationTextBox()
         {
-            if (_timeManagement == null)
+            if (_windowManager.TimeManager == null)
             {
                 if (TimerDurationTextBox != null)
                     TimerDurationTextBox.Text = "Error: Timer management not initialized.";
@@ -1030,13 +930,13 @@ namespace HecticEscape
                 switch (selectedTimer)
                 {
                     case "Freizeit":
-                        seconds = _timeManagement.GetIntervalFree();
+                        seconds = _windowManager.TimeManager.GetWorkIntervalSeconds();
                         break;
                     case "Pause":
-                        seconds = _timeManagement.GetIntervalBreak();
+                        seconds = _windowManager.TimeManager.GetBreakIntervalSeconds();
                         break;
                     case "Check":
-                        seconds = _timeManagement.GetIntervalCheck();
+                        seconds = _windowManager.TimeManager.GetCheckIntervalSeconds();
                         break;
                     default:
                         seconds = 0;
@@ -1061,117 +961,112 @@ namespace HecticEscape
 
         private void StartProxyButton_Click(object sender, RoutedEventArgs e)
         {
-            _webManager?.StartProxy();
         }
+
         private void StopProxyButton_Click(object sender, RoutedEventArgs e)
         {
-            _webManager?.StopProxy();
         }
+
         private void StopAllTimersButton_Click(object sender, RoutedEventArgs e)
         {
-            _timeManagement?.Stop();
+            _windowManager.TimeManager?.StopAllTimers();
         }
+
         private void ForceBreakButton_Click(object sender, RoutedEventArgs e)
         {
-            _timeManagement?.ForceBreak();
+            _windowManager.TimeManager?.ForceBreak();
         }
+
         private void EndBreakButton_Click(object sender, RoutedEventArgs e)
         {
-            _timeManagement?.EndBreak();
+            _windowManager.TimeManager?.EndBreak();
         }
+
         private void ToggleOverlayButton_Click(object sender, RoutedEventArgs e)
         {
             ToggleEnableOverlay();
+            UpdateStatusTextBlocks();
         }
+
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-            _configReader.SetEnableDebugMode(!_configReader.GetEnableDebugMode());
+            _windowManager.SetEnableDebugMode(!_windowManager.EnableDebugMode);
 
-            if (_configReader.GetEnableDebugMode())
+            if (_windowManager.EnableDebugMode)
             {
-                _timeManagement?.SetTimerTime("p", 45);
-                _timeManagement?.SetTimerTime("i", 15);
+                _windowManager.TimeManager?.SetTimerInterval(TimerType.Work, 45);
+                _windowManager.TimeManager?.SetTimerInterval(TimerType.Break, 15);
                 Logger.Instance.Log("Debug-Modus aktiviert: Pause = 45s, Intervall = 15s", LogLevel.Info);
             }
             UpdateStatusTextBlocks();
             ListTimers();
-            ResetDailyTimeButton.Visibility = _configReader.GetEnableDebugMode() ? Visibility.Visible : Visibility.Collapsed;
+            ResetDailyTimeButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void VerboseButton_Click(object sender, RoutedEventArgs e)
         {
-            _configReader.SetEnablVerbosetMode(!_configReader.GetEnableVerboseMode());
-            _configReader.SaveConfig();
+            _windowManager.SetEnableVerboseMode(!_windowManager.EnableVerboseMode);
             UpdateStatusTextBlocks();
-            Logger.Instance.Log($"Verbose {(_configReader.GetEnableVerboseMode() ? "aktiviert" : "deaktiviert")}", LogLevel.Info);
+            Logger.Instance.Log($"Verbose {(_windowManager.EnableVerboseMode ? "aktiviert" : "deaktiviert")}", LogLevel.Info);
         }
 
         private void WebsiteBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             MessageBox.Show($"{_languageManager.Get("ErrorMessages.WebsiteBlockingMissing")}", $"{_languageManager.Get("Misc.Error")}", MessageBoxButton.OK, MessageBoxImage.Information);
-            WebsiteBlockingCheckBox.IsChecked = false; // Checkbox deaktivieren
-            return; // Temporär deaktiviert, bis Proxy implementiert ist
-            Logger.Instance.Log("Website-Blocking aktiviert", LogLevel.Info);
-            _configReader.SetWebsiteBlockingEnabled(true);
-            WebsitesTab.IsEnabled = true;
+            WebsiteBlockingCheckBox.IsChecked = false;
+            return;
         }
 
         private void WebsiteBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            return; // Temporär deaktiviert, bis Proxy implementiert ist
-            Logger.Instance.Log("Website-Blocking deaktiviert", LogLevel.Info);
-            _configReader.SetWebsiteBlockingEnabled(false);
-            WebsitesTab.IsEnabled = false;
-            // Optional: Proxy stoppen, falls aktiv
+            return;
         }
 
         private void AppBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             Logger.Instance.Log("App-Blocking aktiviert", LogLevel.Info);
-            _configReader.SetAppBlockingEnabled(true);
+            _windowManager.SetEnableAppBlocking(true);
             ProzesseTab.IsEnabled = true;
         }
 
         private void AppBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             Logger.Instance.Log("App-Blocking deaktiviert", LogLevel.Info);
-            _configReader.SetAppBlockingEnabled(false);
+            _windowManager.SetEnableAppBlocking(false);
             ProzesseTab.IsEnabled = false;
         }
 
         private void StartBlockingButton_Click(object sender, RoutedEventArgs e)
         {
-            // Arbeitszeit-Timer starten (freie Zeit)
-            _timeManagement?.StartTimer("i");
-            _timeManagement?.StartTimer("c");
+            _windowManager.TimeManager.StartTimer(TimerType.Work);
+            _windowManager.TimeManager.StartTimer(TimerType.Check);
             Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Info);
         }
 
         private void StartTimerAtStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetStartTimerAtStartup(true);
+            _windowManager.SetStartTimerAtStartup(true);
         }
 
         private void StartTimerAtStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetStartTimerAtStartup(false);
-
+            _windowManager.SetStartTimerAtStartup(false);
         }
 
         private void UpdateTimerIntervals(int freeMs, int breakMs, int checkMs)
         {
-            _configReader.SetIntervalFreeMs(freeMs);
-            _configReader.SetIntervalBreakMs(breakMs);
-            _configReader.SetIntervalCheckMs(checkMs);
+            _windowManager.SetIntervalFreeMs(freeMs);
+            _windowManager.SetIntervalBreakMs(breakMs);
+            _windowManager.SetIntervalCheckMs(checkMs);
         }
 
         private void LanguageSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
         }
+
         private void GetCurrentLanguage()
         {
-            if (_configReader == null) return;
-            string? currentLanguage = _configReader.GetActiveLanguage();
+            string? currentLanguage = _windowManager.LanguageManager.GetCurrentLanguageString();
             if (currentLanguage != null && LanguageSelectionCombobox != null)
             {
                 AktuelleSpracheTextblock.Text = currentLanguage;
@@ -1185,12 +1080,7 @@ namespace HecticEscape
 
         private void LoadLanguages()
         {
-            if (_configReader == null)
-            {
-                Logger.Instance.Log("LoadGroups: ConfigReader ist null!", LogLevel.Error);
-                return;
-            }
-            List<LanguageData> allLanguages = _configReader.GetAllLanguages();
+            var allLanguages = _windowManager.LanguageManager.GetAllLanguages();
             LanguageSelectionCombobox?.Items.Clear();
 
             if (allLanguages != null)
@@ -1211,35 +1101,34 @@ namespace HecticEscape
 
         private void ChangeLanguageButton_Click(object sender, RoutedEventArgs e)
         {
-            if (_configReader == null) return;
             string? selectedLanguage = LanguageSelectionCombobox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedLanguage)) return;
-            _configReader.SetActiveLanguage(selectedLanguage);
+            _windowManager.LanguageManager.SetCurrentLanguageString(selectedLanguage);
             MessageBox.Show($"{_languageManager.Get("ErrorMessages.LanguageChanged")}", $"{_languageManager.Get("ErrorMessages.LanguageChangedHeader")}", MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
         private void EnableUpdateCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetEnableUpdateCheck(true);
+            _windowManager.SetEnableUpdateCheck(true);
             Logger.Instance.Log("Update-Check aktiviert", LogLevel.Info);
         }
 
         private void EnableUpdateCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetEnableUpdateCheck(false);
+            _windowManager.SetEnableUpdateCheck(false);
             Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Info);
         }
 
         private void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetEnableStartOnWindowsStartup(true);
+            _windowManager.SetEnableStartOnWindowsStartup(true);
             Logger.Instance.Log("Autostart aktiviert", LogLevel.Info);
             StartOnWindowsStartup(true);
         }
 
         private void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetEnableStartOnWindowsStartup(false);
+            _windowManager.SetEnableStartOnWindowsStartup(false);
             Logger.Instance.Log("Autostart deaktiviert", LogLevel.Info);
             StartOnWindowsStartup(false);
         }
@@ -1248,33 +1137,17 @@ namespace HecticEscape
 
         private void ShowTimerInOverlay_Checked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetShowTimeInOverlayEnable(true);
-            _overlay.SetShowTimer(true);
+            _windowManager.SetEnableShowTimeInOverlay(true);
         }
 
         private void ShowTimerInOverlay_Unchecked(object sender, RoutedEventArgs e)
         {
-            _configReader.SetShowTimeInOverlayEnable(false);
-            _overlay.SetShowTimer(false);
+            _windowManager.SetEnableShowTimeInOverlay(false);
         }
 
         private void ToggleEnableOverlay()
         {
-            if (_overlay == null) return;
-            if (_configReader.GetEnableOverlay())
-            {
-                _overlay.Show();
-                _overlay.DisableOverlay();
-                _configReader.SetEnableOverlay(false);
-                Logger.Instance.Log("Overlay deaktiviert", LogLevel.Info);
-            }
-            else
-            {
-                _overlay.Hide();
-                _overlay.EnableOverlay();
-                _configReader.SetEnableOverlay(true);
-                Logger.Instance.Log("Overlay aktiviert", LogLevel.Info);
-            }
+            _windowManager.OverlayManager.ToggleOverlayVisibility();
             UpdateStatusTextBlocks();
         }
 
@@ -1284,7 +1157,6 @@ namespace HecticEscape
         {
             try
             {
-                // Pfad zum PowerShell-Skript relativ zum Anwendungsverzeichnis
                 string scriptPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Skripts", "SetAutostart.ps1");
 
                 if (!File.Exists(scriptPath))
@@ -1295,7 +1167,6 @@ namespace HecticEscape
 
                 if (enable)
                 {
-                    // PowerShell-Prozess mit erhöhten Rechten starten
                     using (Process process = new Process())
                     {
                         ProcessStartInfo startInfo = new ProcessStartInfo
@@ -1324,7 +1195,6 @@ namespace HecticEscape
                 }
                 else
                 {
-                    // Autostart-Eintrag entfernen
                     using (RegistryKey? key = Registry.CurrentUser.OpenSubKey(
                         @"SOFTWARE\Microsoft\Windows\CurrentVersion\Run",
                         true))
@@ -1347,55 +1217,13 @@ namespace HecticEscape
             }
         }
 
-        public string CleanGroupName(string input)
-        {
-            if (input == null) return "";
-            if (input.EndsWith(" ( True)", System.StringComparison.OrdinalIgnoreCase))
-                return input.Substring(0, input.Length - 7).Trim();
-            else if (input.EndsWith(" ( False)", System.StringComparison.OrdinalIgnoreCase))
-                return input.Substring(0, input.Length - 8).Trim();
-            else
-            {
-                Logger.Instance.Log($"Es wurde nichts entfernt von {input}");
-                return input;
-            }
-        }
-
-        public string? getConfig(string key, int num)
-        {
-            string filePath = Path.Combine(Directory.GetCurrentDirectory(), "Config.json");
-            try
-            {
-                if (!File.Exists(filePath))
-                {
-                    Logger.Instance.Log($"Die Datei '{filePath}' wurde nicht gefunden.");
-                    return null; // Rückgabewert bleibt nullable
-                }
-                string jsonContent = File.ReadAllText(filePath);
-                switch (key)
-                {
-                    case ("c"):
-                        return jsonContent;
-                    case ("a"):
-                        return string.Empty; // Rückgabe eines leeren Strings statt null
-                    default:
-                        return string.Empty; // Rückgabe eines leeren Strings statt null
-                }
-            }
-            catch (System.Exception ex)
-            {
-                Logger.Instance.Log($"Fehler beim Speichern der Datei: {ex.Message}");
-                return string.Empty; // Rückgabe eines leeren Strings statt null
-            }
-        }
-
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
             if (_closeToTray)
             {
                 e.Cancel = true;
                 Hide();
-                
+
                 if (_notifyIcon != null)
                 {
                     _notifyIcon.BalloonTipTitle = "HecticEscape";
@@ -1403,11 +1231,23 @@ namespace HecticEscape
                     _notifyIcon.ShowBalloonTip(1000);
                 }
             }
-            else if (_notifyIcon != null)
+            else
             {
-                _notifyIcon.Visible = false;
-                _notifyIcon.Dispose();
-                _notifyIcon = null;
+                try
+                {
+                    _windowManager.OverlayManager?.Dispose();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log("Fehler beim Schließen des Overlays: " + ex.Message, LogLevel.Warn);
+                }
+
+                if (_notifyIcon != null)
+                {
+                    _notifyIcon.Visible = false;
+                    _notifyIcon.Dispose();
+                    _notifyIcon = null;
+                }
             }
         }
     }
