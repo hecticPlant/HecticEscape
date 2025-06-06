@@ -3,7 +3,6 @@ using System;
 using System.Collections.Generic;
 using System.Windows;
 using Xceed.Wpf.AvalonDock.Controls;
-
 namespace HecticEscape
 {
     /// <summary>
@@ -15,6 +14,7 @@ namespace HecticEscape
         private readonly LanguageManager _languageManager;
         private bool _disposed = false;
         private TimeSpan? _lastTimerRemaining = null;
+
 
         public OverlayManager(ConfigReader configReader, LanguageManager languageManager, Overlay overlay)
             : base(configReader)
@@ -31,16 +31,26 @@ namespace HecticEscape
             else
                 DisableOverlay();
         }
-        
+
+        public void AttachToTimeManager(TimeManager timeManager)
+        {
+            timeManager.TimerTicked += remaining =>
+            {
+                ShowTimer(remaining);
+            };
+        }
+
         public void ShowMessage(string message, int durationMs = 2000)
         {
             _overlay.ShowMessage(message, durationMs);
             UpdateOverlayVisibility();
         }
 
-        public void ShowCountdownAsync(int seconds)
+
+        public void ShowCountdown(int seconds)
         {
-            _ = _overlay.ShowCountdownAsync(seconds);
+            _overlay.ShowCountdownAsync(seconds);
+            UpdateOverlayVisibility();
         }
 
         public void CancelCountdown()

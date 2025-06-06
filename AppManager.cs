@@ -246,7 +246,7 @@ namespace HecticEscape
             var activeApps = GetAllActiveApps();
             if (activeApps.Count == 0)
             {
-                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Debug);
+                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Info);
                 return;
             }
             string message = $"Aktive Apps ({activeApps.Count}):";
@@ -254,7 +254,7 @@ namespace HecticEscape
             {
                 message += $"\n- {app}";
             }
-            Logger.Instance.Log($"{message}", LogLevel.Debug);
+            Logger.Instance.Log($"{message}", LogLevel.Info);
         }
 
         public void Dispose()

@@ -101,6 +101,30 @@ namespace HecticEscape
             {
                 Logger.Instance.Log($"Fehler bei der Update-Prüfung: {ex.Message}", LogLevel.Error);
             }
+            try
+            {
+                if (_windowManager != null && _windowManager.OverlayManager != null)
+                {
+                    _windowManager.OverlayManager.AttachToTimeManager(_windowManager.TimeManager);
+                    _windowManager.TimeManager.TimerTicked += remaining =>
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            TimerStatusTextBlock.Text = remaining.TotalSeconds > 0
+                                ? $"Timer: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2} verbleibend"
+                                : "Timer: --:--";
+                        });
+                    };
+                }
+                else
+                {
+                    Logger.Instance.Log("WindowManager oder OverlayManager ist null.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Initialisieren des WindowManagers: {ex.Message}", LogLevel.Error);
+            }
 
             Logger.Instance.Log("MainWindow Konstruktor: Ende", LogLevel.Verbose);
         }
@@ -242,33 +266,6 @@ namespace HecticEscape
         {
             if (_windowManager.TimeManager == null) return;
 
-            // Timer-Status
-            if (TimerStatusTextBlock != null)
-            {
-                TimeSpan remaining = TimeSpan.Zero;
-                string timerName = string.Empty;
-
-                if (_windowManager.TimeManager.IsWorkTimerRunning())
-                {
-                    remaining = _windowManager.TimeManager.GetRemainingWorkTime();
-                    timerName = "Free-Timer";
-                }
-                else if (_windowManager.TimeManager.IsBreakTimerRunning())
-                {
-                    remaining = _windowManager.TimeManager.GetRemainingBreakTime();
-                    timerName = "Break-Timer";
-                }
-                else if (_windowManager.TimeManager.IsCheckTimerRunning())
-                {
-                    remaining = _windowManager.TimeManager.GetRemainingCheckTime();
-                    timerName = "Check-Timer";
-                }
-
-                TimerStatusTextBlock.Text = remaining.TotalSeconds > 0
-                    ? $"{timerName}: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2} verbleibend"
-                    : "Timer: --:--";
-            }
-
             // Free-Timer
             if (FreeTimerStatusTextBlock != null)
             {
@@ -389,56 +386,6 @@ namespace HecticEscape
                 }
             }
             UpdateDailyTimeLeftTextBox();
-
-            // OverlayTimer synchronisieren
-            if (_windowManager.OverlayManager.GetShowTimer())
-            {
-                if (_windowManager.TimeManager.IsWorkTimerRunning())
-                {
-                    var remaining = _windowManager.TimeManager.GetRemainingWorkTime();
-
-                    // --- Benachrichtigungs-Logik für bestimmte Restzeiten ---
-                    int[] announceMinutes = { 60, 30, 15, 5, 1 };
-                    foreach (int min in announceMinutes)
-                    {
-                        if (!_alreadyAnnouncedMinutes.Contains(min) &&
-                            remaining.TotalMinutes <= min && remaining.TotalMinutes > min - 1)
-                        {
-                            _alreadyAnnouncedMinutes.Add(min);
-                            string msg = $"{_languageManager.Get("Overlay.PauseIn")} {min} Minuten";
-                            _windowManager.OverlayManager.ShowMessage(msg, 2500);
-                        }
-                    }
-                    // Set zurücksetzen, wenn Timer neu gestartet wird
-                    if (remaining.TotalMinutes > 60)
-                        _alreadyAnnouncedMinutes.Clear();
-
-                    // Countdown-Logik wie gehabt ...
-                    if (remaining.TotalSeconds <= 10 && remaining.TotalSeconds > 0 && !_windowManager.TimeManager.IsCountdownActive())
-                    {
-                        _windowManager.OverlayManager.ShowCountdownAsync((int)Math.Ceiling(remaining.TotalSeconds));
-                        _windowManager.TimeManager.SetCountdownActive(true);
-                    }
-                    else if (remaining.TotalSeconds > 10)
-                    {
-                        _windowManager.TimeManager.SetCountdownActive(false);
-                    }
-
-                    _windowManager.OverlayManager.ShowTimer(remaining);
-                }
-                else
-                {
-                    _windowManager.OverlayManager.HideTimer();
-                    _windowManager.TimeManager.SetCountdownActive(false);
-                    _alreadyAnnouncedMinutes.Clear();
-                }
-            }
-            else
-            {
-                _windowManager.OverlayManager.HideTimer();
-                _windowManager.TimeManager.SetCountdownActive(false);
-                _alreadyAnnouncedMinutes.Clear();
-            }
         }
 
         // -------------------- Sprachdatei --------------------

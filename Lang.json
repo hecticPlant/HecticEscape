@@ -76,9 +76,9 @@
           },
           "Overlay": {
             "PauseBeginnt": "Pause beginnt",
-            "PauseBeginntIn": "Pause beginnt in ",
+            "PauseBeginntIn": "Pause beginnt in {0}",
             "PauseVorbei": "Pause vorbei",
-            "PauseIn": "Pause in"
+            "PauseIn": "Pause in {0}"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Ungültiges Zeitformat. Bitte geben Sie die Zeit im Format HH:MM ein.",

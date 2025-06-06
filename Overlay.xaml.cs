@@ -87,6 +87,7 @@ namespace HecticEscape
                 {
                     OverlayMessageBorder.Visibility = Visibility.Hidden;
                     _messageActive = false;
+                    OverlayMessageTextBlock.Text = string.Empty;
                     UpdateOverlayVisibility();
                 });
                 timer.Dispose();
@@ -161,16 +162,15 @@ namespace HecticEscape
 
         private void UpdateOverlayVisibility()
         {
-            if (!_overlayManager.GetEnableOverlay())
+            if (!_overlayManager.GetEnableOverlay() || (!_messageActive && OverlayTimerBorder.Visibility != Visibility.Visible))
             {
                 if (IsVisible)
                     Hide();
-                return;
             }
             else
             {
-                if (IsVisible)
-                    Hide();
+                if (!IsVisible)
+                    Show();
             }
         }
 

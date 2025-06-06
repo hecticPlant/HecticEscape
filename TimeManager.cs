@@ -13,6 +13,7 @@ namespace HecticEscape
     {
         public event Action<string>? StatusChanged;
         public event Action? OverlayToggleRequested;
+        public event Action<TimeSpan>? TimerTicked;
 
         private readonly AppManager _appManager;
         private readonly WebManager _webManager;
@@ -45,7 +46,7 @@ namespace HecticEscape
             TimeSpan.FromMinutes(1),
             TimeSpan.FromSeconds(30)
         };
-        private readonly HashSet<TimeSpan> _alreadyAnnounced = new();
+        private readonly HashSet<int> _alreadyAnnouncedIntervals = new();
 
         public TimeManager(
             AppManager appManager,
@@ -130,7 +131,7 @@ namespace HecticEscape
                 _breakTimer.Stop();
                 _breakTimerEnd = DateTime.Now.AddMilliseconds(_breakTimer.Interval);
                 _breakTimer.Start();
-                _alreadyAnnounced.Clear();
+                _alreadyAnnouncedIntervals.Clear();
             }
             catch (Exception ex)
             {
@@ -153,7 +154,7 @@ namespace HecticEscape
                 _workTimer.Stop();
                 _workTimerEnd = DateTime.Now.AddMilliseconds(_workTimer.Interval);
                 _workTimer.Start();
-                _alreadyAnnounced.Clear();
+                _alreadyAnnouncedIntervals.Clear();
             }
             catch (Exception ex)
             {
@@ -167,10 +168,43 @@ namespace HecticEscape
             try
             {
                 _appManager.HandleAppBlocking(_intervalCheckMs, _isBreakActive);
+                OnTimerTicked();
+                CountDown();
             }
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler in CheckHandler: {ex.Message}", LogLevel.Error);
+            }
+
+        }
+
+        private void CountDown()
+        {
+            if (_workTimer.Enabled)
+            {
+                int[] countdownIntervals = { 60 * 60, 30 * 60, 15 * 60, 10 * 60, 5 * 60, 1 * 60, 30, 20, 15 }; // in Sekunden
+                var remaining = GetRemainingWorkTime();
+                int remainingSeconds = (int)Math.Ceiling(remaining.TotalSeconds);
+
+                foreach (var interval in countdownIntervals)
+                {
+                    if (interval >= (_configReader.GetIntervalFreeMs() / 1000))
+                        continue;
+                    if (remainingSeconds == interval && !_alreadyAnnouncedIntervals.Contains(interval))
+                    {
+                        _alreadyAnnouncedIntervals.Add(interval);
+                        string message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining));
+                        _overlayManager.ShowMessage(message, 1000);
+                        Logger.Instance.Log($"Countdown-Anzeige: {message}", LogLevel.Debug);
+                    }
+                }
+
+                if (remainingSeconds <= 10 && !_countdownActive)
+                {
+                    _countdownActive = true;
+                    _overlayManager.ShowCountdown(remaining.Seconds);
+                    Logger.Instance.Log("Countdown gestartet", LogLevel.Verbose);
+                }
             }
         }
 
@@ -246,7 +280,7 @@ namespace HecticEscape
                         _workTimer.Stop();
                         _workTimerEnd = DateTime.Now.AddMilliseconds(_workTimer.Interval);
                         _workTimer.Start();
-                        _alreadyAnnounced.Clear();
+                        _alreadyAnnouncedIntervals.Clear();
                         break;
                     case TimerType.Break:
                         Logger.Instance.Log("Starte Pausenzeit-Timer", LogLevel.Info);
@@ -356,10 +390,39 @@ namespace HecticEscape
 
         private string FormatTimeSpan(TimeSpan t)
         {
-            if (t.TotalMinutes >= 1)
+            if (t.TotalHours >= 1)
+            {
+                int hours = (int)t.TotalHours;
+                int minutes = t.Minutes;
+                if (minutes > 0)
+                    return $"{hours} Stunden {minutes} Minuten";
+                else
+                    return $"{hours} Stunden";
+            }
+            else if (t.TotalMinutes >= 1)
+            {
                 return $"{(int)t.TotalMinutes} Minuten";
+            }
             else
+            {
                 return $"{(int)t.TotalSeconds} Sekunden";
+            }
+        }
+
+        private void OnTimerTicked()
+        {
+            if (_workTimer.Enabled)
+            {
+                TimerTicked?.Invoke(GetRemainingWorkTime());
+            }
+            else if (_breakTimer.Enabled)
+            {
+                TimerTicked?.Invoke(GetRemainingBreakTime());
+            }
+            else if (_checkTimer.Enabled)
+            {
+                TimerTicked?.Invoke(GetRemainingCheckTime());
+            }
         }
 
         protected override void Dispose(bool disposing)
