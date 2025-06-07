@@ -1,4 +1,4 @@
-# HecticEscape v0.0.1-alpha
+# HecticEscape v0.1.1-alpha
 
 ## Überblick
 
