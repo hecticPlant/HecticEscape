@@ -8,6 +8,7 @@
     <UseWPF>true</UseWPF>
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <BaseOutputPath>\\WIN11\Users\vboxuser\Desktop\Repo</BaseOutputPath>
   </PropertyGroup>
 
   <ItemGroup>

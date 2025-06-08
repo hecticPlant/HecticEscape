@@ -721,9 +721,11 @@ namespace HecticEscape
             var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
             var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
             if (app == null) return;
-            _windowManager.AppManager.SetDailyTimeMs(group, app, 0);
+            _windowManager.AppManager.SetTimeMS(group, app, 0);
             UpdateDailyTimeTextBox();
             UpdateDailyTimeLeftTextBox();
+            Logger.Instance.Log($"Tägliche Zeit für App '{app.Name}' in Gruppe '{group.Name}' wurde zurückgesetzt." +
+                $"Neue Zeit:  {_windowManager.AppManager.GetDailyTimeLeft(group, app, today)}", LogLevel.Debug);
         }
 
         private void ProcessTabOpend(object sender, RoutedEventArgs e)

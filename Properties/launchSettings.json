@@ -1,0 +1,13 @@
+{
+  "profiles": {
+    "HecticEscape": {
+      "commandName": "Project"
+    },
+    "RemoteDebuggerVM": {
+      "commandName": "Project",
+      "remoteDebugEnabled": true,
+      "authenticationMode": "Windows",
+      "remoteDebugMachine": "Win11"
+    }
+  }
+}

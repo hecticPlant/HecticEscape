@@ -78,7 +78,8 @@
             "PauseBeginnt": "Pause beginnt",
             "PauseBeginntIn": "Pause beginnt in {0}",
             "PauseVorbei": "Pause vorbei",
-            "PauseIn": "Pause in {0}"
+            "PauseIn": "Pause in {0}",
+            "TageszeitWarnung": "Tageszeit Zeit für {0} ist {1}"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Ungültiges Zeitformat. Bitte geben Sie die Zeit im Format HH:MM ein.",
@@ -177,7 +178,8 @@
             "PauseBeginnt": "Break starts",
             "PauseBeginntIn": "Break starts in",
             "PauseVorbei": "Pause vorbei",
-            "PauseIn": "Pause in"
+            "PauseIn": "Pause in",
+            "TageszeitWarnung": "Daily Time for {appName} is {0}"
           },
           "ErrorMessages": {
             "InvalidTimeFormat": "Invalid time format. Please enter the time in HH:MM format.",

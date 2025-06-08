@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows.Automation.Peers;
@@ -99,6 +100,30 @@ namespace HecticEscape
             {
                 existingApp.DailyTimeMs = dailyTimeMs;
                 _configReader.SaveConfig();
+                Logger.Instance.Log($"DailyTime von {existingApp.Name} aus Gruppe {group.Name} auf {dailyTimeMs} gesetzts", LogLevel.Verbose);
+            }
+        }
+
+        public void SetTimeMS(Gruppe group, AppHE app, long timeMs)
+        {
+            if (group == null || app == null) return;
+            var existingApp = group.Apps.FirstOrDefault(a => a == app);
+            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
+            if (existingApp != null)
+            {
+                Log? log = existingApp.Logs.FirstOrDefault(l => l.Date == date);
+                if(log == null)
+                {
+                    log = new Log { Date = date, TimeMs = 0 };
+                    existingApp.Logs.Add(log);
+                    Logger.Instance.Log($"Neues Log für {existingApp.Name} am {date:yyyy-MM-dd} erstellt.", LogLevel.Debug);
+                }
+                else
+                {
+                    log.TimeMs = timeMs;
+                    Logger.Instance.Log($"DailyTime von {existingApp.Name} aus Gruppe {group.Name} auf {timeMs} gesetzts", LogLevel.Verbose);
+                }
+                _configReader.SaveConfig();
             }
         }
 
@@ -109,7 +134,6 @@ namespace HecticEscape
             long used = log?.TimeMs ?? 0;
             return app.DailyTimeMs - used;
         }
-
         public void AddTimeToLog(AppHE app, DateOnly date, long timeMs)
         {
             if (app == null || date == default || timeMs < 0)
@@ -255,6 +279,29 @@ namespace HecticEscape
                 message += $"\n- {app}";
             }
             Logger.Instance.Log($"{message}", LogLevel.Info);
+        }
+
+        public List<(Gruppe, AppHE, long)> WarnIfDailyTimeIsLow()
+        {
+            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
+            List<Gruppe> activeGroups = _groupManager.GetAllActiveGroups().Where(g => g.Aktiv && g.Apps.Any(a => a.DailyTimeMs > 0)).ToList();
+            List<(Gruppe, AppHE, long)> lowTimeGroups = new List<(Gruppe, AppHE, long)>();
+            if (activeGroups.Count == 0)
+            {
+                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Warn);
+                return new List<(Gruppe, AppHE, long)>();
+            }
+            else
+            {
+                foreach (var group in activeGroups)
+                {
+                    foreach (var app in group.Apps)
+                    {
+                        lowTimeGroups.Add((group, app, GetDailyTimeLeft(group, app, date)));
+                    }
+                }
+            }
+            return lowTimeGroups;
         }
 
         public void Dispose()

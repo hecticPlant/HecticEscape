@@ -4,9 +4,6 @@ using System.Threading.Tasks;
 
 namespace HecticEscape
 {
-    /// <summary>
-    /// Verwaltet die Websites und den Proxy für das Website-Blocking.
-    /// </summary>
     public class WebManager : AManager
     {
         private readonly WebProxyHE _webProxy;
