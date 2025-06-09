@@ -32,7 +32,16 @@ namespace HecticEscape
         private void UpdateRunningProcesses()
         {
             Logger.Instance.Log("Aktualisiere laufende Prozesse", LogLevel.Verbose);
-            _runningProcesses = Process.GetProcesses();
+            if (_configReader.GetEnableShowProcessesWithWindowOnly())
+            {
+                Logger.Instance.Log("Zeige nur Prozesse mit Fenster.", LogLevel.Verbose);
+                _runningProcesses = Process.GetProcesses().Where(p => p.MainWindowHandle != IntPtr.Zero && !string.IsNullOrWhiteSpace(p.MainWindowTitle)).ToArray();
+            }
+            else
+            {
+                Logger.Instance.Log("Zeige alle laufenden Prozesse.", LogLevel.Verbose);
+                _runningProcesses = Process.GetProcesses();
+            }
         }
 
         public Process[] GetRunningProcesses()

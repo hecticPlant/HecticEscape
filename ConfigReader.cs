@@ -201,6 +201,7 @@ namespace HecticEscape
                 ActiveLanguageNameString = "Deutsch",
                 EnableUpdateCheck = false,
                 EnableStartOnWindowsStartup = false,
+                EnableShowProcessesWithWindowOnly = true
 
             };
 
@@ -340,6 +341,19 @@ namespace HecticEscape
 
 
         // --- Globale Einstellungen (Flags, Timer, etc.) ---
+        public bool GetEnableShowProcessesWithWindowOnly()
+        {
+            Logger.Instance.Log($"GetEnableShowProcessesWithWindowOnly: {Config.EnableShowProcessesWithWindowOnly}", LogLevel.Verbose);
+            return Config.EnableShowProcessesWithWindowOnly;
+        }
+        public void SetEnableShowProcessesWithWindowOnly(bool value)
+        {
+            Config.EnableShowProcessesWithWindowOnly = value;
+            Logger.Instance.Log($"Setze EnableShowProcessesWithWindowOnly auf {value}.", LogLevel.Verbose);
+            SetSaveConfigFlag();
+        }
+
+
         public void SetEnableUpdateCheck(bool value)
         {
             Config.EnableUpdateCheck = value;

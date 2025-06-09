@@ -9,6 +9,7 @@
     <ApplicationIcon>app.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <BaseOutputPath>\\WIN11\Users\vboxuser\Desktop\Repo</BaseOutputPath>
+    <Configurations>Debug;Release;DebugRemote;DebugLokal</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
@@ -18,7 +19,7 @@
     <None Remove="Lang.json" />
     <None Remove="Skripts\SetAutostart.ps1" />
   </ItemGroup>
-
+	
   <ItemGroup>
     <Content Include="app.ico">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>

@@ -46,6 +46,7 @@
                         <Button x:Name="ShowRunningProcessesButton" Content="Laufende Prozesse" Margin="0,0,10,0" Click="ShowRunningProcessesButton_Click"/>
                         <Button x:Name="DeleteProcessButton" Content="Lösche Prozess" Margin="0,0,10,0" Click="DeleteProcessButton_Click"/>
                     </WrapPanel>
+                    <CheckBox x:Name="ShowProcessesWithWindowOnlyCheckBox" Content="Nur Processe mit Fenste anzeigen" Margin="0,0,10,0" Checked="ShowProcessesWithWindowOnlyCheckBox_Checked" Unchecked="ShowProcessesWithWindowOnlyCheckBox_Unchecked"/>
                     <TextBlock x:Name="DailyTimesTextBlock" Text="Tägliche Zeiten" FontWeight="Bold" FontSize="14" Margin="0,0,10,0"/>
                     <WrapPanel>
                         <WrapPanel Margin="0,0,10,0">

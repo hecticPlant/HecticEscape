@@ -31,5 +31,6 @@
   "ActiveLanguageFile": "Deutsch",
   "EnableUpdateCheck": true,
   "EnableStartOnWindowsStartup": true,
-  "EnableShowAppTimeInOverlayEnable": true
+  "EnableShowAppTimeInOverlayEnable": true,
+  "EnableShowProcessesWithWindowOnly": true,"
 }

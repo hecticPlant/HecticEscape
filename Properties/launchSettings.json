@@ -1,7 +1,8 @@
 {
   "profiles": {
     "HecticEscape": {
-      "commandName": "Project"
+      "commandName": "Project",
+      "workingDirectory": "D:\\VisualStuido Repo\\HecticEscape"
     },
     "RemoteDebuggerVM": {
       "commandName": "Project",

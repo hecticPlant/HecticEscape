@@ -47,6 +47,7 @@ namespace HecticEscape
         public bool EnableUpdateCheck { get; set; }
         public bool EnableStartOnWindowsStartup { get; set; }
         public bool EnableShowAppTimeInOverlay { get; set; }
+        public bool EnableShowProcessesWithWindowOnly { get; set; }
     }
 
     public class LanguageFile

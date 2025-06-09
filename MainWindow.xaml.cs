@@ -73,7 +73,8 @@ namespace HecticEscape
                 ShowTimerInOverlayCheckBox.IsChecked = _windowManager.EnableShowTimeInOverlay;
                 ShowAppTimerInOverlayCheckBox.IsChecked = _windowManager.EnableShowAppTimeInOverlay;
                 EnableUpdateCheckBox.IsChecked = _windowManager.EnableUpdateCheck;
-                EnableStartOnWindowsStartupCheckBox.IsChecked = _windowManager.EnableStartOnWindowsStartup;;
+                EnableStartOnWindowsStartupCheckBox.IsChecked = _windowManager.EnableStartOnWindowsStartup;
+                ShowProcessesWithWindowOnlyCheckBox.IsChecked = _windowManager.EnableShowProcessesWithWindowOnly;
             }
             catch (Exception ex)
             {
@@ -1301,6 +1302,15 @@ namespace HecticEscape
             }
         }
 
-
+        private void ShowProcessesWithWindowOnlyCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            Logger.Instance.Log("ShowProcessesWithWindowOnlyCheckBox aktiviert", LogLevel.Verbose);
+            _windowManager.SetEnableShowProcessesWithWindowOnly(true);
+        }
+        private void ShowProcessesWithWindowOnlyCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            Logger.Instance.Log("ShowProcessesWithWindowOnlyCheckBox deaktiviert", LogLevel.Verbose);
+            _windowManager.SetEnableShowProcessesWithWindowOnly(false);
+        }
     }
 }

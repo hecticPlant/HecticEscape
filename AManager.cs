@@ -74,6 +74,9 @@ namespace HecticEscape
 
         public string GetCurrentLanguageString() => _configReader.GetCurrentLanguageString();
 
+        public bool EnableShowProcessesWithWindowOnly => _configReader.GetEnableShowProcessesWithWindowOnly();
+        public void SetEnableShowProcessesWithWindowOnly(bool enable) => _configReader.SetEnableShowProcessesWithWindowOnly(enable);
+
         public void Dispose()
         {
             Dispose(true);
