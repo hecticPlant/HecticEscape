@@ -110,14 +110,14 @@ namespace HecticEscape
        
         public void EnableOverlay()
         {
-            Logger.Instance.Log("OverlayManager: Overlay aktiviert", LogLevel.Info);
+            Logger.Instance.Log("OverlayManager: Overlay aktiviert", LogLevel.Verbose);
             _configReader.SetEnableOverlay(true);
             _overlay.Dispatcher.Invoke(() => _overlay.Show());
         }
 
         public void DisableOverlay()
         {
-            Logger.Instance.Log("OverlayManager: Overlay deaktiviert", LogLevel.Info);
+            Logger.Instance.Log("OverlayManager: Overlay deaktiviert", LogLevel.Verbose);
             _configReader.SetEnableOverlay(false);
             _overlay.Dispatcher.Invoke(() => _overlay.Hide());
         }
@@ -195,7 +195,7 @@ namespace HecticEscape
 
         protected override void Dispose(bool disposing)
         {
-            Logger.Instance.Log("OverlayManager: Dispose aufgerufen", LogLevel.Info);
+            Logger.Instance.Log("OverlayManager: Dispose aufgerufen", LogLevel.Debug);
             if (!_disposed)
             {
                 if (disposing)

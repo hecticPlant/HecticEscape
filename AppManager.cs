@@ -277,7 +277,7 @@ namespace HecticEscape
             var activeApps = GetAllActiveApps();
             if (activeApps.Count == 0)
             {
-                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Info);
+                Logger.Instance.Log("Keine aktiven Apps gefunden.", LogLevel.Debug);
                 return;
             }
             string message = $"Aktive Apps ({activeApps.Count}):";
@@ -285,7 +285,7 @@ namespace HecticEscape
             {
                 message += $"\n- {app}";
             }
-            Logger.Instance.Log($"{message}", LogLevel.Info);
+            Logger.Instance.Log($"{message}", LogLevel.Verbose);
         }
 
         public List<(Gruppe, AppHE)> WarnIfDailyTimeIsLow()
@@ -296,7 +296,7 @@ namespace HecticEscape
             List<(Gruppe, AppHE)> lowTimeGroups = new List<(Gruppe, AppHE)>();
             if (activeGroups.Count == 0)
             {
-                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Info);
+                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Debug);
                 return new List<(Gruppe, AppHE)>();
             }
             else

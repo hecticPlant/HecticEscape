@@ -197,6 +197,7 @@ namespace HecticEscape
                 IntervalFreeMs = 2 * 3600 * 1000,
                 IntervalBreakMs = 15 * 60 * 1000,
                 IntervalCheckMs = 1000,
+                EnableOverlay = true,
                 ActiveLanguageNameString = "Deutsch",
                 EnableUpdateCheck = false,
                 EnableStartOnWindowsStartup = false,

@@ -104,7 +104,7 @@ namespace HecticEscape
         /// </summary>
         public void SetBlockedDomains(List<string> domains)
         {
-            Logger.Instance.Log($"Liste aktualisiert mit {domains.Count} Domains.", LogLevel.Info);
+            Logger.Instance.Log($"Liste aktualisiert mit {domains.Count} Domains.", LogLevel.Verbose);
             blockedDomains = domains;
 
             TerminateExistingConnections();

@@ -546,7 +546,7 @@ namespace HecticEscape
 
         protected override void Dispose(bool disposing)
         {
-            Logger.Instance.Log("TimeManager wird disposed", LogLevel.Info);
+            Logger.Instance.Log("TimeManager wird disposed", LogLevel.Debug);
             if (!_disposed)
             {
                 if (disposing)

@@ -228,7 +228,7 @@ namespace HecticEscape
 
         public void Dispose()
         {
-            Logger.Instance.Log("Disposing overlay.", LogLevel.Info);
+            Logger.Instance.Log("Disposing overlay.", LogLevel.Debug);
             Dispose(true);
             GC.SuppressFinalize(this);
         }

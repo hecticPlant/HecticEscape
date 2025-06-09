@@ -208,19 +208,19 @@ namespace HecticEscape
 
         private void NotifyIcon_DoubleClick(object? sender, EventArgs e)
         {
-            Logger.Instance.Log("NotifyIcon wurde angeklickt, zeige Hauptfenster.", LogLevel.Info);
+            Logger.Instance.Log("NotifyIcon wurde angeklickt, zeige Hauptfenster.", LogLevel.Verbose);
             _windowManager.ShowMainWindow();
         }
 
         private void NotifyIcon_OpenClick(object? sender, EventArgs e)
         {
-            Logger.Instance.Log("NotifyIcon 'Öffnen' wurde angeklickt, zeige Hauptfenster.", LogLevel.Info);
+            Logger.Instance.Log("NotifyIcon 'Öffnen' wurde angeklickt, zeige Hauptfenster.", LogLevel.Verbose);
             _windowManager.ShowMainWindow();
         }
 
         private void NotifyIcon_ExitClick(object? sender, EventArgs e)
         {
-            Logger.Instance.Log("NotifyIcon 'Beenden' wurde angeklickt, schließe Anwendung.", LogLevel.Info);
+            Logger.Instance.Log("NotifyIcon 'Beenden' wurde angeklickt, schließe Anwendung.", LogLevel.Verbose);
             _closeToTray = false;
             Close();
             _windowManager.AppManager.SaveConfig();
@@ -1027,7 +1027,7 @@ namespace HecticEscape
 
         private void AppBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("App-BlockingCheckBox deaktiviert", LogLevel.Info);
+            Logger.Instance.Log("App-BlockingCheckBox deaktiviert", LogLevel.Verbose);
             _windowManager.SetEnableAppBlocking(false);
             ProzesseTab.IsEnabled = false;
         }
@@ -1036,7 +1036,7 @@ namespace HecticEscape
         {
             _windowManager.TimeManager.StartTimer(TimerType.Work);
             _windowManager.TimeManager.StartTimer(TimerType.Check);
-            Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Info);
+            Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Verbose);
         }
 
         private void StartTimerAtStartupCheckBox_Checked(object sender, RoutedEventArgs e)
@@ -1105,26 +1105,26 @@ namespace HecticEscape
         private void EnableUpdateCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableUpdateCheck(true);
-            Logger.Instance.Log("Update-Check aktiviert", LogLevel.Info);
+            Logger.Instance.Log("Update-Check aktiviert", LogLevel.Verbose);
         }
 
         private void EnableUpdateCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableUpdateCheck(false);
-            Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Info);
+            Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Verbose);
         }
 
         private async void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableStartOnWindowsStartup(true);
-            Logger.Instance.Log("Autostart aktiviert", LogLevel.Info);
+            Logger.Instance.Log("Autostart aktiviert", LogLevel.Verbose);
             await StartOnWindowsStartupAsync(true);
         }
 
         private async void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableStartOnWindowsStartup(false);
-            Logger.Instance.Log("Autostart deaktiviert", LogLevel.Info);
+            Logger.Instance.Log("Autostart deaktiviert", LogLevel.Verbose);
             await StartOnWindowsStartupAsync(false);
         }
 
