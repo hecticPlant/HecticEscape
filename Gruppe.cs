@@ -46,6 +46,7 @@ namespace HecticEscape
         public string ActiveLanguageNameString { get; set; }
         public bool EnableUpdateCheck { get; set; }
         public bool EnableStartOnWindowsStartup { get; set; }
+        public bool EnableShowAppTimeInOverlay { get; set; }
     }
 
     public class LanguageFile

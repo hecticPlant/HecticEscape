@@ -5,6 +5,7 @@
     },
     "RemoteDebuggerVM": {
       "commandName": "Project",
+      "workingDirectory": "\\\\WIN11\\Users\\vboxuser\\Desktop\\Repo",
       "remoteDebugEnabled": true,
       "authenticationMode": "Windows",
       "remoteDebugMachine": "Win11"

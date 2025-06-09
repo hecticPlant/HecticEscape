@@ -49,16 +49,10 @@ namespace HecticEscape
             [CallerFilePath] string callerFilePath = "",
             [CallerLineNumber] int callerLineNumber = 0)
         {
-            if (level == LogLevel.Debug && !IsDebugEnabled)
+            if (level == LogLevel.Debug && !IsDebugEnabled || level == LogLevel.Verbose && !IsVerboseEnabled)
             {
                 return;
             }
-
-            if (level == LogLevel.Verbose && !IsVerboseEnabled)
-            {
-                return;
-            }
-
             string callerInfo = $"{Path.GetFileNameWithoutExtension(callerFilePath)}.{callerMemberName}:{callerLineNumber}";
             string logEntry = $"{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff} [{level}] [{callerInfo}] {message}{Environment.NewLine}";
             logQueue.Add(logEntry);

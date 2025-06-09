@@ -2,7 +2,9 @@
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Net.NetworkInformation;
 using System.Text.Json;
+using TimersTimer = System.Timers.Timer;
 
 namespace HecticEscape
 {
@@ -21,6 +23,9 @@ namespace HecticEscape
             "Config.json");
         private readonly string _langFilePath;
 
+        private TimersTimer _saveConfigTimer = null!;
+        private bool _saveConfigFlag = false;
+
         public ConfigReader()
         {
             Logger.Instance.Log("Starte Initialisierung des ConfigReaders.", LogLevel.Info);
@@ -35,8 +40,25 @@ namespace HecticEscape
 
             SetupConfig();
             LoadLanguages();
+            SetupConfigTimer();
 
             Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
+
+        }
+        private void SetupConfigTimer()
+        {
+            Logger.Instance.Log("Initialisiere SaveConfigTimer.", LogLevel.Info);
+            _saveConfigTimer = new TimersTimer(500);
+            _saveConfigTimer.Elapsed += (sender, e) =>
+            {
+                if (_saveConfigFlag)
+                {
+                    SaveConfig();
+                    _saveConfigFlag = false;
+                }
+            };
+            _saveConfigTimer.AutoReset = true;
+            _saveConfigTimer.Start();
         }
 
         private void SetupConfig()
@@ -170,13 +192,15 @@ namespace HecticEscape
                 EnableDebugMode = false,
                 EnableVerboseMode = false,
                 EnableShowTimeInOverlay = false,
+                EnableShowAppTimeInOverlay = false,
                 StartTimerAtStartup = false,
                 IntervalFreeMs = 2 * 3600 * 1000,
                 IntervalBreakMs = 15 * 60 * 1000,
                 IntervalCheckMs = 1000,
                 ActiveLanguageNameString = "Deutsch",
                 EnableUpdateCheck = false,
-                EnableStartOnWindowsStartup = false
+                EnableStartOnWindowsStartup = false,
+
             };
 
             var defaultGroup = new Gruppe
@@ -193,6 +217,20 @@ namespace HecticEscape
             Logger.Instance.Log("Eine neue Konfigurationsdatei mit Standard-Gruppe wurde erstellt.", LogLevel.Info);
             string json = File.ReadAllText(_filePathConfig);
             Logger.Instance.Log($"Neue Config-Inhalte: {json}", LogLevel.Info);
+        }
+
+        public void SetSaveConfigFlag()
+        {
+            Logger.Instance.Log("Setze SaveConfigFlag.", LogLevel.Verbose);
+            if (!_saveConfigFlag)
+            {
+                _saveConfigFlag = true;
+            }
+            else
+            {
+                Logger.Instance.Log("SaveConfigFlag wurde bereits gesetzt, Timer läuft.", LogLevel.Verbose);
+                return;
+            }
         }
 
         public void SaveConfig()
@@ -227,7 +265,6 @@ namespace HecticEscape
             }
         }
 
-
         // --- Sprachverwaltung und globale Settings bleiben erhalten ---
         public LanguageData GetCurrentLanguage()
         {
@@ -256,7 +293,7 @@ namespace HecticEscape
                 Config.ActiveLanguageNameString = language.Name;
                 CurrentLanguage = language;
                 Logger.Instance.Log($"Aktive Sprache auf '{language.Name}' gesetzt.", LogLevel.Info);
-                SaveConfig();
+                SetSaveConfigFlag();
             }
             else
             {
@@ -270,7 +307,7 @@ namespace HecticEscape
                 Config.ActiveLanguageNameString = languageName;
                 CurrentLanguage = LanguageFile.Sprachen[languageName];
                 Logger.Instance.Log($"Aktive Sprache auf '{languageName}' gesetzt.", LogLevel.Info);
-                SaveConfig();
+                SetSaveConfigFlag();
             }
             else
             {
@@ -306,96 +343,155 @@ namespace HecticEscape
         {
             Config.EnableUpdateCheck = value;
             Logger.Instance.Log($"Setze EnableUpdateCheck auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
-        public bool GetEnableUpdateCheck() => Config.EnableUpdateCheck;
+        public bool GetEnableUpdateCheck()
+        {
+            Logger.Instance.Log($"GetEnableUpdateCheck: {Config.EnableUpdateCheck}", LogLevel.Verbose);
+            return Config.EnableUpdateCheck;
+        }
 
         public void SetEnableStartOnWindowsStartup(bool value)
         {
             Config.EnableStartOnWindowsStartup = value;
             Logger.Instance.Log($"Setze EnableStartOnWindowsStartup auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
-        public bool GetEnableStartOnWindowsStartup() => Config.EnableStartOnWindowsStartup;
-
-        public bool GetEnableVerboseMode() => Config.EnableVerboseMode;
+        public bool GetEnableStartOnWindowsStartup() 
+        {
+            Logger.Instance.Log($"GetEnableStartOnWindowsStartup: {Config.EnableStartOnWindowsStartup}", LogLevel.Verbose);
+            return Config.EnableStartOnWindowsStartup;
+        }
+        public bool GetEnableVerboseMode()
+        {
+            Logger.Instance.Log($"GetEnableVerboseMode: {Config.EnableVerboseMode}", LogLevel.Verbose);
+            return Config.EnableVerboseMode;
+        }
         public void SetEnableVerboseMode(bool value)
         {
             Config.EnableVerboseMode = value;
             Logger.Instance.Log($"Setze EnableVerboseMode auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public bool GetWebsiteBlockingEnabled() => Config.EnableWebsiteBlocking;
+        public bool GetWebsiteBlockingEnabled()
+        {
+            Logger.Instance.Log($"GetWebsiteBlockingEnabled: {Config.EnableWebsiteBlocking}", LogLevel.Verbose);
+            return Config.EnableWebsiteBlocking;
+        }
         public void SetWebsiteBlockingEnabled(bool enabled)
         {
             Config.EnableWebsiteBlocking = enabled;
             Logger.Instance.Log($"Setze EnableWebsiteBlocking auf {enabled}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public bool GetAppBlockingEnabled() => Config.EnableAppBlocking;
+        public bool GetAppBlockingEnabled()
+        {
+            Logger.Instance.Log($"GetAppBlockingEnabled: {Config.EnableAppBlocking}", LogLevel.Verbose);
+            return Config.EnableAppBlocking;
+        }
         public void SetEnableAppBlocking(bool enabled)
         {
             Config.EnableAppBlocking = enabled;
             Logger.Instance.Log($"Setze EnableAppBlocking auf {enabled}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public bool GetStartTimerAtStartup() => Config.StartTimerAtStartup;
+        public bool GetStartTimerAtStartup()
+        {
+            Logger.Instance.Log($"GetStartTimerAtStartup: {Config.StartTimerAtStartup}", LogLevel.Verbose);
+            return Config.StartTimerAtStartup;
+        }
         public void SetStartTimerAtStartup(bool value)
         {
             Config.StartTimerAtStartup = value;
             Logger.Instance.Log($"Setze StartTimerAtStartup auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public int GetIntervalFreeMs() => Config.IntervalFreeMs;
+        public int GetIntervalFreeMs() 
+        {
+            Logger.Instance.Log($"GetIntervalFreeMs: {Config.IntervalFreeMs}", LogLevel.Verbose);
+            return Config.IntervalFreeMs;
+        }
         public void SetIntervalFreeMs(int value)
         {
             Config.IntervalFreeMs = value;
             Logger.Instance.Log($"Setze IntervalFreeMs auf {value} ms.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public int GetIntervalBreakMs() => Config.IntervalBreakMs;
+        public int GetIntervalBreakMs()
+        {
+            Logger.Instance.Log($"GetIntervalBreakMs: {Config.IntervalBreakMs}", LogLevel.Verbose);
+            return Config.IntervalBreakMs;
+        }
         public void SetIntervalBreakMs(int value)
         {
             Config.IntervalBreakMs = value;
             Logger.Instance.Log($"Setze IntervalBreakMs auf {value} ms.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public int GetIntervalCheckMs() => Config.IntervalCheckMs;
+        public int GetIntervalCheckMs()
+        {
+            Logger.Instance.Log($"GetIntervalCheckMs: {Config.IntervalCheckMs}", LogLevel.Verbose);
+            return Config.IntervalCheckMs;
+        }
         public void SetIntervalCheckMs(int value)
         {
             Config.IntervalCheckMs = value;
             Logger.Instance.Log($"Setze IntervalCheckMs auf {value} ms.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public bool GetEnableDebugMode() => Config.EnableDebugMode;
+        public bool GetEnableDebugMode()
+        {             
+            Logger.Instance.Log($"GetEnableDebugMode: {Config.EnableDebugMode}", LogLevel.Verbose);
+            return Config.EnableDebugMode;
+        }
         public void SetEnableDebugMode(bool value)
         {
             Config.EnableDebugMode = value;
             Logger.Instance.Log($"Setze EnableDebugMode auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public bool GetShowTimeInOverlayEnable() => Config.EnableShowTimeInOverlay;
+        public bool GetShowTimeInOverlayEnable()
+        {
+            Logger.Instance.Log($"GetShowTimeInOverlayEnable: {Config.EnableShowTimeInOverlay}", LogLevel.Verbose);
+            return Config.EnableShowTimeInOverlay;
+        }
         public void EnableShowTimeInOverlay(bool value)
         {
             Config.EnableShowTimeInOverlay = value;
             Logger.Instance.Log($"Setze EnableShowTimeInOverlay auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
 
-        public bool GetEnableOverlay() => Config.EnableOverlay;
+        public bool GetShowAppTimeInOverlayEnable()
+        {
+            Logger.Instance.Log($"GetShowAppTimeInOverlayEnable: {Config.EnableShowAppTimeInOverlay}", LogLevel.Verbose);
+            return Config.EnableShowAppTimeInOverlay;
+        }
+        public void SetShowAppTimeInOverlayEnable(bool value)
+        {
+            Config.EnableShowAppTimeInOverlay = value;
+            Logger.Instance.Log($"Setze EnableShowAppTimeInOverlayEnable auf {value}.", LogLevel.Verbose);
+            SetSaveConfigFlag();
+        }
+
+        public bool GetEnableOverlay()
+        {
+            Logger.Instance.Log($"GetEnableOverlay: {Config.EnableOverlay}", LogLevel.Verbose);
+            return Config.EnableOverlay;
+        }
         public void SetEnableOverlay(bool value)
         {
             Config.EnableOverlay = value;
             Logger.Instance.Log($"Setze EnableOverlay auf {value}.", LogLevel.Verbose);
-            SaveConfig();
+            SetSaveConfigFlag();
         }
     }
 }

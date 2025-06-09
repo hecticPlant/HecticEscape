@@ -42,6 +42,7 @@ namespace HecticEscape
 
         public void ShowMainWindow()
         {
+            Logger.Instance.Log("WindowManager: Zeige MainWindow", LogLevel.Verbose);
             MainWindow?.Show();
             MainWindow.WindowState = WindowState.Normal;
             MainWindow.Activate();

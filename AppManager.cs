@@ -31,17 +31,20 @@ namespace HecticEscape
 
         private void UpdateRunningProcesses()
         {
+            Logger.Instance.Log("Aktualisiere laufende Prozesse", LogLevel.Verbose);
             _runningProcesses = Process.GetProcesses();
         }
 
         public Process[] GetRunningProcesses()
         {
+            Logger.Instance.Log("Hole laufende Prozesse", LogLevel.Verbose);
             UpdateRunningProcesses();
             return _runningProcesses;
         }
 
         public void AddAppToGroup(Gruppe group, string processName)
         {
+            Logger.Instance.Log($"Versuche, App '{processName}' zur Gruppe '{group?.Name}' hinzuzufügen.", LogLevel.Verbose);
             if (group == null || string.IsNullOrWhiteSpace(processName))
                 return;
 
@@ -56,12 +59,13 @@ namespace HecticEscape
             if (!group.Apps.Any(a => a.Name.Equals(app.Name, StringComparison.OrdinalIgnoreCase)))
             {
                 group.Apps.Add(app);
-                _configReader.SaveConfig();
             }
+            _configReader.SetSaveConfigFlag();
         }
 
         public bool RemoveAppFromGroup(Gruppe group, AppHE app)
         {
+            Logger.Instance.Log($"Versuche, App '{app?.Name}' aus Gruppe '{group?.Name}' zu entfernen.", LogLevel.Verbose);
             if (group == null || app == null)
                 return false;
 
@@ -69,7 +73,7 @@ namespace HecticEscape
             if (existingApp != null)
             {
                 group.Apps.Remove(existingApp);
-                _configReader.SaveConfig();
+                _configReader.SetSaveConfigFlag();
                 return true;
             }
             return false;
@@ -77,6 +81,7 @@ namespace HecticEscape
 
         public List<AppHE> GetAllApps()
         {
+            Logger.Instance.Log("Hole alle Apps aus allen Gruppen.", LogLevel.Verbose);
             return _groupManager.GetAllGroups()
                 .SelectMany(g => g.Apps)
                 .ToList();
@@ -84,11 +89,13 @@ namespace HecticEscape
 
         public List<AppHE> GetAppsFromGroup(Gruppe group)
         {
+            Logger.Instance.Log($"Hole Apps aus Gruppe '{group?.Name}'.", LogLevel.Verbose);
             return group?.Apps ?? new List<AppHE>();
         }
 
         public AppHE? GetAppByName(Gruppe group, string appName)
         {
+            Logger.Instance.Log($"Hole App '{appName}' aus Gruppe '{group?.Name}'.", LogLevel.Verbose);
             return group?.Apps.FirstOrDefault(a => a.Name.Equals(appName, StringComparison.OrdinalIgnoreCase));
         }
 
@@ -99,9 +106,9 @@ namespace HecticEscape
             if (existingApp != null)
             {
                 existingApp.DailyTimeMs = dailyTimeMs;
-                _configReader.SaveConfig();
                 Logger.Instance.Log($"DailyTime von {existingApp.Name} aus Gruppe {group.Name} auf {dailyTimeMs} gesetzts", LogLevel.Verbose);
             }
+            _configReader.SetSaveConfigFlag();
         }
 
         public void SetTimeMS(Gruppe group, AppHE app, long timeMs)
@@ -123,12 +130,13 @@ namespace HecticEscape
                     log.TimeMs = timeMs;
                     Logger.Instance.Log($"DailyTime von {existingApp.Name} aus Gruppe {group.Name} auf {timeMs} gesetzts", LogLevel.Verbose);
                 }
-                _configReader.SaveConfig();
             }
+            _configReader.SetSaveConfigFlag(); 
         }
 
         public long GetDailyTimeLeft(Gruppe group, AppHE app, DateOnly date)
         {
+            Logger.Instance.Log($"Berechne verbleibende Zeit für {app?.Name} in Gruppe {group?.Name} am {date:yyyy-MM-dd}.", LogLevel.Verbose);
             if (group == null || app == null) return 0;
             var log = app.Logs?.FirstOrDefault(l => l.Date == date);
             long used = log?.TimeMs ?? 0;
@@ -136,6 +144,7 @@ namespace HecticEscape
         }
         public void AddTimeToLog(AppHE app, DateOnly date, long timeMs)
         {
+            Logger.Instance.Log($"Füge {timeMs}ms zu Log von {app?.Name} am {date:yyyy-MM-dd} hinzu.", LogLevel.Verbose);
             if (app == null || date == default || timeMs < 0)
             {
                 Logger.Instance.Log("Ungültige Parameter für AddTimeToLog. App, Datum oder Zeit sind ungültig.", LogLevel.Error);
@@ -145,15 +154,15 @@ namespace HecticEscape
             if (log != null)
             {
                 log.TimeMs += timeMs;
-                _configReader.SaveConfig();
             }
         }
 
         public void RemoveAllAppsFromGroup(Gruppe group)
         {
+            Logger.Instance.Log($"Entferne alle Apps aus Gruppe '{group?.Name}'.", LogLevel.Verbose);
             if (group == null) return;
             group.Apps.Clear();
-            _configReader.SaveConfig();
+            _configReader.SetSaveConfigFlag();
         }
 
         private string CleanProcessName(string processName)
@@ -164,11 +173,9 @@ namespace HecticEscape
             return cleanedName;
         }
 
-        public void HandleAppBlocking(int intervalCheckMs, bool isBreakActive)
+        public async Task HandleAppBlocking(int intervalCheckMs, bool isBreakActive)
         {
-            var activeGroups = _groupManager.GetAllActiveGroups()
-                .Where(g => !string.IsNullOrEmpty(g.Name))
-                .ToList();
+            var activeGroups = _groupManager.GetAllActiveGroups().Where(g => !string.IsNullOrEmpty(g.Name)).ToList();
 
             Logger.Instance.Log($"Starte App-Blocking Handler {intervalCheckMs} {isBreakActive} mit {activeGroups.Count} aktiven Gruppen", LogLevel.Verbose);
 
@@ -199,7 +206,7 @@ namespace HecticEscape
                     {
                         log = new Log { Date = today, TimeMs = 0 };
                         app.Logs.Add(log);
-                        Logger.Instance.Log($"Neues Log für {app.Name} am {today:yyyy-MM-dd} erstellt.", LogLevel.Debug);
+                        Logger.Instance.Log($"Neues Log für {app.Name} am {today:yyyy-MM-dd} erstellt.", LogLevel.Info);
                     }
                     if (isBreakActive)
                     {
@@ -281,15 +288,16 @@ namespace HecticEscape
             Logger.Instance.Log($"{message}", LogLevel.Info);
         }
 
-        public List<(Gruppe, AppHE, long)> WarnIfDailyTimeIsLow()
+        public List<(Gruppe, AppHE)> WarnIfDailyTimeIsLow()
         {
+            Logger.Instance.Log("Überprüfe, ob tägliche Zeit für Apps niedrig ist.", LogLevel.Verbose);
             DateOnly date = DateOnly.FromDateTime(DateTime.Now);
             List<Gruppe> activeGroups = _groupManager.GetAllActiveGroups().Where(g => g.Aktiv && g.Apps.Any(a => a.DailyTimeMs > 0)).ToList();
-            List<(Gruppe, AppHE, long)> lowTimeGroups = new List<(Gruppe, AppHE, long)>();
+            List<(Gruppe, AppHE)> lowTimeGroups = new List<(Gruppe, AppHE)>();
             if (activeGroups.Count == 0)
             {
-                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Warn);
-                return new List<(Gruppe, AppHE, long)>();
+                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Info);
+                return new List<(Gruppe, AppHE)>();
             }
             else
             {
@@ -297,21 +305,35 @@ namespace HecticEscape
                 {
                     foreach (var app in group.Apps)
                     {
-                        lowTimeGroups.Add((group, app, GetDailyTimeLeft(group, app, date)));
+                        var processesForPause = Process.GetProcessesByName(app.Name);
+                        if (processesForPause.Length > 0)
+                        {
+                            Logger.Instance.Log($"App {app.Name} zu lowTimeGroup hinzugefügt.", LogLevel.Verbose);
+                            lowTimeGroups.Add((group, app));
+                        }
+
                     }
                 }
             }
             return lowTimeGroups;
         }
 
+        public void SaveConfig()
+        {
+            Logger.Instance.Log("Speichere Konfiguration.", LogLevel.Verbose);
+            _configReader.SaveConfig();
+        }
+
         public void Dispose()
         {
+            Logger.Instance.Log("AppManager wird disposed.", LogLevel.Info);
             Dispose(true);
             GC.SuppressFinalize(this);
         }
 
         protected override void Dispose(bool disposing)
         {
+            Logger.Instance.Log("Dispose-Methode des AppManagers aufgerufen.", LogLevel.Verbose);
             if (!_disposed)
             {
                 if (disposing)

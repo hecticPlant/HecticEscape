@@ -19,14 +19,18 @@ namespace HecticEscape
         /// <summary>
         /// Gibt alle Gruppen zurück.
         /// </summary>
-        public List<Gruppe> GetAllGroups() =>
-            _configReader.Config.Gruppen.Values.ToList();
+        public List<Gruppe> GetAllGroups()
+        {
+            Logger.Instance.Log("Alle Gruppen werden abgerufen.", LogLevel.Verbose);
+            return _configReader.Config.Gruppen.Values.ToList();
+        }
 
         /// <summary>
         /// Gibt die Gruppe mit dem angegebenen Namen zurück, oder null.
         /// </summary>
         public Gruppe? GetGroupByName(string groupName)
         {
+            Logger.Instance.Log($"Suche Gruppe mit Namen: {groupName}", LogLevel.Verbose);
             _configReader.Config.Gruppen.TryGetValue(groupName, out var group);
             return group;
         }
@@ -48,10 +52,11 @@ namespace HecticEscape
                 Name = newName,
                 Aktiv = true,
                 Apps = new List<AppHE>(),
-                Websites = new List<Website>()
+                Websites = new List<Website>()                
             };
             _configReader.Config.Gruppen.Add(newName, newGroup);
-            _configReader.SaveConfig();
+            Logger.Instance.Log($"Neue Gruppe erstellt: {newName}", LogLevel.Info);
+            _configReader.SetSaveConfigFlag();
             return newGroup;
         }
 
@@ -60,13 +65,14 @@ namespace HecticEscape
         /// </summary>
         public bool DeleteGroup(Gruppe group)
         {
+            Logger.Instance.Log($"Versuche Gruppe zu löschen: {group.Name}", LogLevel.Verbose);
             var key = _configReader.Config.Gruppen.FirstOrDefault(kvp => kvp.Value == group).Key;
             if (key != null)
             {
                 _configReader.Config.Gruppen.Remove(key);
-                _configReader.SaveConfig();
                 return true;
             }
+            _configReader.SetSaveConfigFlag();
             return false;
         }
 
@@ -75,25 +81,28 @@ namespace HecticEscape
         /// </summary>
         public bool SetGroupActiveStatus(Gruppe group, bool isActive)
         {
+            Logger.Instance.Log($"Setze Aktiv-Status für Gruppe '{group.Name}' auf {isActive}.", LogLevel.Verbose);
             if (group == null) return false;
             group.Aktiv = isActive;
-            _configReader.SaveConfig();
             return true;
         }
 
         /// <summary>
         /// Gibt alle Gruppennamen zurück.
         /// </summary>
-        public List<string> GetAllGroupNames() =>
-            _configReader.Config.Gruppen.Values
-                .Where(g => !string.IsNullOrWhiteSpace(g.Name))
-                .Select(g => g.Name)
-                .ToList();
+        public List<string> GetAllGroupNames()
+        {
+            Logger.Instance.Log("Alle Gruppennamen werden abgerufen.", LogLevel.Verbose);
+            return _configReader.Config.Gruppen.Values.Where(g => !string.IsNullOrWhiteSpace(g.Name)).Select(g => g.Name).ToList();
+        }
 
         /// <summary>
         /// Gibt alle aktiven Gruppen zurück.
         /// </summary>
-        public List<Gruppe> GetAllActiveGroups() =>
-            _configReader.Config.Gruppen.Values.Where(g => g.Aktiv).ToList();
+        public List<Gruppe> GetAllActiveGroups()
+        { 
+            Logger.Instance.Log("Alle aktiven Gruppen werden abgerufen.", LogLevel.Verbose);
+            return _configReader.Config.Gruppen.Values.Where(g => g.Aktiv).ToList();
+        } 
     }
 }

@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Runtime.InteropServices;
+using System.Security.RightsManagement;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows;
@@ -55,6 +56,7 @@ namespace HecticEscape
 
             OverlayMessageBorder.Visibility = Visibility.Hidden;
             OverlayTimerBorder.Visibility = Visibility.Hidden;
+            OverlayAppTimerBorder.Visibility = Visibility.Hidden;
             _languageManager = languageManager;
         }
 
@@ -68,6 +70,7 @@ namespace HecticEscape
 
         public void ShowMessage(string message, int durationMs = 2000)
         {
+            Logger.Instance.Log($"Overlay message: {message}", LogLevel.Debug);
             // Flag setzen
             _messageActive = true;
 
@@ -98,6 +101,7 @@ namespace HecticEscape
 
         public async Task ShowCountdownAsync(int seconds)
         {
+            Logger.Instance.Log($"Overlay countdown: {seconds} seconds", LogLevel.Debug);
             _countdownCts?.Cancel();
             var cts = new CancellationTokenSource();
             _countdownCts = cts;
@@ -133,6 +137,7 @@ namespace HecticEscape
 
         public void CancelCountdown()
         {
+            Logger.Instance.Log("Overlay countdown cancelled.", LogLevel.Debug);
             _countdownCts?.Cancel();
             Dispatcher.Invoke(() =>
             {
@@ -144,6 +149,7 @@ namespace HecticEscape
 
         public void ShowTimer(TimeSpan remaining)
         {
+            Logger.Instance.Log($"OverlayTimer: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}", LogLevel.Debug);
             Dispatcher.Invoke(() =>
             {
                 OverlayTimerTextBlock.Text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
@@ -151,8 +157,30 @@ namespace HecticEscape
             });
         }
 
+        public void ShowAppTimer(TimeSpan remainig)
+        { 
+            Logger.Instance.Log($"AppTimer: {remainig.Hours:D2}:{remainig.Minutes:D2}:{remainig.Seconds:D2}", LogLevel.Debug);
+            Dispatcher.Invoke(() =>
+            {   
+                OverlayAppTimerTextBlock.Foreground = Brushes.Red; 
+                OverlayAppTimerTextBlock.Text = $"{remainig.Hours:D2}:{remainig.Minutes:D2}:{remainig.Seconds:D2}";
+                OverlayAppTimerBorder.Visibility = Visibility.Visible;
+            });
+        }
+
+        public void HideAppTimer()
+        {
+            Logger.Instance.Log("AppTimer hidden.", LogLevel.Verbose);
+            Dispatcher.Invoke(() =>
+            {
+                OverlayAppTimerBorder.Visibility = Visibility.Hidden;
+                OverlayAppTimerTextBlock.Text = "";
+            });
+        }
+
         public void HideTimer()
         {
+            Logger.Instance.Log("OverlayTimer hidden.", LogLevel.Verbose);
             Dispatcher.Invoke(() =>
             {
                 OverlayTimerBorder.Visibility = Visibility.Hidden;
@@ -162,34 +190,45 @@ namespace HecticEscape
 
         private void UpdateOverlayVisibility()
         {
-            if (!_overlayManager.GetEnableOverlay() || (!_messageActive && OverlayTimerBorder.Visibility != Visibility.Visible))
+            Logger.Instance.Log("Updating overlay visibility.", LogLevel.Verbose);
+            if (!_overlayManager.GetEnableOverlay() || (!_messageActive && OverlayTimerBorder.Visibility != Visibility.Visible && OverlayAppTimerBorder.Visibility != Visibility.Visible)) 
             {
                 if (IsVisible)
                     Hide();
+                Logger.Instance.Log("Overlay hidden due to no active message or timer.", LogLevel.Verbose);
+                return;
             }
             else
             {
                 if (!IsVisible)
                     Show();
+                Logger.Instance.Log("Overlay shown due to active message or timer.", LogLevel.Verbose);
             }
         }
 
         public void EnableOverlay()
         {
+            Logger.Instance.Log("Enabling overlay.", LogLevel.Verbose);
             _overlayManager.SetEnableOverlay(true);
             Dispatcher.Invoke(UpdateOverlayVisibility);
         }
 
          public void DisableOverlay()
         {
+            Logger.Instance.Log("Disabling overlay.", LogLevel.Verbose);
             _overlayManager.SetEnableOverlay(false);
             Dispatcher.Invoke(UpdateOverlayVisibility);
         }
 
-        public bool IsMessageActive() => _messageActive;
+        public bool IsMessageActive()
+        {
+            Logger.Instance.Log($"IsMessageActive called: {_messageActive}", LogLevel.Verbose);
+            return _messageActive;
+        }
 
         public void Dispose()
         {
+            Logger.Instance.Log("Disposing overlay.", LogLevel.Info);
             Dispose(true);
             GC.SuppressFinalize(this);
         }

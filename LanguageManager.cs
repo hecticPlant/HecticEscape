@@ -19,6 +19,7 @@ namespace HecticEscape
         /// </summary>
         public override void Initialize()
         {
+            Logger.Instance.Log("LanguageManager initialisiert", LogLevel.Info);
         }
 
         /// <summary>
