@@ -10,6 +10,9 @@ Dieses Tool hilft dabei, die tägliche Zeit am PC bewusster zu nutzen und Ablenk
 
 ## Für Tester
 
+### Updates
+* Bitte suche nach Updates aktivieren
+
 ### Installation
 
 1. Den Installer ausführen (durch Doppelklick).
@@ -97,9 +100,6 @@ Steuerelemente und Einstellungen:
 * **„Sprache“**: Sprache auswählen und mit **„Sprache wechseln“** bestätigen. Programm muss neu gestartet werden.
 * **Debug-Knöpfe**: Nur für Entwickler/Testzwecke.
 * **„Check for Updates“**: Sucht beim Start nach Updates.
-
-  > \[!WARNING]
-  > Diese Funktion führt derzeit zu einer Warnmeldung, da der Update-Server noch offline ist. Am besten deaktivieren.
 
 ### Programm schließen
 
