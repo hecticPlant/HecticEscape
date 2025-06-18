@@ -203,7 +203,7 @@ namespace HecticEscape
                 EnableStartOnWindowsStartup = false,
                 EnableShowProcessesWithWindowOnly = true,
                 EnableIncludeFoundGames = false,
-                EnableGroupBlocking = false,
+                EnableGroupBlocking = false
 
             };
 

@@ -41,5 +41,5 @@
   "EnableShowAppTimeInOverlayEnable": true,
   "EnableShowProcessesWithWindowOnly": true,
   "EnableIncludeFoundGames": false,
-  "EnableGroupBlocking" :  false,
+  "EnableGroupBlocking": false,
 }

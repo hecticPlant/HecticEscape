@@ -1,16 +1,17 @@
-﻿using System.Net.Http;
-using System.Net.Http.Json;
-using System.Text.Json;
-using System.IO;
+﻿using HecticEscape;
 using System.Diagnostics;
-using HecticEscape;
+using System.IO;
+using System.Net.Http;
+using System.Net.Http.Json;
+using System.Reflection;
+using System.Text.Json;
 
 public class UpdateManager
 {
     private readonly string _repoOwner = "hecticPlant";
     private readonly string _repoName = "HecticEscape";
     private readonly HttpClient _httpClient = new();
-
+ 
     public async Task<string?> GetLatestVersionAsync()
     {
         Logger.Instance.Log("UpdateManager: Starte Versionsabfrage bei GitHub.", LogLevel.Info);

@@ -51,8 +51,9 @@ namespace HecticEscape
         public bool EnableShowAppTimeInOverlay { get; set; }
         public bool EnableShowProcessesWithWindowOnly { get; set; }
         public bool EnableIncludeFoundGames { get; set; }
-        public bool EnableGroupBlocking { get; set; }
+        public bool EnableGroupBlocking { get; set; }    
     }
+
 
     public class LanguageFile
     {
