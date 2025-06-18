@@ -70,7 +70,7 @@ namespace HecticEscape
 
         public void ShowMessage(string message, int durationMs = 2000)
         {
-            Logger.Instance.Log($"Overlay message: {message}", LogLevel.Debug);
+            Logger.Instance.Log($"Overlay message: {message}", LogLevel.Verbose);
             // Flag setzen
             _messageActive = true;
 
@@ -101,7 +101,7 @@ namespace HecticEscape
 
         public async Task ShowCountdownAsync(int seconds)
         {
-            Logger.Instance.Log($"Overlay countdown: {seconds} seconds", LogLevel.Debug);
+            Logger.Instance.Log($"Overlay countdown: {seconds} seconds", LogLevel.Verbose);
             _countdownCts?.Cancel();
             var cts = new CancellationTokenSource();
             _countdownCts = cts;

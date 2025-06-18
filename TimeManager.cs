@@ -46,10 +46,11 @@ namespace HecticEscape
         private DateTime? _checkTimerEnd;
 
         private const int PufferMs = 1000;
-        private readonly TimeSpan _toleranzMS = TimeSpan.FromSeconds(0.9);
+        private readonly TimeSpan _toleranz = TimeSpan.FromSeconds(0.95);
 
         private readonly List<TimeSpan> _announceTimes = new()
         {
+            TimeSpan.FromHours(1),
             TimeSpan.FromMinutes(30),
             TimeSpan.FromMinutes(15),
             TimeSpan.FromMinutes(10),
@@ -199,7 +200,7 @@ namespace HecticEscape
             DateOnly date = DateOnly.FromDateTime(DateTime.Now);
             lowestTimeSpan = _appManager.GetLowestTimeRemaining();
 
-            if (lowestTimeSpan < TimeSpan.FromHours(1))
+            if (lowestTimeSpan < TimeSpan.FromHours(1.1))
             {
                 try
                 {
@@ -230,7 +231,7 @@ namespace HecticEscape
 
         private bool IsNearWarningTime(TimeSpan eingabe)
         {
-            Logger.Instance.Log($"Prüfe Warnzeit für verbleibende Zeit: {eingabe}", LogLevel.Verbose);
+            Logger.Instance.Log($"Prüfe Warnzeit für verbleibende Zeit: {eingabe}", LogLevel.Info);
 
             foreach (var target in _announceTimes)
             {
@@ -238,34 +239,37 @@ namespace HecticEscape
 
                 Logger.Instance.Log($"Differenz zu Intervall {target}: {diff}", LogLevel.Verbose);
 
-                if (diff <= _toleranzMS)
+                if (diff <= _toleranz)
                 {
                     Logger.Instance.Log(
-                        $"Verbleibende Zeit {eingabe} ist nahe am Warnintervall {target} (Differenz {diff} ≤ Toleranz {_toleranzMS}).",
-                        LogLevel.Verbose);
+                        $"Verbleibende Zeit {eingabe} ist nahe am Warnintervall {target} (Differenz {diff} ≤ Toleranz {_toleranz}).",
+                        LogLevel.Info);
                     return true;
                 }
             }
 
-            Logger.Instance.Log($"Keine Warnzeit nahe genug gefunden für Eingabe {eingabe} (Toleranz: {_toleranzMS}).", LogLevel.Verbose);
+            Logger.Instance.Log($"Keine Warnzeit nahe genug gefunden für Eingabe {eingabe} (Toleranz: {_toleranz}).", LogLevel.Verbose);
             return false;
         }
 
         private void WarnAboutPause(TimeSpan remaining, CloseType closeType)
         {
-            Logger.Instance.Log("CountDown wird aufgerufen", LogLevel.Verbose);
-            TimeSpan remainingMilliseconds = remaining;
-            if (IsNearWarningTime(remainingMilliseconds))
+            Logger.Instance.Log("WarnAboutPause wird aufgerufen", LogLevel.Verbose);
+            if (IsNearWarningTime(remaining))
             {
-                string message = "";
+                string message = "Error";
                 if (_configReader.GetEnableDebugMode())
-                    message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining), closeType.ToString());
-                else
+                {
+                    message = string.Format(_languageManager.Get("Overlay.PauseBeginntInDebug"), FormatTimeSpan(remaining), closeType.ToString());
+                }
+                else if(!_configReader.GetEnableDebugMode())
+                {
                     message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining));
+                }
                 _overlayManager.ShowMessage(message, 2000);
-                Logger.Instance.Log($"Countdown-Anzeige: {message}", LogLevel.Debug);
+                Logger.Instance.Log($"Countdown-Anzeige: {message}", LogLevel.Verbose);
             }
-            if (remainingMilliseconds <= TimeSpan.FromSeconds(10) && !_countdownActive)
+            if (remaining <= TimeSpan.FromSeconds(10) && !_countdownActive)
             {
                 _countdownActive = true;
                 _overlayManager.ShowCountdown(remaining.Seconds);

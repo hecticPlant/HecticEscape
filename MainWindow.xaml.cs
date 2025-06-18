@@ -1118,9 +1118,7 @@ namespace HecticEscape
 
             if (_windowManager.EnableDebugMode)
             {
-                _windowManager.TimeManager?.SetTimerInterval(TimerType.Work, 45);
-                _windowManager.TimeManager?.SetTimerInterval(TimerType.Break, 15);
-                Logger.Instance.Log("Debug-Modus aktiviert: Pause = 45s, Intervall = 15s", LogLevel.Info);
+                Logger.Instance.Log("Debug-Modus aktiviert.", LogLevel.Info);
             }
             UpdateStatusTextBlocks();
             ListTimers();

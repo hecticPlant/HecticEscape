@@ -76,7 +76,8 @@
           },
           "Overlay": {
             "PauseBeginnt": "Pause beginnt",
-            "PauseBeginntIn": "Apps werden geschlossen in {0} {1}",
+            "PauseBeginntIn": "Apps werden geschlossen in {0}",
+            "PauseBeginntInDebug": "Apps werden geschlossen in {0} {1}",
             "PauseVorbei": "Pause vorbei",
             "PauseIn": "Schließe Apps in {0}",
             "TageszeitWarnung": "Tageszeit Zeit für {0} ist {1}"
@@ -177,6 +178,7 @@
           "Overlay": {
             "PauseBeginnt": "Break starts",
             "PauseBeginntIn": "Break starts in",
+            "PauseBeginntInDebug": "Apps werden geschlossen in {0} {1}",
             "PauseVorbei": "Pause vorbei",
             "PauseIn": "Pause in",
             "TageszeitWarnung": "Daily Time for {appName} is {0}"

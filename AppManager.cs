@@ -265,8 +265,8 @@ namespace HecticEscape
                     {
                         AddTimeToLog(app, today, intervalCheckMs);
                         _groupManager.AddTimeToLog(group, today, intervalCheckMs);
-                        Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Debug);
-                        Logger.Instance.Log($"Zeit zum Log für Gruppe {group.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {group.Logs.FirstOrDefault(l => l.Date == today)?.TimeMs}ms)", LogLevel.Debug);
+                        Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Verbose);
+                        Logger.Instance.Log($"Zeit zum Log für Gruppe {group.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {group.Logs.FirstOrDefault(l => l.Date == today)?.TimeMs}ms)", LogLevel.Verbose);
                         
                         if (log.TimeMs >= app.DailyTimeMs)
                         {

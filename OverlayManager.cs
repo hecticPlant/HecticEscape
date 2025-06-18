@@ -48,14 +48,14 @@ namespace HecticEscape
 
         public void ShowMessage(string message, int durationMs = 2000)
         {
-            Logger.Instance.Log($"OverlayManager: Zeige Nachricht '{message}' für {durationMs}ms", LogLevel.Verbose);
+            Logger.Instance.Log($"OverlayManager: Zeige Nachricht '{message}' für {durationMs}ms", LogLevel.Info);
             _overlay.ShowMessage(message, durationMs);
             UpdateOverlayVisibility();
         }
 
         public void ShowCountdown(int seconds)
         {
-            Logger.Instance.Log($"OverlayManager: Zeige Countdown für {seconds} Sekunden", LogLevel.Verbose);
+            Logger.Instance.Log($"OverlayManager: Zeige Countdown für {seconds} Sekunden", LogLevel.Info);
             _overlay.ShowCountdownAsync(seconds);
             UpdateOverlayVisibility();
         }
