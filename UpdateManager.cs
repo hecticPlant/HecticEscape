@@ -11,7 +11,7 @@ public class UpdateManager
     private readonly string _repoOwner = "hecticPlant";
     private readonly string _repoName = "HecticEscape";
     private readonly HttpClient _httpClient = new();
- 
+
     public async Task<string?> GetLatestVersionAsync()
     {
         Logger.Instance.Log("UpdateManager: Starte Versionsabfrage bei GitHub.", LogLevel.Info);

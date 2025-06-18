@@ -89,7 +89,7 @@ namespace HecticEscape
 
         public void HideTimer()
         {
-            Logger.Instance.Log("OverlayManager: Timer ausgeblendet", LogLevel.Debug);
+            Logger.Instance.Log("OverlayManager: Timer ausgeblendet", LogLevel.Verbose);
             _lastTimerRemaining = null;
             _overlay.HideTimer();
             UpdateOverlayVisibility();
@@ -162,7 +162,7 @@ namespace HecticEscape
 
         public void HideAppTimer()
         {
-            Logger.Instance.Log("OverlayManager: App-Timer ausgeblendet", LogLevel.Debug);
+            Logger.Instance.Log("OverlayManager: App-Timer ausgeblendet", LogLevel.Verbose);
             _overlay.HideAppTimer();
             UpdateOverlayVisibility();
         }
@@ -195,7 +195,7 @@ namespace HecticEscape
 
         protected override void Dispose(bool disposing)
         {
-            Logger.Instance.Log("OverlayManager: Dispose aufgerufen", LogLevel.Debug);
+            Logger.Instance.Log("OverlayManager: Dispose aufgerufen", LogLevel.Verbose);
             if (!_disposed)
             {
                 if (disposing)

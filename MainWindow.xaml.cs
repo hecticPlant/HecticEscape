@@ -232,28 +232,34 @@ namespace HecticEscape
 
         private async void CheckForUpdatesAndApply()
         {
-            if (!_windowManager.EnableUpdateCheck)
-            {
-                Logger.Instance.Log("Update-Prüfung deaktiviert.", LogLevel.Info);
-                return;
-            }
             try
             {
-                string? latestVersion = await _updateManager.GetLatestVersionAsync();
-                string currentVersion = Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "0.0.0.0";
+                string? latestVersionStr = await _updateManager.GetLatestVersionAsync();
+                string? currentVersionStr = Assembly.GetExecutingAssembly()
+                    .GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion;
 
-                if (latestVersion != null && latestVersion != currentVersion)
+                if (latestVersionStr != null && currentVersionStr != null)
                 {
-                    MessageBox.Show("Es ist ein Update verfügar.", "Update", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-                else
-                {
-                    MessageBox.Show("Keine Updates verfügbar.", "Update", MessageBoxButton.OK, MessageBoxImage.Information);
+                    var latestVersion = new SemVersion(latestVersionStr);
+                    var currentVersion = new SemVersion(currentVersionStr);
+
+                    if (latestVersion.CompareTo(currentVersion) > 0)
+                    {
+                        Logger.Instance.Log($"Update verfügbar: {latestVersion} (aktuell: {currentVersion})", LogLevel.Info);
+                        MessageBox.Show($"Es ist ein Update verfügbar: {latestVersion}", $"Update {currentVersion}",
+                            MessageBoxButton.OK, MessageBoxImage.Information);
+                    }
+                    else
+                    {
+                        Logger.Instance.Log("Keine neuere Version verfügbar.", LogLevel.Info);
+                    }
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Fehler bei der Update-Prüfung: {ex.Message}", "Update", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Fehler bei der Update-Prüfung: {ex.Message}", "Update", MessageBoxButton.OK,
+                    MessageBoxImage.Error);
+                Logger.Instance.Log($"Fehler bei der Update-Prüfung: {ex.Message}", LogLevel.Error);
             }
         }
 
