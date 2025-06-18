@@ -14,7 +14,7 @@ namespace HecticEscape
     {
         private bool disposed = false;
         private readonly LanguageManager _languageManager;
-        private OverlayManager? _overlayManager; // nicht mehr readonly
+        private OverlayManager? _overlayManager;
 
         public OverlayManager? OverlayManager
         {
@@ -149,7 +149,7 @@ namespace HecticEscape
 
         public void ShowTimer(TimeSpan remaining)
         {
-            Logger.Instance.Log($"OverlayTimer: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}", LogLevel.Debug);
+            Logger.Instance.Log($"OverlayTimer: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}", LogLevel.Verbose);
             Dispatcher.Invoke(() =>
             {
                 OverlayTimerTextBlock.Text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
@@ -159,7 +159,7 @@ namespace HecticEscape
 
         public void ShowAppTimer(TimeSpan remainig)
         { 
-            Logger.Instance.Log($"AppTimer: {remainig.Hours:D2}:{remainig.Minutes:D2}:{remainig.Seconds:D2}", LogLevel.Debug);
+            Logger.Instance.Log($"AppTimer: {remainig.Hours:D2}:{remainig.Minutes:D2}:{remainig.Seconds:D2}", LogLevel.Verbose);
             Dispatcher.Invoke(() =>
             {   
                 OverlayAppTimerTextBlock.Foreground = Brushes.Red; 

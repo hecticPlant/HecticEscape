@@ -47,6 +47,14 @@
                         <Button x:Name="DeleteProcessButton" Content="Lösche Prozess" Margin="0,0,10,0" Click="DeleteProcessButton_Click"/>
                     </WrapPanel>
                     <CheckBox x:Name="ShowProcessesWithWindowOnlyCheckBox" Content="Nur Processe mit Fenste anzeigen" Margin="0,0,10,0" Checked="ShowProcessesWithWindowOnlyCheckBox_Checked" Unchecked="ShowProcessesWithWindowOnlyCheckBox_Unchecked"/>
+
+                    <!-- 
+                    <CheckBox x:Name="IncludeFoundGanesCheckBox" Content="Automatisch gefundene Spiele einbeziehen" Margin="0,0,10,0" Checked="IncludeFoundGanesCheckBox_Checked" Unchecked="IncludeFoundGanesCheckBox_Unchecked"/>
+                    -->
+                    
+                    <WrapPanel Margin="0,0,10,10">
+                        <Button x:Name="FindeGamesButton" Content="Installierte Spiele finden" Margin="0,0,10,0" Click="FindeGamesButton_Click"/>
+                    </WrapPanel>
                     <TextBlock x:Name="DailyTimesTextBlock" Text="Tägliche Zeiten" FontWeight="Bold" FontSize="14" Margin="0,0,10,0"/>
                     <WrapPanel>
                         <WrapPanel Margin="0,0,10,0">
@@ -68,14 +76,29 @@
             <TabItem x:Name="GruppenTab" Header="Gruppen">
                 <StackPanel Margin="10">
                     <TextBlock x:Name="GruppenVerwaltungTextBlock" Text="Gruppen-Verwaltung" FontWeight="Bold" FontSize="14" Margin="0,0,10,0"/>
-                    <WrapPanel Margin="0,0,10,0">
+                    <WrapPanel Margin="0,0,0,5">
                         <ComboBox x:Name="GroupSelectionComboBox" Width="200" Margin="0,0,10,0" SelectionChanged="GroupSelectionComboBox_SelectionChanged"/>
+                        <TextBox x:Name="DailyTimeGroupTextBox" Width="50" Margin="0,0,10,0" IsReadOnly="True" Focusable="False" BorderThickness="0"/>
                         <Button x:Name="CreateGroupButton" Content="Neue Gruppe Erstellen" Margin="0,0,10,0" Click="CreateGroupButton_Click"/>
                         <Button x:Name="DeleteGroupButton" Content="Gruppe Löschen" Margin="0,0,10,0" Click="DeleteGroupButton_Click"/>
                         <Button x:Name="ActivateGroupButton" Content="Aktiviere Gruppe" Margin="0,0,10,0" Click="ActivateGroupButton_Click"/>
                         <Button x:Name="DeactivateGroupButton" Content="Deaktiviere Gruppe" Click="DeactivateGroupButton_Click"/>
                     </WrapPanel>
-                    <TextBox x:Name="GroupActivityTextBox" Width="200" Margin="0,10,0,0" HorizontalAlignment="Left"/>
+                    <WrapPanel Margin="0,0,0,5">
+                        <TextBox x:Name="GroupActivityTextBox" Width="200" Margin="0,0,10,0" HorizontalAlignment="Left"/>
+                    </WrapPanel>
+                    <WrapPanel Margin="0,0,0,5">
+                        <CheckBox x:Name="EnableGroupBlockingCheckBox" Content="Gruppen Blockierug" Margin="0,0,10,0" Checked="EnableGroupBlockingCheckBox_Checked" Unchecked="EnableGroupBlockingCheckBox_Unchecked"/>
+                    </WrapPanel>
+                    <WrapPanel>
+                        <WrapPanel Margin="0,0,5,0">
+                            <Button x:Name="SaveDailyTimeGroupButton" Content="Speichere Tägliche Zeit" Click="SaveDailyTimeGroupButton_Click" Margin="0,0,10,0"/>
+                            <xctk:MaskedTextBox x:Name="DailyTimeGroupMaskedBox" Width="80" Margin="0,0,10,0" Mask="00:00:00" PromptChar="0" TextAlignment="Center" ValueDataType="{x:Type sys:String}"/>
+                            <TextBlock x:Name="HeuteVerbliebenGroupLabel" Text="Heute Verblieben:" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                            <TextBox x:Name="DailyTimeLeftGroupTextBox" Width="50" Margin="0,0,10,0" IsReadOnly="True" Focusable="False" BorderThickness="0"/>
+                            <Button x:Name="ResetDailyTimeGroupButton" Content="Reset Daily Time" Click="ResetDailyTimeGroupButton_Click" Margin="0,0,10,0"/>
+                        </WrapPanel>
+                    </WrapPanel>
                 </StackPanel>
             </TabItem>
 

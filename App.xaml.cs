@@ -46,6 +46,7 @@ namespace HecticEscape
         {
             services.AddSingleton<ConfigReader>();
             services.AddSingleton<GroupManager>();
+            services.AddSingleton<GameManager>();
 
             services.AddSingleton<LanguageManager>(sp =>
             {
@@ -92,7 +93,8 @@ namespace HecticEscape
                     sp.GetRequiredService<WebManager>(),
                     sp.GetRequiredService<OverlayManager>(),
                     sp.GetRequiredService<ConfigReader>(),
-                    sp.GetRequiredService<LanguageManager>()
+                    sp.GetRequiredService<LanguageManager>(),
+                    sp.GetRequiredService<GroupManager>()
                     ));
 
             services.AddSingleton<WindowManager>();

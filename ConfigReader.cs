@@ -201,7 +201,9 @@ namespace HecticEscape
                 ActiveLanguageNameString = "Deutsch",
                 EnableUpdateCheck = false,
                 EnableStartOnWindowsStartup = false,
-                EnableShowProcessesWithWindowOnly = true
+                EnableShowProcessesWithWindowOnly = true,
+                EnableIncludeFoundGames = false,
+                EnableGroupBlocking = false,
 
             };
 
@@ -211,6 +213,8 @@ namespace HecticEscape
                 Aktiv = true,
                 Apps = new List<AppHE>(),
                 Websites = new List<Website>(),
+                Logs = new List<Log>(),
+                DailyTimeMs = 7200000,
             };
             Config.Gruppen.Add(defaultGroup.Name, defaultGroup);
 
@@ -350,6 +354,18 @@ namespace HecticEscape
         {
             Config.EnableShowProcessesWithWindowOnly = value;
             Logger.Instance.Log($"Setze EnableShowProcessesWithWindowOnly auf {value}.", LogLevel.Verbose);
+            SetSaveConfigFlag();
+        }
+
+        public bool GetEnableIncludeFoundGames()
+        {
+            Logger.Instance.Log($"GetEnableIncludeFoundGames: {Config.EnableIncludeFoundGames}", LogLevel.Verbose);
+            return Config.EnableIncludeFoundGames;
+        }
+        public void SetEnableIncludeFoundGames(bool value)
+        {
+            Config.EnableIncludeFoundGames = value;
+            Logger.Instance.Log($"Setze EnableIncludeFoundGames auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
@@ -507,6 +523,17 @@ namespace HecticEscape
             Config.EnableOverlay = value;
             Logger.Instance.Log($"Setze EnableOverlay auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
+        }
+
+        public bool GetEnableGroupBlocking()
+        {
+            Logger.Instance.Log($"GetEnableGroupBlocking : {Config.EnableGroupBlocking}", LogLevel.Verbose);
+            return Config.EnableGroupBlocking;
+        }
+        public void SetEnableGroupBlocking(bool value)
+        {
+            Logger.Instance.Log($"SetEnableGroupBlocking: {value}", LogLevel.Verbose);
+            Config.EnableGroupBlocking = value;
         }
     }
 }

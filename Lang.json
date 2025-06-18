@@ -76,9 +76,9 @@
           },
           "Overlay": {
             "PauseBeginnt": "Pause beginnt",
-            "PauseBeginntIn": "Pause beginnt in {0}",
+            "PauseBeginntIn": "Apps werden geschlossen in {0} {1}",
             "PauseVorbei": "Pause vorbei",
-            "PauseIn": "Pause in {0}",
+            "PauseIn": "Schließe Apps in {0}",
             "TageszeitWarnung": "Tageszeit Zeit für {0} ist {1}"
           },
           "ErrorMessages": {

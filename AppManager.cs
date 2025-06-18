@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
+using System.Diagnostics.CodeAnalysis;
 using System.Runtime.CompilerServices;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using System.Windows.Automation.Peers;
@@ -15,11 +17,13 @@ namespace HecticEscape
         private bool _disposed = false;
         private Process[] _runningProcesses;
         private readonly GroupManager _groupManager;
+        public readonly GameManager GameManager;
 
-        public AppManager(ConfigReader configReader, GroupManager groupManager) 
+        public AppManager(ConfigReader configReader, GroupManager groupManager, GameManager gameManager)
             : base(configReader)
         {
             _groupManager = groupManager;
+            GameManager = gameManager ?? throw new ArgumentNullException(nameof(gameManager));
             Initialize();
         }
 
@@ -42,6 +46,34 @@ namespace HecticEscape
                 Logger.Instance.Log("Zeige alle laufenden Prozesse.", LogLevel.Verbose);
                 _runningProcesses = Process.GetProcesses();
             }
+        }
+
+        private List<SteamGame> GetInstalledGames()
+        {
+            Logger.Instance.Log("Hole installierte Spiele.", LogLevel.Verbose);
+            return GameManager.GetInstalledGames();
+        }
+
+        public void AddFoundGamesToConfig(Gruppe group)
+        {
+            if (group == null)
+            {
+                Logger.Instance.Log("Gruppe ist null. Kann keine Spiele hinzufügen.", LogLevel.Error);
+                return;
+            }
+            List<SteamGame> foundGames = GetInstalledGames();
+            Logger.Instance.Log($"Füge {foundGames.Count} gefundene Spiele zur Konfiguration hinzu.", LogLevel.Verbose);
+            if (foundGames == null || foundGames.Count == 0)
+            {
+                Logger.Instance.Log("Keine Spiele zum Hinzufügen gefunden.", LogLevel.Warn);
+                return;
+            }
+            foreach(var game in foundGames)
+            {
+                Logger.Instance.Log($"Füge Spiel '{game.Name}' in Gruppe {group.Name}' hinzu.", LogLevel.Verbose);
+                AddAppToGroup(group, game.Name);
+            }
+            _configReader.SetSaveConfigFlag();
         }
 
         public Process[] GetRunningProcesses()
@@ -160,10 +192,14 @@ namespace HecticEscape
                 return;
             }
             var log = app.Logs.FirstOrDefault(l => l.Date == date);
-            if (log != null)
+            if (log == null)
             {
-                log.TimeMs += timeMs;
+                log = new Log { Date = date, TimeMs = 0 };
+                app.Logs.Add(log);
+                Logger.Instance.Log($"Neues Log für {app.Name} am {date:yyyy-MM-dd} erstellt.", LogLevel.Info);
             }
+            log.TimeMs += timeMs;
+            _configReader.SetSaveConfigFlag();
         }
 
         public void RemoveAllAppsFromGroup(Gruppe group)
@@ -182,10 +218,9 @@ namespace HecticEscape
             return cleanedName;
         }
 
-        public async Task HandleAppBlocking(int intervalCheckMs, bool isBreakActive)
+        public async Task BlockHandler(int intervalCheckMs, bool isBreakActive)
         {
-            var activeGroups = _groupManager.GetAllActiveGroups().Where(g => !string.IsNullOrEmpty(g.Name)).ToList();
-
+            var activeGroups = _groupManager.GetAllActiveGroups();
             Logger.Instance.Log($"Starte App-Blocking Handler {intervalCheckMs} {isBreakActive} mit {activeGroups.Count} aktiven Gruppen", LogLevel.Verbose);
 
             if (!_configReader.GetAppBlockingEnabled())
@@ -193,15 +228,9 @@ namespace HecticEscape
                 Logger.Instance.Log("App-Blocking ist deaktiviert. Es werden keine Apps beendet.", LogLevel.Verbose);
                 return;
             }
-
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             foreach (var group in activeGroups)
             {
-                if (!group.Aktiv)
-                {
-                    Logger.Instance.Log($"Gruppe {group.Name} ist nicht aktiv. Überspringe App-Blockierung.", LogLevel.Verbose);
-                    continue;
-                }
                 Logger.Instance.Log($"Verarbeite Gruppe: {group.Name}, aktiv: {group.Aktiv}", LogLevel.Verbose);
                 foreach (var app in group.Apps)
                 {
@@ -219,8 +248,8 @@ namespace HecticEscape
                     }
                     if (isBreakActive)
                     {
-                        var processesForPause = Process.GetProcessesByName(app.Name);
-                        if (processesForPause.Length > 0)
+                        var processesForPause = IsAppRunning(app.Name);
+                        if (processesForPause != null && processesForPause.Length > 0)
                         {
                             Logger.Instance.Log($"Beende App {app.Name} aus Gruppe {group.Name} wegen Pause.", LogLevel.Debug);
                             TerminateProcesses(app.Name, processesForPause, group.Name, "Pausenmodus");
@@ -231,23 +260,172 @@ namespace HecticEscape
                         }
                         continue;
                     }
-                    var runningAppProcesses = Process.GetProcessesByName(app.Name);
-                    if (runningAppProcesses.Length == 0)
+                    var runningAppProcesses = IsAppRunning(app.Name);
+                    if (runningAppProcesses != null && runningAppProcesses.Length > 0)
                     {
-                        Logger.Instance.Log($"Keine laufenden Prozesse für {app.Name} gefunden.", LogLevel.Verbose);
-                        continue;
+                        AddTimeToLog(app, today, intervalCheckMs);
+                        _groupManager.AddTimeToLog(group, today, intervalCheckMs);
+                        Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Debug);
+                        Logger.Instance.Log($"Zeit zum Log für Gruppe {group.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {group.Logs.FirstOrDefault(l => l.Date == today)?.TimeMs}ms)", LogLevel.Debug);
+                        
+                        if (log.TimeMs >= app.DailyTimeMs)
+                        {
+                            Logger.Instance.Log($"Beende App {app.Name}, da tägliche Zeit erreicht ist: {log.TimeMs}ms >= {app.DailyTimeMs}ms", LogLevel.Warn);
+                            if (runningAppProcesses != null)
+                                TerminateProcesses(app.Name, runningAppProcesses, group.Name, "Tageslimit überschritten");
+                        }
                     }
-                    Logger.Instance.Log($"Gefundene Prozesse für {app.Name}: {runningAppProcesses.Length}", LogLevel.Verbose);
-                    AddTimeToLog(app, today, intervalCheckMs);
-                    Logger.Instance.Log($"Zeit zum Log für {app.Name} am {today:yyyy-MM-dd} hinzugefügt: {intervalCheckMs}ms (bisher: {log.TimeMs}ms)", LogLevel.Verbose);
-                    if (log.TimeMs >= app.DailyTimeMs)
+                }
+            }
+
+            if (EnableGroupBlocking)
+            {
+                foreach (var group in activeGroups)
+                {
+                    var log = group.Logs.FirstOrDefault(l => l.Date == today);
+                    if (log == null)
                     {
-                        Logger.Instance.Log($"Beende App {app.Name}, da tägliche Zeit erreicht ist: {log.TimeMs}ms >= {app.DailyTimeMs}ms", LogLevel.Warn);
-                        TerminateProcesses(app.Name, runningAppProcesses, group.Name, "Tageslimit überschritten");
+                        log = new Log { Date = today, TimeMs = 0 };
+                        group.Logs.Add(log);
+                        Logger.Instance.Log($"Neues Log für {group.Name} am {today:yyyy-MM-dd} erstellt.", LogLevel.Info);
+                    }
+                    if (log.TimeMs >= group.DailyTimeMs)
+                    {
+                        Logger.Instance.Log($"Tageslimit von Gruppe {group.Name} überschritten: {group.DailyTimeMs}", LogLevel.Verbose);
+                        foreach (var app in group.Apps)
+                        {
+                            TerminateProcesses(app.Name, Process.GetProcessesByName(app.Name), group.Name, "Tageslimit Gruppe überschritten");
+                        }
                     }
                 }
             }
             Logger.Instance.Log("App-Blocking Handler abgeschlossen.", LogLevel.Verbose);
+        }
+
+        private Process[] IsAppRunning(string appName)
+        {
+            Process[] runningAppProcesses = Process.GetProcessesByName(appName);
+
+            if (runningAppProcesses.Length == 0)
+            {
+                Logger.Instance.Log($"Keine laufenden Prozesse für {appName} gefunden. {runningAppProcesses.Length}", LogLevel.Debug);
+                return Array.Empty<Process>();
+            }
+
+            return runningAppProcesses;
+        }
+
+        public TimeSpan GetLowestTimeRemaining() 
+        {
+            List<(Gruppe group, AppHE app)> lowTimeApps = GetAppsWithLowDailyTimeLeft();
+            Logger.Instance.Log($"LowTimeApps: {lowTimeApps?.Count ?? 0}", LogLevel.Verbose);
+            List<Gruppe> lowTimeGroups = _groupManager.GetGroupsWithLowDailyTimeLeft();
+            Logger.Instance.Log($"LowTimeGroups: {lowTimeGroups?.Count ?? 0}", LogLevel.Verbose);
+            TimeSpan lowestTimeSpan = TimeSpan.MaxValue;
+            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
+
+            if (EnableGroupBlocking)
+            {
+                if (lowTimeGroups != null && lowTimeGroups.Count > 0)
+                {
+                    Gruppe? lowestGroup = null;
+                    long minGroupRemainingMs = long.MaxValue;
+
+                    foreach (var group in lowTimeGroups)
+                    {
+                        if (group == null)
+                            continue;
+
+                        long remainingMs;
+                        try
+                        {
+                            remainingMs = _groupManager.GetDailyTimeLeft(group, date);
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Instance.Log($"Fehler beim Abrufen der verbleibenden Tageszeit für Gruppe '{group.Name}': {ex}", LogLevel.Error);
+                            continue;
+                        }
+                        if (remainingMs < minGroupRemainingMs)
+                        {
+                            minGroupRemainingMs = remainingMs;
+                            lowestGroup = group;
+                        }
+                    }
+
+                    if (lowestGroup != null)
+                    {
+                        bool hasGroupRunningAppFlag = false;
+                        foreach (var app in lowestGroup.Apps)
+                        {
+                           if(IsAppRunning(app.Name).Length > 0)
+                                hasGroupRunningAppFlag = true;
+                        }
+                        if (hasGroupRunningAppFlag)
+                        {
+                            TimeSpan timeSpan;
+                            try
+                            {
+                                timeSpan = TimeSpan.FromMilliseconds(_groupManager.GetDailyTimeLeft(lowestGroup, date));
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger.Instance.Log($"Fehler beim Konvertieren der verbleibenden Zeit in TimeSpan für Gruppe '{lowestGroup.Name}': {ex}", LogLevel.Error);
+                                return lowestTimeSpan;
+                            }
+                            lowestTimeSpan = timeSpan;
+                        }
+                    }
+                }
+            }
+
+            if (lowTimeApps != null && lowTimeApps.Count > 0)
+            {
+                AppHE? lowestApp = null;
+                Gruppe? groupOfLowestApp = null;
+                long minAppRemainingMs = long.MaxValue;
+
+                foreach (var (group, app) in lowTimeApps)
+                {
+                    if (group == null || app == null)
+                        continue;
+
+                    long remainingMs;
+                    try
+                    {
+                        remainingMs = GetDailyTimeLeft(group, app, date);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Log($"Fehler beim Abrufen der verbleibenden Tageszeit für App '{app.Name}' in Gruppe '{group.Name}': {ex}", LogLevel.Error);
+                        continue;
+                    }
+
+                    if (remainingMs < minAppRemainingMs)
+                    {
+                        minAppRemainingMs = remainingMs;
+                        lowestApp = app;
+                        groupOfLowestApp = group;
+                    }
+                }
+
+                if (lowestApp != null)
+                {
+                    TimeSpan timeSpan;
+                    try
+                    {
+                        timeSpan = TimeSpan.FromMilliseconds(GetDailyTimeLeft(groupOfLowestApp!, lowestApp, date));
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Instance.Log($"Fehler beim Konvertieren der verbleibenden Zeit in TimeSpan für App '{lowestApp.Name}': {ex}", LogLevel.Error);
+                        return lowestTimeSpan;
+                    }
+                    if (timeSpan < lowestTimeSpan)
+                        lowestTimeSpan = timeSpan;
+                }
+            }
+            return lowestTimeSpan; 
         }
 
         private void TerminateProcesses(string appName, Process[] processes, string groupName, string reason)
@@ -297,15 +475,15 @@ namespace HecticEscape
             Logger.Instance.Log($"{message}", LogLevel.Verbose);
         }
 
-        public List<(Gruppe, AppHE)> WarnIfDailyTimeIsLow()
+        public List<(Gruppe, AppHE)> GetAppsWithLowDailyTimeLeft()
         {
             Logger.Instance.Log("Überprüfe, ob tägliche Zeit für Apps niedrig ist.", LogLevel.Verbose);
             DateOnly date = DateOnly.FromDateTime(DateTime.Now);
-            List<Gruppe> activeGroups = _groupManager.GetAllActiveGroups().Where(g => g.Aktiv && g.Apps.Any(a => a.DailyTimeMs > 0)).ToList();
+            List<Gruppe> activeGroups = _groupManager.GetAllActiveGroups().ToList();
             List<(Gruppe, AppHE)> lowTimeGroups = new List<(Gruppe, AppHE)>();
             if (activeGroups.Count == 0)
             {
-                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Debug);
+                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Verbose);
                 return new List<(Gruppe, AppHE)>();
             }
             else
@@ -314,11 +492,14 @@ namespace HecticEscape
                 {
                     foreach (var app in group.Apps)
                     {
-                        var processesForPause = Process.GetProcessesByName(app.Name);
-                        if (processesForPause.Length > 0)
+                        var processesForPause = IsAppRunning(app.Name);
+                        if (processesForPause != null && processesForPause.Length > 0)
                         {
-                            Logger.Instance.Log($"App {app.Name} zu lowTimeGroup hinzugefügt.", LogLevel.Verbose);
-                            lowTimeGroups.Add((group, app));
+                            if (GetDailyTimeLeft(group, app, date) < 65 * 60 * 1000)
+                            {
+                                Logger.Instance.Log($"App {app.Name} zu lowTimeGroup hinzugefügt.", LogLevel.Verbose);
+                                lowTimeGroups.Add((group, app));
+                            }
                         }
 
                     }

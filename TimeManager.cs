@@ -4,7 +4,9 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading.Tasks;
 using System.Timers;
+using Xceed.Wpf.Toolkit.PropertyGrid.Attributes;
 using static System.Runtime.InteropServices.JavaScript.JSType;
+using static System.Windows.Forms.VisualStyles.VisualStyleElement.Header;
 using TimersTimer = System.Timers.Timer;
 
 namespace HecticEscape
@@ -23,6 +25,7 @@ namespace HecticEscape
         private readonly WebManager _webManager;
         private readonly LanguageManager _languageManager;
         private readonly OverlayManager _overlayManager;
+        private readonly GroupManager _groupManager;
 
         private TimersTimer _workTimer = null!;
         private TimersTimer _breakTimer = null!;
@@ -38,12 +41,12 @@ namespace HecticEscape
         private bool _countdownActive = false;
         private bool _showApptimer = false;
 
-        private readonly int[] _countdownIntervalsMS = { 60 * 60 * 1000, 30 * 60 * 1000, 15 * 60 * 1000, 10 * 60 * 1000, 5 * 60 * 1000, 1 * 60 * 1000, 30 * 1000};
-        private readonly int _toleranzMS = 1000;
-
         private DateTime? _workTimerEnd;
         private DateTime? _breakTimerEnd;
         private DateTime? _checkTimerEnd;
+
+        private const int PufferMs = 1000;
+        private readonly TimeSpan _toleranzMS = TimeSpan.FromSeconds(0.9);
 
         private readonly List<TimeSpan> _announceTimes = new()
         {
@@ -60,13 +63,15 @@ namespace HecticEscape
             WebManager webManager,
             OverlayManager overlayManager,
             ConfigReader configReader,
-            LanguageManager languageManager
+            LanguageManager languageManager,
+            GroupManager groupManager
         ) : base(configReader)
         {
             _appManager = appManager ?? throw new ArgumentNullException(nameof(appManager));
             _webManager = webManager ?? throw new ArgumentNullException(nameof(webManager));
             _overlayManager = overlayManager ?? throw new ArgumentNullException(nameof(overlayManager));
             _languageManager = languageManager ?? throw new ArgumentNullException(nameof(languageManager));
+            _groupManager = groupManager ?? throw new ArgumentNullException(nameof(groupManager));
 
             Initialize();
         }
@@ -171,13 +176,15 @@ namespace HecticEscape
 
         private async Task CheckHandler()
         {
-            Logger.Instance.Log("CheckHandler wird aufgerufen", LogLevel.Verbose);
             try
             {
                 await OnTimerTicked();
-                await _appManager.HandleAppBlocking(_intervalCheckMs, _isBreakActive);
-                await CountDown();
-                await WarnIfDailyTimeIsLow();
+                await _appManager.BlockHandler(_intervalCheckMs, _isBreakActive);
+                if (_workTimer.Enabled)
+                {
+                    WarnAboutPause(GetRemainingWorkTime(), CloseType.Pause);
+                }
+                ShowAppTimerIfDailyTimeIsLow();
             }
             catch (Exception ex)
             {
@@ -185,100 +192,84 @@ namespace HecticEscape
             }
         }
 
-        private async Task WarnIfDailyTimeIsLow()
+        private async Task ShowAppTimerIfDailyTimeIsLow()
         {
-            Logger.Instance.Log("WarnIfDailyTimeIsLow wird aufgerufen", LogLevel.Verbose);
-            List<(Gruppe, AppHE)> lowTimeGroups = new List<(Gruppe, AppHE)>();
-            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
-            lowTimeGroups = _appManager.WarnIfDailyTimeIsLow();
+            TimeSpan lowestTimeSpan = TimeSpan.MaxValue;
 
-            if (lowTimeGroups.Count == 0)
+            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
+            lowestTimeSpan = _appManager.GetLowestTimeRemaining();
+
+            if (lowestTimeSpan < TimeSpan.FromHours(1))
             {
-                Logger.Instance.Log("Keine Apps mit niedriger Tageszeit gefunden", LogLevel.Verbose);
-                _overlayManager.HideAppTimer();
+                try
+                {
+                    await OnAppTimerTicked(lowestTimeSpan);
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log($"Fehler in OnAppTimerTicked nach Gruppen-Warnung: {ex}", LogLevel.Error);
+                }
+                _overlayManager.ShowAppTimer(lowestTimeSpan);
+                WarnAboutPause(lowestTimeSpan, CloseType.OutOfTime);
                 return;
             }
             else
             {
-                Logger.Instance.Log($"Suche nach intervallen für {lowTimeGroups.Count} laufenden Apps", LogLevel.Verbose);
-                foreach (var item in lowTimeGroups)
+                try
                 {
-                    long timeLeft = _appManager.GetDailyTimeLeft(item.Item1, item.Item2, date);
-                    Logger.Instance.Log($"App {item.Item2.Name} hat noch {timeLeft} ms übrig", LogLevel.Verbose);
-                    if (timeLeft <= 15 * 60 * 1000)
-                    {
-                        TriggerAppTimerWaring(item.Item1, item.Item2, date);
-                    }
-                    var (gefunden, ziel) = await FindeNextIntervallAsync((int)timeLeft);
-                    Logger.Instance.Log($"App {item.Item2.Name} hat noch {timeLeft} ms übrig => {gefunden}", LogLevel.Verbose);
-                    if (gefunden)
-                    {
-                        Logger.Instance.Log($"Nächstes Intervall für {item.Item2.Name} gefunden: {ziel} ms", LogLevel.Verbose);
-                        string message = string.Format(_languageManager.Get("Overlay.TageszeitWarnung"),
-                        item.Item2.Name, FormatTimeSpan(TimeSpan.FromMilliseconds(timeLeft)));
-
-                        _overlayManager.ShowMessage(message, 2000);
-                    }
+                    _overlayManager.HideAppTimer();
+                }
+                catch (Exception ex)
+                {
+                    Logger.Instance.Log($"Fehler beim Ausblenden des Timers: {ex}", LogLevel.Error);
                 }
             }
+
+            Logger.Instance.Log("Keine Gruppe oder App mit relevant niedrigem Zeit-Intervall gefunden.", LogLevel.Verbose);
         }
 
-        private void TriggerAppTimerWaring(Gruppe gruppe, AppHE app, DateOnly date)
+        private bool IsNearWarningTime(TimeSpan eingabe)
         {
-            Logger.Instance.Log($"Zeige Warn-Timer für App {app.Name} an", LogLevel.Debug);
-            TimeSpan timeLeft = TimeSpan.FromMilliseconds(app.Logs.FirstOrDefault(l => l.Date == date).TimeMs);
-            _overlayManager.ShowAppTimer(timeLeft);
-            OnAppTimerTicked(gruppe, app, date);
-        }
+            Logger.Instance.Log($"Prüfe Warnzeit für verbleibende Zeit: {eingabe}", LogLevel.Verbose);
 
-        private async Task<(bool Erfolg, int Ziel)> FindeNextIntervallAsync(int eingabe)
-        {
-            Logger.Instance.Log($"Finde nächstes Intervall für Eingabe: {eingabe} ms", LogLevel.Verbose);
-            return await Task.Run(() =>
+            foreach (var target in _announceTimes)
             {
-                int? nächstes = null;
-                int kleinsteDiff = int.MaxValue;
+                TimeSpan diff = (eingabe - target).Duration();
 
-                foreach (int interval in _countdownIntervalsMS)
+                Logger.Instance.Log($"Differenz zu Intervall {target}: {diff}", LogLevel.Verbose);
+
+                if (diff <= _toleranzMS)
                 {
-                    if (eingabe > interval) continue;
-
-                    int diff = Math.Abs(eingabe - interval);
-
-                    if (diff <= _toleranzMS && diff < kleinsteDiff)
-                    {
-                        kleinsteDiff = diff;
-                        nächstes = interval;
-                    }
+                    Logger.Instance.Log(
+                        $"Verbleibende Zeit {eingabe} ist nahe am Warnintervall {target} (Differenz {diff} ≤ Toleranz {_toleranzMS}).",
+                        LogLevel.Verbose);
+                    return true;
                 }
-                Logger.Instance.Log($"Nächstes Intervall: {nächstes} ms", LogLevel.Verbose);
-                if (nächstes.HasValue)
-                    return (true, nächstes.Value);
-                else
-                    return (false, 0);
-            });
+            }
+
+            Logger.Instance.Log($"Keine Warnzeit nahe genug gefunden für Eingabe {eingabe} (Toleranz: {_toleranzMS}).", LogLevel.Verbose);
+            return false;
         }
 
-        private async Task CountDown()
+        private void WarnAboutPause(TimeSpan remaining, CloseType closeType)
         {
             Logger.Instance.Log("CountDown wird aufgerufen", LogLevel.Verbose);
-            if (_workTimer.Enabled)
+            TimeSpan remainingMilliseconds = remaining;
+            if (IsNearWarningTime(remainingMilliseconds))
             {
-                var remaining = GetRemainingWorkTime();
-                int remainingMilliseconds = (int)Math.Ceiling(remaining.TotalMilliseconds);
-                var (gefunden, ziel) = await FindeNextIntervallAsync(remainingMilliseconds);
-                if (gefunden)
-                {
-                    string message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining));
-                    _overlayManager.ShowMessage(message, 2000);
-                    Logger.Instance.Log($"Countdown-Anzeige: {message}", LogLevel.Debug);
-                }
-                if (remainingMilliseconds <= 10000 && !_countdownActive)
-                {
-                    _countdownActive = true;
-                    _overlayManager.ShowCountdown(remaining.Seconds);
-                    Logger.Instance.Log("Countdown gestartet", LogLevel.Verbose);
-                }
+                string message = "";
+                if (_configReader.GetEnableDebugMode())
+                    message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining), closeType.ToString());
+                else
+                    message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining));
+                _overlayManager.ShowMessage(message, 2000);
+                Logger.Instance.Log($"Countdown-Anzeige: {message}", LogLevel.Debug);
+            }
+            if (remainingMilliseconds <= TimeSpan.FromSeconds(10) && !_countdownActive)
+            {
+                _countdownActive = true;
+                _overlayManager.ShowCountdown(remaining.Seconds);
+                Logger.Instance.Log("Countdown gestartet", LogLevel.Verbose);
             }
         }
 
@@ -411,10 +402,10 @@ namespace HecticEscape
             Logger.Instance.Log($"Pausenzeit-Intervall: {_intervalBreakMs / 1000} Sekunden", LogLevel.Verbose);
             return _intervalBreakMs / 1000;
         }
-        public int GetCheckIntervalSeconds() 
-        { 
+        public int GetCheckIntervalSeconds()
+        {
             Logger.Instance.Log($"Check-Intervall: {_intervalCheckMs / 1000} Sekunden", LogLevel.Verbose);
-            return _intervalCheckMs / 1000; 
+            return _intervalCheckMs / 1000;
         }
 
         public bool IsWorkTimerRunning()
@@ -445,7 +436,7 @@ namespace HecticEscape
         }
         public void SetCountdownActive(bool active)
         {
-            Logger.Instance.Log($"Setze Countdown aktiv: {active}", LogLevel.Verbose);  
+            Logger.Instance.Log($"Setze Countdown aktiv: {active}", LogLevel.Verbose);
             _countdownActive = active;
             if (!active)
             {
@@ -538,10 +529,9 @@ namespace HecticEscape
             }
         }
 
-        private async Task OnAppTimerTicked(Gruppe gruppe, AppHE app, DateOnly date)
+        private async Task OnAppTimerTicked(TimeSpan timeSpan)
         {
-            Logger.Instance.Log($"AppTimerTicked für {app.Name} wird aufgerufen", LogLevel.Verbose);
-            AppTimerTicked?.Invoke(TimeSpan.FromMilliseconds(_appManager.GetDailyTimeLeft(gruppe, app, date)));
+            AppTimerTicked?.Invoke(timeSpan);
         }
 
         protected override void Dispose(bool disposing)
@@ -567,4 +557,9 @@ namespace HecticEscape
         Break,
         Check
     }
+    public enum CloseType
+    {
+        Pause,
+        OutOfTime,
+    } 
 }

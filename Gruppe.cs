@@ -9,6 +9,8 @@ namespace HecticEscape
         public string Name { get; set; }
         public List<AppHE> Apps { get; set; }
         public List<Website> Websites { get; set; }
+        public long DailyTimeMs { get; set; }
+        public List<Log> Logs { get; set; }
     }
 
     public class Log
@@ -48,6 +50,8 @@ namespace HecticEscape
         public bool EnableStartOnWindowsStartup { get; set; }
         public bool EnableShowAppTimeInOverlay { get; set; }
         public bool EnableShowProcessesWithWindowOnly { get; set; }
+        public bool EnableIncludeFoundGames { get; set; }
+        public bool EnableGroupBlocking { get; set; }
     }
 
     public class LanguageFile

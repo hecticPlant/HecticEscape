@@ -34,6 +34,9 @@ namespace HecticEscape
         public bool EnableVerboseMode => _configReader.GetEnableVerboseMode();
         public void SetEnableVerboseMode(bool enable) => _configReader.SetEnableVerboseMode(enable);
 
+        public bool EnableIncludeFoundGames => _configReader.GetEnableIncludeFoundGames();
+        public void SetEnableIncludeFoundGames(bool enable) => _configReader.SetEnableIncludeFoundGames(enable);
+
 
         // Timer-Konfiguration
         public int IntervalFreeMs => _configReader.GetIntervalFreeMs();
@@ -76,6 +79,9 @@ namespace HecticEscape
 
         public bool EnableShowProcessesWithWindowOnly => _configReader.GetEnableShowProcessesWithWindowOnly();
         public void SetEnableShowProcessesWithWindowOnly(bool enable) => _configReader.SetEnableShowProcessesWithWindowOnly(enable);
+
+        public bool EnableGroupBlocking => _configReader.GetEnableGroupBlocking();
+        public void SetEnableGroupBlocking(bool enable) => _configReader.SetEnableGroupBlocking(enable);
 
         public void Dispose()
         {

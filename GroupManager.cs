@@ -7,13 +7,18 @@ namespace HecticEscape
     /// Verwaltet alle Gruppen-Operationen (CRUD, Aktiv-Status).
     /// Greift auf die Gruppen-Datenstruktur in ConfigReader zu.
     /// </summary>
-    public class GroupManager
+    public class GroupManager : AManager
     {
         private readonly ConfigReader _configReader;
 
-        public GroupManager(ConfigReader configReader)
+        public GroupManager(ConfigReader configReader) : base(configReader)
         {
             _configReader = configReader;
+        }
+
+        public override void Initialize()
+        {
+            Logger.Instance.Log("GroupManager initialisiert.", LogLevel.Info);
         }
 
         /// <summary>
@@ -103,6 +108,89 @@ namespace HecticEscape
         { 
             Logger.Instance.Log("Alle aktiven Gruppen werden abgerufen.", LogLevel.Verbose);
             return _configReader.Config.Gruppen.Values.Where(g => g.Aktiv).ToList();
-        } 
+        }
+
+        public void SetDailyTimeMs(Gruppe group, long dailyTimeMs)
+        {
+            if (group == null) return;
+
+            group.DailyTimeMs = dailyTimeMs;
+            Logger.Instance.Log($"DailyTime von Gruppe {group.Name} auf {dailyTimeMs} gesetzts", LogLevel.Verbose);
+
+            _configReader.SetSaveConfigFlag();
+        }
+
+        public long GetDailyTimeLeft(Gruppe group, DateOnly date)
+        {
+            Logger.Instance.Log($"Berechne verbleibende Zeit für Gruppe {group?.Name} am {date:yyyy-MM-dd}.", LogLevel.Verbose);
+            if (group == null) return 0;
+            var log = group.Logs?.FirstOrDefault(l => l.Date == date);
+            long used = log?.TimeMs ?? 0;
+            return group.DailyTimeMs - used;
+        }
+
+        public void SetTimeMS(Gruppe group, long timeMs)
+        {
+            if (group == null) return;
+            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
+
+            Log? log = group.Logs.FirstOrDefault(l => l.Date == date);
+            if (log == null)
+            {
+                log = new Log { Date = date, TimeMs = 0 };
+                group.Logs.Add(log);
+                Logger.Instance.Log($"Neues Log für {group.Name} am {date:yyyy-MM-dd} erstellt.", LogLevel.Warn);
+            }
+            else
+            {
+                log.TimeMs = timeMs;
+                Logger.Instance.Log($"DailyTime von Gruppe {group.Name} auf {timeMs} gesetzts", LogLevel.Verbose);
+            }
+            _configReader.SetSaveConfigFlag();
+        }
+        
+        public void AddTimeToLog(Gruppe gruppe, DateOnly date, long timeMs)
+        {
+            Logger.Instance.Log($"Füge {timeMs}ms zu Log von {gruppe.Name} am {date:yyyy-MM-dd} hinzu.", LogLevel.Verbose);
+            if (gruppe == null || date == default || timeMs < 0)
+            {
+                Logger.Instance.Log("Ungültige Parameter für AddTimeToLog. Gruppe, Datum oder Zeit sind ungültig.", LogLevel.Error);
+                return;
+            }
+            var log = gruppe.Logs.FirstOrDefault(l => l.Date == date);
+            if (log == null)
+            {
+                log = new Log { Date = date, TimeMs = 0 };
+                gruppe.Logs.Add(log);
+                Logger.Instance.Log($"Neues Log für {gruppe.Name} am {date:yyyy-MM-dd} erstellt.", LogLevel.Info);
+            }
+            log.TimeMs += timeMs;
+            _configReader.SetSaveConfigFlag();
+        }
+
+        public List<Gruppe> GetGroupsWithLowDailyTimeLeft()
+        {
+            Logger.Instance.Log("Überprüfe, ob tägliche Zeit für Gruppen niedrig ist.", LogLevel.Verbose);
+            DateOnly date = DateOnly.FromDateTime(DateTime.Now);
+            List<Gruppe> groups = GetAllActiveGroups();
+            if (groups == null || groups.Count == 0)
+            {
+                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Verbose);
+                return new List<Gruppe>();
+            }
+
+            var lowTimeGroups = new List<Gruppe>();
+            foreach (var group in groups)
+            {
+                long remaining = GetDailyTimeLeft(group, date);
+                if (remaining < 65 * 60 * 1000)
+                {
+                    Logger.Instance.Log($"Gruppe {group.Name} zu lowTimeGroup hinzugefügt (restliche Zeit: {remaining} ms).", LogLevel.Verbose);
+                    lowTimeGroups.Add(group);
+                }
+            }
+            return lowTimeGroups;
+        }
+
     }
 }

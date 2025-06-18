@@ -3,11 +3,18 @@
     "Gruppe 1": {
       "Name": "Gruppe 1",
       "Aktiv": true,
+      "DailyTimeMs": 7200000,
+      "Logs": [
+        {
+          "Date": "2024-10-01",
+          "TimeMs": 0
+        }
+      ],
       "Apps": [
         {
           "Name": "Spotify",
           "DailyTimeMs": 7200000,
-          "Log": [
+          "Logs": [
             {
               "Date": "2024-10-01",
               "TimeMs": 0
@@ -32,5 +39,7 @@
   "EnableUpdateCheck": true,
   "EnableStartOnWindowsStartup": true,
   "EnableShowAppTimeInOverlayEnable": true,
-  "EnableShowProcessesWithWindowOnly": true,"
+  "EnableShowProcessesWithWindowOnly": true,
+  "EnableIncludeFoundGames": false,
+  "EnableGroupBlocking" :  false,
 }
