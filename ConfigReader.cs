@@ -203,9 +203,20 @@ namespace HecticEscape
                 EnableStartOnWindowsStartup = false,
                 EnableShowProcessesWithWindowOnly = true,
                 EnableIncludeFoundGames = false,
-                EnableGroupBlocking = false
-
-            };
+                EnableGroupBlocking = false,
+                PauseTimerForegroundColorHex = "#FFFFFFFF",
+                PauseTimerBackgroundColorHex = "#00000000",
+                PauseTimerForegroundOpacity = 1.0,
+                PauseTimerBackgroundOpacity = 1.0,
+                AppTimerForegroundColorHex  = "##FF0000",
+                AppTimerBackgroundColorHex  = "#00000000",
+                AppTimerForegroundOpacity  = 1.0,
+                AppTimerBackgroundOpacity  = 1.0,
+                MessageForegroundColorHex  = "#FFFFFFFF",
+                MessageBackgroundColorHex = "#00000000",
+                MessageForegroundOpacity = 1.0,
+                MessageBackgroundOpacity = 1.0,
+    };
 
             var defaultGroup = new Gruppe
             {
@@ -535,5 +546,151 @@ namespace HecticEscape
             Logger.Instance.Log($"SetEnableGroupBlocking: {value}", LogLevel.Verbose);
             Config.EnableGroupBlocking = value;
         }
+
+        public string GetPauseTimerForegroundColorHex()
+        {
+            Logger.Instance.Log($"GetPauseTimerForegroundColorHex: {Config.PauseTimerForegroundColorHex}", LogLevel.Verbose);
+            return Config.PauseTimerForegroundColorHex;
+        }
+        public void SetPauseTimerForegroundColorHex(string value)
+        {
+            Logger.Instance.Log($"SetPauseTimerForegroundColorHex: {value}", LogLevel.Verbose);
+            Config.PauseTimerForegroundColorHex = value;
+            SetSaveConfigFlag();
+        }
+
+        public string GetPauseTimerBackgroundColorHex()
+        {
+            Logger.Instance.Log($"GetPauseTimerBackgroundColorHex: {Config.PauseTimerBackgroundColorHex}", LogLevel.Verbose);
+            return Config.PauseTimerBackgroundColorHex;
+        }
+        public void SetPauseTimerBackgroundColorHex(string value)
+        {
+            Logger.Instance.Log($"SetPauseTimerBackgroundColorHex: {value}", LogLevel.Verbose);
+            Config.PauseTimerBackgroundColorHex = value;
+            SetSaveConfigFlag();
+        }
+
+        public double GetPauseTimerForegroundOpacity()
+        {
+            Logger.Instance.Log($"GetPauseTimerForegroundOpacity: {Config.PauseTimerForegroundOpacity}", LogLevel.Verbose);
+            return Config.PauseTimerForegroundOpacity;
+        }
+        public void SetPauseTimerForegroundOpacity(double value)
+        {
+            Logger.Instance.Log($"SetPauseTimerForegroundOpacity: {value}", LogLevel.Verbose);
+            Config.PauseTimerForegroundOpacity = value;
+            SetSaveConfigFlag();
+        }
+
+        public double GetPauseTimerBackgroundOpacity()
+        {
+            Logger.Instance.Log($"GetPauseTimerBackgroundOpacity: {Config.PauseTimerBackgroundOpacity}", LogLevel.Verbose);
+            return Config.PauseTimerBackgroundOpacity;
+        }
+        public void SetPauseTimerBackgroundOpacity(double value)
+        {
+            Logger.Instance.Log($"SetPauseTimerBackgroundOpacity: {value}", LogLevel.Verbose);
+            Config.PauseTimerBackgroundOpacity = value;
+            SetSaveConfigFlag();
+        }
+
+        public string GetAppTimerForegroundColorHex()
+        {
+            Logger.Instance.Log($"GetAppTimerForegroundColorHex: {Config.AppTimerForegroundColorHex}", LogLevel.Verbose);
+            return Config.AppTimerForegroundColorHex;
+        }
+        public void SetAppTimerForegroundColorHex(string value)
+        {
+            Logger.Instance.Log($"SetAppTimerForegroundColorHex: {value}", LogLevel.Verbose);
+            Config.AppTimerForegroundColorHex = value;
+            SetSaveConfigFlag();
+        }
+
+        public string GetAppTimerBackgroundColorHex()
+        {
+            Logger.Instance.Log($"GetAppTimerBackgroundColorHex: {Config.AppTimerBackgroundColorHex}", LogLevel.Verbose);
+            return Config.AppTimerBackgroundColorHex;
+        }
+        public void SetAppTimerBackgroundColorHex(string value)
+        {
+            Logger.Instance.Log($"SetAppTimerBackgroundColorHex: {value}", LogLevel.Verbose);
+            Config.AppTimerBackgroundColorHex = value;
+            SetSaveConfigFlag();
+        }
+
+        public double GetAppTimerForegroundOpacity()
+        {
+            Logger.Instance.Log($"GetAppTimerForegroundOpacity: {Config.AppTimerForegroundOpacity}", LogLevel.Verbose);
+            return Config.AppTimerForegroundOpacity;
+        }
+        public void SetAppTimerForegroundOpacity(double value)
+        {
+            Logger.Instance.Log($"SetAppTimerForegroundOpacity: {value}", LogLevel.Verbose);
+            Config.AppTimerForegroundOpacity = value;
+            SetSaveConfigFlag();
+        }
+
+        public double GetAppTimerBackgroundOpacity()
+        {
+            Logger.Instance.Log($"GetAppTimerBackgroundOpacity: {Config.AppTimerBackgroundOpacity}", LogLevel.Verbose);
+            return Config.AppTimerBackgroundOpacity;
+        }
+        public void SetAppTimerBackgroundOpacity(double value)
+        {
+            Logger.Instance.Log($"SetAppTimerBackgroundOpacity: {value}", LogLevel.Verbose);
+            Config.AppTimerBackgroundOpacity = value;
+            SetSaveConfigFlag();
+        }
+
+        public string GetMessageForegroundColorHex()
+        {
+            Logger.Instance.Log($"GetMessageForegroundColorHex: {Config.MessageForegroundColorHex}", LogLevel.Verbose);
+            return Config.MessageForegroundColorHex;
+        }
+        public void SetMessageForegroundColorHex(string value)
+        {
+            Logger.Instance.Log($"SetMessageForegroundColorHex: {value}", LogLevel.Verbose);
+            Config.MessageForegroundColorHex = value;
+            SetSaveConfigFlag();
+        }
+
+        public string GetMessageBackgroundColorHex()
+        {
+            Logger.Instance.Log($"GetMessageBackgroundColorHex: {Config.MessageBackgroundColorHex}", LogLevel.Verbose);
+            return Config.MessageBackgroundColorHex;
+        }
+        public void SetMessageBackgroundColorHex(string value)
+        {
+            Logger.Instance.Log($"SetMessageBackgroundColorHex: {value}", LogLevel.Verbose);
+            Config.MessageBackgroundColorHex = value;
+            SetSaveConfigFlag();
+        }
+
+        public double GetMessageForegroundOpacity()
+        {
+            Logger.Instance.Log($"GetMessageForegroundOpacity: {Config.MessageForegroundOpacity}", LogLevel.Verbose);
+            return Config.MessageForegroundOpacity;
+        }
+        public void SetMessageForegroundOpacity(double value)
+        {
+            Logger.Instance.Log($"SetMessageForegroundOpacity: {value}", LogLevel.Verbose);
+            Config.MessageForegroundOpacity = value;
+            SetSaveConfigFlag();
+        }
+
+        public double GetMessageBackgroundOpacity()
+        {
+            Logger.Instance.Log($"GetMessageBackgroundOpacity: {Config.MessageBackgroundOpacity}", LogLevel.Verbose);
+            return Config.MessageBackgroundOpacity;
+        }
+        public void SetMessageBackgroundOpacity(double value)
+        {
+            Logger.Instance.Log($"SetMessageBackgroundOpacity: {value}", LogLevel.Verbose);
+            Config.MessageBackgroundOpacity = value;
+            SetSaveConfigFlag();
+        }
+
+
     }
 }

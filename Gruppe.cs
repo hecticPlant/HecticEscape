@@ -51,7 +51,26 @@ namespace HecticEscape
         public bool EnableShowAppTimeInOverlay { get; set; }
         public bool EnableShowProcessesWithWindowOnly { get; set; }
         public bool EnableIncludeFoundGames { get; set; }
-        public bool EnableGroupBlocking { get; set; }    
+        public bool EnableGroupBlocking { get; set; }
+
+        // Pause-Timer Farben & Opacity
+        public string PauseTimerForegroundColorHex { get; set; }
+        public string PauseTimerBackgroundColorHex { get; set; }
+        public double PauseTimerForegroundOpacity { get; set; }
+        public double PauseTimerBackgroundOpacity { get; set; }
+
+        // App-Timer Farben & Opacity
+        public string AppTimerForegroundColorHex { get; set; }
+        public string AppTimerBackgroundColorHex { get; set; }
+        public double AppTimerForegroundOpacity { get; set; }
+        public double AppTimerBackgroundOpacity { get; set; }
+
+        // Message-Text Einstellungen
+        public string MessageForegroundColorHex { get; set; }
+        public string MessageBackgroundColorHex { get; set; }
+        public double MessageForegroundOpacity { get; set; }
+        public double MessageBackgroundOpacity { get; set; }
+
     }
 
 

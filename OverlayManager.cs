@@ -1,7 +1,9 @@
 ﻿using HecticEscape;
+using Org.BouncyCastle.Utilities.Encoders;
 using System;
 using System.Collections.Generic;
 using System.Windows;
+using System.Windows.Media;
 using Xceed.Wpf.AvalonDock.Controls;
 namespace HecticEscape
 {
@@ -191,6 +193,283 @@ namespace HecticEscape
                 _overlay.Dispatcher.Invoke(() => _overlay.Hide());
                 Logger.Instance.Log("OverlayManager: Overlay ausgeblendet, da keine aktiven Timer oder Nachrichten", LogLevel.Verbose);
             }
+        }
+        
+        // ----- Color Management -----
+        public void SetPauseTimerForegroundColorHex(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                Logger.Instance.Log("SetPauseTimerForegroundColorHex: Leerstring übergeben.", LogLevel.Warn);
+                return;
+            }
+
+            try
+            {
+                var colorObj = ColorConverter.ConvertFromString(hex);
+                if (colorObj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    _overlay.Dispatcher.Invoke(() =>
+                    {
+                        _overlay.OverlayTimerTextBlock.Foreground = brush;
+                    });
+                    _configReader.SetPauseTimerForegroundColorHex(hex);
+                }
+                else
+                {
+                    Logger.Instance.Log($"SetPauseTimerForegroundColorHex: ConvertFromString lieferte kein Color für '{hex}'.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"SetPauseTimerForegroundColorHex: Fehler beim Parsen von '{hex}': {ex.Message}", LogLevel.Error);
+            }
+        }
+        public void SetPauseTimerBackgroundColorHex(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                Logger.Instance.Log("SetPauseTimerBackgroundColorHex: Leerstring übergeben.", LogLevel.Warn);
+                return;
+            }
+            try
+            {
+                var colorObj = ColorConverter.ConvertFromString(hex);
+                if (colorObj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    _overlay.Dispatcher.Invoke(() =>
+                    {
+                        _overlay.OverlayTimerBorder.Background = brush;
+                    });
+                    _configReader.SetPauseTimerBackgroundColorHex(hex);
+                }
+                else
+                {
+                    Logger.Instance.Log($"SetPauseTimerBackgroundColorHex: ConvertFromString lieferte kein Color für '{hex}'.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"SetPauseTimerBackgroundColorHex: Fehler beim Parsen von '{hex}': {ex.Message}", LogLevel.Error);
+            }
+        }
+        public void SetPauseTimerForegroundOpacity(double opacity)
+        {             
+            if (opacity < 0 || opacity > 1)
+            {
+                Logger.Instance.Log($"SetPauseTimerForegroundOpacity: Ungültiger Wert {opacity}. Muss zwischen 0 und 1 liegen.", LogLevel.Warn);
+                return;
+            }
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                _overlay.OverlayTimerTextBlock.Opacity = opacity;
+            });
+            _configReader.SetPauseTimerForegroundOpacity(opacity);
+        }
+        public void SetPauseTimerBackgroundOpacity(double opacity)
+        {
+            if (opacity < 0 || opacity > 1)
+            {
+                Logger.Instance.Log($"SetPauseTimerBackgroundOpacity: Ungültiger Wert {opacity}. Muss zwischen 0 und 1 liegen.", LogLevel.Warn);
+                return;
+            }
+
+            byte alpha = (byte)(opacity * 255);
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                var currentBrush = _overlay.OverlayTimerBorder.Background as SolidColorBrush;
+                Color baseColor = currentBrush?.Color ?? Colors.Black;
+                _overlay.OverlayTimerBorder.Background = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
+            });
+
+            _configReader.SetPauseTimerBackgroundOpacity(opacity);
+        }
+
+        public void SetAppTimerForegroundColorHex(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                Logger.Instance.Log("SetAppTimerForegroundColorHex: Leerstring übergeben.", LogLevel.Warn);
+                return;
+            }
+            try
+            {
+                var colorObj = ColorConverter.ConvertFromString(hex);
+                if (colorObj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    _overlay.Dispatcher.Invoke(() =>
+                    {
+                        _overlay.OverlayAppTimerTextBlock.Foreground = brush;
+                    });
+                    _configReader.SetAppTimerForegroundColorHex(hex);
+                }
+                else
+                {
+                    Logger.Instance.Log($"SetAppTimerForegroundColorHex: ConvertFromString lieferte kein Color für '{hex}'.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"SetAppTimerForegroundColorHex: Fehler beim Parsen von '{hex}': {ex.Message}", LogLevel.Error);
+            }
+        }
+        public void SetAppTimerBackgroundColorHex(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                Logger.Instance.Log("SetAppTimerBackgroundColorHex: Leerstring übergeben.", LogLevel.Warn);
+                return;
+            }
+            try
+            {
+                var colorObj = ColorConverter.ConvertFromString(hex);
+                if (colorObj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    _overlay.Dispatcher.Invoke(() =>
+                    {
+                        _overlay.OverlayAppTimerBorder.Background = brush;
+                    });
+                    _configReader.SetAppTimerBackgroundColorHex(hex);
+                }
+                else
+                {
+                    Logger.Instance.Log($"SetAppTimerBackgroundColorHex: ConvertFromString lieferte kein Color für '{hex}'.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"SetAppTimerBackgroundColorHex: Fehler beim Parsen von '{hex}': {ex.Message}", LogLevel.Error);
+            }
+        }
+        public void SetAppTimerForegroundOpacity(double opacity)
+        {
+            if (opacity < 0 || opacity > 1)
+            {
+                Logger.Instance.Log($"SetAppTimerForegroundOpacity: Ungültiger Wert {opacity}. Muss zwischen 0 und 1 liegen.", LogLevel.Warn);
+                return;
+            }
+
+            byte alpha = (byte)(opacity * 255);
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                var currentBrush = _overlay.OverlayAppTimerTextBlock.Foreground as SolidColorBrush;
+                Color baseColor = currentBrush?.Color ?? Colors.White;
+                _overlay.OverlayAppTimerTextBlock.Foreground = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
+            });
+
+            _configReader.SetAppTimerForegroundOpacity(opacity);
+        }
+        public void SetAppTimerBackgroundOpacity(double opacity)
+        {
+            if (opacity < 0 || opacity > 1)
+            {
+                Logger.Instance.Log($"SetAppTimerBackgroundOpacity: Ungültiger Wert {opacity}. Muss zwischen 0 und 1 liegen.", LogLevel.Warn);
+                return;
+            }
+
+            byte alpha = (byte)(opacity * 255);
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                var currentBrush = _overlay.OverlayAppTimerBorder.Background as SolidColorBrush;
+                Color baseColor = currentBrush?.Color ?? Colors.Black;
+                _overlay.OverlayAppTimerBorder.Background = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
+            });
+
+            _configReader.SetAppTimerBackgroundOpacity(opacity);
+        }
+
+        public void SetMessageForegroundColorHex(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                Logger.Instance.Log("SetMessageForegroundColorHex: Leerstring übergeben.", LogLevel.Warn);
+                return;
+            }
+            try
+            {
+                var colorObj = ColorConverter.ConvertFromString(hex);
+                if (colorObj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    _overlay.Dispatcher.Invoke(() =>
+                    {
+                        _overlay.OverlayMessageTextBlock.Foreground = brush;
+                    });
+                    _configReader.SetMessageForegroundColorHex(hex);
+                }
+                else
+                {
+                    Logger.Instance.Log($"SetMessageForegroundColorHex: ConvertFromString lieferte kein Color für '{hex}'.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"SetMessageForegroundColorHex: Fehler beim Parsen von '{hex}': {ex.Message}", LogLevel.Error);
+            }
+        }
+        public void SetMessageBackgroundColorHex(string hex)
+        {
+            if (string.IsNullOrWhiteSpace(hex))
+            {
+                Logger.Instance.Log("SetMessageBackgroundColorHex: Leerstring übergeben.", LogLevel.Warn);
+                return;
+            }
+            try
+            {
+                var colorObj = ColorConverter.ConvertFromString(hex);
+                if (colorObj is Color color)
+                {
+                    var brush = new SolidColorBrush(color);
+                    _overlay.Dispatcher.Invoke(() =>
+                    {
+                        _overlay.OverlayMessageBorder.Background = brush;
+                    });
+                    _configReader.SetMessageBackgroundColorHex(hex);
+                }
+                else
+                {
+                    Logger.Instance.Log($"SetMessageBackgroundColorHex: ConvertFromString lieferte kein Color für '{hex}'.", LogLevel.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"SetMessageBackgroundColorHex: Fehler beim Parsen von '{hex}': {ex.Message}", LogLevel.Error);
+            }
+        }
+        public void SetMessageForegroundOpacity(double opacity)
+        {
+            if (opacity < 0 || opacity > 1)
+            {
+                Logger.Instance.Log($"SetPauseTimerForegroundOpacity: Ungültiger Wert {opacity}. Muss zwischen 0 und 1 liegen.", LogLevel.Warn);
+                return;
+            }
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                _overlay.OverlayMessageTextBlock.Opacity = opacity;
+            });
+            _configReader.SetMessageForegroundOpacity(opacity);
+        }
+        public void SetMessageBackgroundOpacity(double opacity)
+        {
+            if (opacity < 0 || opacity > 1)
+            {
+                Logger.Instance.Log($"SetMessageBackgroundOpacity: Ungültiger Wert {opacity}. Muss zwischen 0 und 1 liegen.", LogLevel.Warn);
+                return;
+            }
+
+            byte alpha = (byte)(opacity * 255);
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                var currentBrush = _overlay.OverlayMessageBorder.Background as SolidColorBrush;
+                Color baseColor = currentBrush?.Color ?? Colors.Black;
+                _overlay.OverlayMessageBorder.Background = new SolidColorBrush(Color.FromArgb(alpha, baseColor.R, baseColor.G, baseColor.B));
+            });
+
+            _configReader.SetMessageBackgroundOpacity(opacity);
         }
 
         protected override void Dispose(bool disposing)

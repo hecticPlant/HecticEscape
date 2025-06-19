@@ -1,0 +1,112 @@
+﻿<Window x:Class="HecticEscape.CustomizerWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Anpassung" Height="851" Width="410"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize">
+    <ScrollViewer x:Name="RootScrollViewer" VerticalScrollBarVisibility="Auto">
+        <StackPanel x:Name="RootStackPanel" Margin="10">
+
+            <!-- PauseTimer-Einstellungen -->
+            <TextBlock x:Name="PauseTimerHeader" Text="Pause-Timer anpassen" FontWeight="Bold" FontSize="16" Margin="0,0,0,5"/>
+            <TextBlock x:Name="PauseTimerForegroundLabel" Text="Vordergrundfarbe wählen (Hex):" Margin="0,5,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                <TextBox x:Name="PauseTimerForegroundHexTextBox"
+                         Width="120"
+                         ToolTip="Hex-Code eingeben, z.B. #RRGGBB oder #AARRGGBB"
+                         TextChanged="PauseTimerForegroundHexTextBox_TextChanged"/>
+                <Rectangle x:Name="PauseTimerForegroundPreview"
+                           Width="20" Height="20" Stroke="Black" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="PauseTimerBackgroundLabel" Text="Hintergrundfarbe wählen (Hex):" Margin="0,10,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                <TextBox x:Name="PauseTimerBackgroundHexTextBox"
+                         Width="120"
+                         ToolTip="Hex-Code eingeben, z.B. #RRGGBB oder #AARRGGBB"
+                         TextChanged="PauseTimerBackgroundHexTextBox_TextChanged"/>
+                <Rectangle x:Name="PauseTimerBackgroundPreview"
+                           Width="20" Height="20" Stroke="Black" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="PauseTimerForegroundTransparencyLabel" Text="Transparenz Vordergrund (0–100%):" Margin="0,10,0,0"/>
+            <Slider x:Name="ForegroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="ForegroundTransparencySlider_ValueChanged"
+                    TickFrequency="0.05" IsSnapToTickEnabled="False"/>
+            <TextBlock x:Name="ForegroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+
+            <TextBlock x:Name="PauseTimerBackgroundTransparencyLabel" Text="Transparenz Hintergrund (0–100%):" Margin="0,5,0,0"/>
+            <Slider x:Name="BackgroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="BackgroundTransparencySlider_ValueChanged"
+                    TickFrequency="0.05" IsSnapToTickEnabled="False"/>
+            <TextBlock x:Name="BackgroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+
+            <Separator x:Name="Separator1" Margin="0,10,0,10"/>
+
+            <!-- AppTimer-Einstellungen -->
+            <TextBlock x:Name="AppTimerHeader" Text="App-Timer anpassen" FontWeight="Bold" FontSize="16" Margin="0,0,0,5"/>
+            <TextBlock x:Name="AppTimerForegroundLabel" Text="Vordergrundfarbe wählen (Hex):" Margin="0,5,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                <TextBox x:Name="AppTimerForegroundHexTextBox"
+                         Width="120"
+                         ToolTip="Hex-Code eingeben, z.B. #RRGGBB oder #AARRGGBB"
+                         TextChanged="AppTimerForegroundHexTextBox_TextChanged"/>
+                <Rectangle x:Name="AppTimerForegroundPreview"
+                           Width="20" Height="20" Stroke="Black" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="AppTimerBackgroundLabel" Text="Hintergrundfarbe wählen (Hex):" Margin="0,10,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                <TextBox x:Name="AppTimerBackgroundHexTextBox"
+                         Width="120"
+                         ToolTip="Hex-Code eingeben, z.B. #RRGGBB oder #AARRGGBB"
+                         TextChanged="AppTimerBackgroundHexTextBox_TextChanged"/>
+                <Rectangle x:Name="AppTimerBackgroundPreview"
+                           Width="20" Height="20" Stroke="Black" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="AppTimerForegroundTransparencyLabel" Text="Transparenz Vordergrund (0–100%):" Margin="0,10,0,0"/>
+            <Slider x:Name="AppTimerForegroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="AppTimerForegroundTransparencySlider_ValueChanged"
+                    TickFrequency="0.05" IsSnapToTickEnabled="False"/>
+            <TextBlock x:Name="AppTimerForegroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+
+            <TextBlock x:Name="AppTimerBackgroundTransparencyLabel" Text="Transparenz Hintergrund (0–100%):" Margin="0,5,0,0"/>
+            <Slider x:Name="AppTimerBackgroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="AppTimerBackgroundTransparencySlider_ValueChanged"
+                    TickFrequency="0.05" IsSnapToTickEnabled="False"/>
+            <TextBlock x:Name="AppTimerBackgroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+
+            <Separator x:Name="Separator2" Margin="0,10,0,10"/>
+
+            <!-- MessageText-Einstellungen -->
+            <TextBlock x:Name="MessageHeader" Text="Nachrichten-Text anpassen" FontWeight="Bold" FontSize="16" Margin="0,0,0,5"/>
+
+            <TextBlock x:Name="MessageForegroundLabel" Text="Schriftfarbe wählen (Hex):" Margin="0,10,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                <TextBox x:Name="MessageForegroundHexTextBox"
+                         Width="120"
+                         ToolTip="Hex-Code eingeben, z.B. #RRGGBB oder #AARRGGBB"
+                         TextChanged="MessageForegroundHexTextBox_TextChanged"/>
+                <Rectangle x:Name="MessageForegroundPreview"
+                           Width="20" Height="20" Stroke="Black" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="MessageBackgroundLabel" Text="Hintergrundfarbe wählen (Hex):" Margin="0,10,0,0"/>
+            <StackPanel Orientation="Horizontal" Margin="0,2,0,0" VerticalAlignment="Center">
+                <TextBox x:Name="MessageBackgroundHexTextBox"
+                         Width="120"
+                         ToolTip="Hex-Code eingeben, z.B. #RRGGBB oder #AARRGGBB"
+                         TextChanged="MessageBackgroundHexTextBox_TextChanged"/>
+                <Rectangle x:Name="MessageBackgroundPreview"
+                           Width="20" Height="20" Stroke="Black" Margin="5,0,0,0"/>
+            </StackPanel>
+
+            <TextBlock x:Name="MessageForegroundTransparencyLabel" Text="Transparenz Vordergrund (0–100%):" Margin="0,10,0,0"/>
+            <Slider x:Name="MessageForegroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="MessageForegroundTransparencySlider_ValueChanged"
+                    TickFrequency="0.05" IsSnapToTickEnabled="False"/>
+            <TextBlock x:Name="MessageForegroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+
+            <TextBlock x:Name="MessageBackgroundTransparencyLabel" Text="Transparenz Hintergrund (0–100%):" Margin="0,5,0,0"/>
+            <Slider x:Name="MessageBackgroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="MessageBackgroundTransparencySlider_ValueChanged"
+                    TickFrequency="0.05" IsSnapToTickEnabled="False"/>
+            <TextBlock x:Name="MessageBackgroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+        </StackPanel>
+    </ScrollViewer>
+</Window>

@@ -65,7 +65,8 @@ namespace HecticEscape
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
             int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-            SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED | WS_EX_TRANSPARENT);
+            //SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED | WS_EX_TRANSPARENT);
+            SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED);
         }
 
         public void ShowMessage(string message, int durationMs = 2000)
@@ -157,16 +158,16 @@ namespace HecticEscape
             });
         }
 
-        public void ShowAppTimer(TimeSpan remainig)
-        { 
-            Logger.Instance.Log($"AppTimer: {remainig.Hours:D2}:{remainig.Minutes:D2}:{remainig.Seconds:D2}", LogLevel.Verbose);
+        public void ShowAppTimer(TimeSpan remaining)
+        {
+            Logger.Instance.Log($"AppTimer: {remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}", LogLevel.Verbose);
             Dispatcher.Invoke(() =>
-            {   
-                OverlayAppTimerTextBlock.Foreground = Brushes.Red; 
-                OverlayAppTimerTextBlock.Text = $"{remainig.Hours:D2}:{remainig.Minutes:D2}:{remainig.Seconds:D2}";
+            {
+                OverlayAppTimerTextBlock.Text = $"{remaining.Hours:D2}:{remaining.Minutes:D2}:{remaining.Seconds:D2}";
                 OverlayAppTimerBorder.Visibility = Visibility.Visible;
             });
         }
+
 
         public void HideAppTimer()
         {

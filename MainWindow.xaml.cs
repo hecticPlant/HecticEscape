@@ -96,6 +96,7 @@ namespace HecticEscape
             };
 
             ResetDailyTimeButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
+            ResetDailyTimeGroupButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;  
 
             try
             {
@@ -1257,6 +1258,11 @@ namespace HecticEscape
             await StartOnWindowsStartupAsync(false);
         }
 
+        private void CustomizeButton_Click(object sender, RoutedEventArgs e)
+        {
+            _windowManager.ShowCustomizerWindow();
+        }
+
         // -------------------- Overlay --------------------
         private void ShowTimerInOverlay_Checked(object sender, RoutedEventArgs e)
         {
@@ -1428,6 +1434,6 @@ namespace HecticEscape
             }
         }
 
-
+ 
     }
 }

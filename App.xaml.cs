@@ -80,6 +80,13 @@ namespace HecticEscape
                 return manager;
             });
 
+            services.AddTransient<CustomizerWindow>(sp =>
+            {
+                var languageManager = sp.GetRequiredService<LanguageManager>();
+                var windowManager = sp.GetRequiredService<WindowManager>();
+                return new CustomizerWindow(languageManager, windowManager);
+            });
+
             services.AddSingleton<AppManager>();
 
             services.AddSingleton<WebManager>(sp =>
@@ -99,13 +106,13 @@ namespace HecticEscape
 
             services.AddSingleton<WindowManager>();
             services.AddSingleton<MainWindow>();
+
+
         }
 
         protected override void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
-
-            // Prüfe auf /minimized Parameter
             bool startMinimized = e.Args.Contains("/minimized");
 
             try
@@ -118,7 +125,6 @@ namespace HecticEscape
 
                 if (startMinimized)
                 {
-                    // Warte auf Shell-Initialisierung und starte minimiert
                     Dispatcher.BeginInvoke(async () =>
                     {
                         await Task.Delay(2000); 

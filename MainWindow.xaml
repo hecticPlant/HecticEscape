@@ -108,6 +108,7 @@
                     <TextBlock x:Name="AllgemeinTextBlock" Text="Allgemein" FontWeight="Bold" FontSize="14" Margin="0,0,10,0"/>
                     <WrapPanel Margin="0,0,10,0">
                         <Button x:Name="StartBlockingButton" Content="Start" Margin="0,0,10,0" Click="StartBlockingButton_Click"/>
+                        <Button x:Name="CustomizeButton" Content="Customize" Margin="0,0,10,0" Click="CustomizeButton_Click"/>
                     </WrapPanel>
                     <CheckBox x:Name="EnableStartOnWindowsStartupCheckBox" Content="Beim Systemstart starten" Margin="0,0,10,0" Checked="EnableStartOnWindowsStartupCheckBox_Checked" Unchecked="EnableStartOnWindowsStartupCheckBox_Unchecked"/>
                     <TextBlock x:Name="TimerTextBlock" Text="Timer" FontWeight="Bold" FontSize="14" Margin="0,0,10,0"/>

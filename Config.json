@@ -42,4 +42,19 @@
   "EnableShowProcessesWithWindowOnly": true,
   "EnableIncludeFoundGames": false,
   "EnableGroupBlocking": false,
+
+  "PauseTimerForegroundColorHex": "#FFFFFFFF",
+  "PauseTimerBackgroundColorHex": "#00000000",
+  "PauseTimerForegroundOpacity": 1.0,
+  "PauseTimerBackgroundOpacity": 1.0,
+
+  "AppTimerForegroundColorHex": "#FFFFFFFF",
+  "AppTimerBackgroundColorHex": "#00000000",
+  "AppTimerForegroundOpacity": 1.0,
+  "AppTimerBackgroundOpacity": 1.0,
+
+  "MessageForegroundColorHex": "#FFFFFFFF",
+  "MessageBackgroundColorHex": "#00000000",
+  "MessageForegroundOpacity": 1.0,
+  "MessageBackgroundOpacity": 1.0
 }
