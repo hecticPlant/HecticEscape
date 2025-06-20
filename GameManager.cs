@@ -98,8 +98,6 @@ namespace HecticEscape
                 }
                 string json = JsonSerializer.Serialize(bestehendeSpiele, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(SaveFile, json);
-
-                Logger.Instance.Log($"Spiele gespeichert: {bestehendeSpiele.Count} Spiele in {SaveFile}.", LogLevel.Verbose);
             }
             catch (Exception ex)
             {

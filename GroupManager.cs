@@ -26,7 +26,6 @@ namespace HecticEscape
         /// </summary>
         public List<Gruppe> GetAllGroups()
         {
-            Logger.Instance.Log("Alle Gruppen werden abgerufen.", LogLevel.Verbose);
             return _configReader.Config.Gruppen.Values.ToList();
         }
 
@@ -35,7 +34,6 @@ namespace HecticEscape
         /// </summary>
         public Gruppe? GetGroupByName(string groupName)
         {
-            Logger.Instance.Log($"Suche Gruppe mit Namen: {groupName}", LogLevel.Verbose);
             _configReader.Config.Gruppen.TryGetValue(groupName, out var group);
             return group;
         }
@@ -70,7 +68,6 @@ namespace HecticEscape
         /// </summary>
         public bool DeleteGroup(Gruppe group)
         {
-            Logger.Instance.Log($"Versuche Gruppe zu löschen: {group.Name}", LogLevel.Verbose);
             var key = _configReader.Config.Gruppen.FirstOrDefault(kvp => kvp.Value == group).Key;
             if (key != null)
             {
@@ -86,7 +83,6 @@ namespace HecticEscape
         /// </summary>
         public bool SetGroupActiveStatus(Gruppe group, bool isActive)
         {
-            Logger.Instance.Log($"Setze Aktiv-Status für Gruppe '{group.Name}' auf {isActive}.", LogLevel.Verbose);
             if (group == null) return false;
             group.Aktiv = isActive;
             return true;
@@ -97,7 +93,6 @@ namespace HecticEscape
         /// </summary>
         public List<string> GetAllGroupNames()
         {
-            Logger.Instance.Log("Alle Gruppennamen werden abgerufen.", LogLevel.Verbose);
             return _configReader.Config.Gruppen.Values.Where(g => !string.IsNullOrWhiteSpace(g.Name)).Select(g => g.Name).ToList();
         }
 
@@ -105,8 +100,7 @@ namespace HecticEscape
         /// Gibt alle aktiven Gruppen zurück.
         /// </summary>
         public List<Gruppe> GetAllActiveGroups()
-        { 
-            Logger.Instance.Log("Alle aktiven Gruppen werden abgerufen.", LogLevel.Verbose);
+        {
             return _configReader.Config.Gruppen.Values.Where(g => g.Aktiv).ToList();
         }
 
@@ -115,14 +109,12 @@ namespace HecticEscape
             if (group == null) return;
 
             group.DailyTimeMs = dailyTimeMs;
-            Logger.Instance.Log($"DailyTime von Gruppe {group.Name} auf {dailyTimeMs} gesetzts", LogLevel.Verbose);
 
             _configReader.SetSaveConfigFlag();
         }
 
         public long GetDailyTimeLeft(Gruppe group, DateOnly date)
         {
-            Logger.Instance.Log($"Berechne verbleibende Zeit für Gruppe {group?.Name} am {date:yyyy-MM-dd}.", LogLevel.Verbose);
             if (group == null) return 0;
             var log = group.Logs?.FirstOrDefault(l => l.Date == date);
             long used = log?.TimeMs ?? 0;
@@ -144,14 +136,12 @@ namespace HecticEscape
             else
             {
                 log.TimeMs = timeMs;
-                Logger.Instance.Log($"DailyTime von Gruppe {group.Name} auf {timeMs} gesetzts", LogLevel.Verbose);
             }
             _configReader.SetSaveConfigFlag();
         }
         
         public void AddTimeToLog(Gruppe gruppe, DateOnly date, long timeMs)
         {
-            Logger.Instance.Log($"Füge {timeMs}ms zu Log von {gruppe.Name} am {date:yyyy-MM-dd} hinzu.", LogLevel.Verbose);
             if (gruppe == null || date == default || timeMs < 0)
             {
                 Logger.Instance.Log("Ungültige Parameter für AddTimeToLog. Gruppe, Datum oder Zeit sind ungültig.", LogLevel.Error);
@@ -170,12 +160,10 @@ namespace HecticEscape
 
         public List<Gruppe> GetGroupsWithLowDailyTimeLeft()
         {
-            Logger.Instance.Log("Überprüfe, ob tägliche Zeit für Gruppen niedrig ist.", LogLevel.Verbose);
             DateOnly date = DateOnly.FromDateTime(DateTime.Now);
             List<Gruppe> groups = GetAllActiveGroups();
             if (groups == null || groups.Count == 0)
             {
-                Logger.Instance.Log("Keine aktiven Gruppen mit Apps gefunden.", LogLevel.Verbose);
                 return new List<Gruppe>();
             }
 
@@ -185,7 +173,6 @@ namespace HecticEscape
                 long remaining = GetDailyTimeLeft(group, date);
                 if (remaining < 65 * 60 * 1000)
                 {
-                    Logger.Instance.Log($"Gruppe {group.Name} zu lowTimeGroup hinzugefügt (restliche Zeit: {remaining} ms).", LogLevel.Verbose);
                     lowTimeGroups.Add(group);
                 }
             }

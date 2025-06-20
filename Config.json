@@ -42,6 +42,7 @@
   "EnableShowProcessesWithWindowOnly": true,
   "EnableIncludeFoundGames": false,
   "EnableGroupBlocking": false,
+  "EnabbleScanForNewApps": true,
 
   "PauseTimerForegroundColorHex": "#FFFFFFFF",
   "PauseTimerBackgroundColorHex": "#00000000",

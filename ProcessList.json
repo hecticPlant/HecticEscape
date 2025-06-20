@@ -1,0 +1,10 @@
+﻿{
+  "Processes": [
+    {
+      "Name": "Steam"
+    },
+    {
+      "Name": "SteamService"
+    }
+  ]
+}

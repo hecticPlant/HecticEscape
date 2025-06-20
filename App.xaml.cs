@@ -87,6 +87,13 @@ namespace HecticEscape
                 return new CustomizerWindow(languageManager, windowManager);
             });
 
+            services.AddTransient<GroupSelectionWindow>(sp =>
+            {
+                var languageManager = sp.GetRequiredService<LanguageManager>();
+                var windowManager = sp.GetRequiredService<WindowManager>();
+                return new GroupSelectionWindow(languageManager, windowManager);
+            });
+
             services.AddSingleton<AppManager>();
 
             services.AddSingleton<WebManager>(sp =>

@@ -45,7 +45,6 @@ namespace HecticEscape
             _windowManager = (App.Current as App)?.Services.GetRequiredService<WindowManager>();
 
             InitializeComponent();
-            Logger.Instance.Log("MainWindow Konstruktor: Nach InitializeComponent", LogLevel.Verbose);
 
             try { InitializeTexts(); } catch (Exception ex) { Logger.Instance.Log($"Fehler in InitializeTexts(): {ex.Message}", LogLevel.Error); }
             try { _windowManager.TimeManager.StatusChanged += OnStatusChanged; } catch { Logger.Instance.Log("StatusChanged-Event konnte nicht abonniert werden.", LogLevel.Error); }
@@ -77,6 +76,7 @@ namespace HecticEscape
                 ShowProcessesWithWindowOnlyCheckBox.IsChecked = _windowManager.EnableShowProcessesWithWindowOnly;
                 //IncludeFoundGanesCheckBox.IsChecked = _windowManager.AppManager.EnableIncludeFoundGames;
                 EnableGroupBlockingCheckBox.IsChecked = _windowManager.EnableGroupBlocking;
+                ScanForNewAppsCheckBox.IsChecked = _windowManager.AppManager.EnableScanForNewApps;
             }
             catch (Exception ex)
             {
@@ -121,6 +121,13 @@ namespace HecticEscape
                                 : "Timer: --:--";
                         });
                     };
+                    _windowManager.TimeManager.NewProcessDetected += (processName) =>
+                    {
+                        Dispatcher.Invoke(() =>
+                        {
+                            _windowManager.ShowGroupSelectionWindow(processName);
+                        });
+                    };
                 }
                 else
                 {
@@ -131,16 +138,11 @@ namespace HecticEscape
             {
                 Logger.Instance.Log($"Fehler beim Initialisieren des WindowManagers: {ex.Message}", LogLevel.Error);
             }
-
-            Logger.Instance.Log("MainWindow Konstruktor: Ende", LogLevel.Verbose);
         }
 
         protected override void OnSourceInitialized(EventArgs e)
         {
             base.OnSourceInitialized(e);
-
-            Logger.Instance.Log("OnSourceInitialized wird ausgeführt", LogLevel.Verbose);
-
             InitializeNotifyIcon();
             var source = PresentationSource.FromVisual(this) as HwndSource;
             if (source != null)
@@ -165,7 +167,7 @@ namespace HecticEscape
 
         private void InitializeNotifyIcon()
         {
-            Logger.Instance.Log("Initialisiere NotifyIcon...", LogLevel.Verbose);
+            Logger.Instance.Log("Initialisiere NotifyIcon...", LogLevel.Info);
             try
             {
                 if (_notifyIcon != null)
@@ -212,19 +214,16 @@ namespace HecticEscape
 
         private void NotifyIcon_DoubleClick(object? sender, EventArgs e)
         {
-            Logger.Instance.Log("NotifyIcon wurde angeklickt, zeige Hauptfenster.", LogLevel.Verbose);
             _windowManager.ShowMainWindow();
         }
 
         private void NotifyIcon_OpenClick(object? sender, EventArgs e)
         {
-            Logger.Instance.Log("NotifyIcon 'Öffnen' wurde angeklickt, zeige Hauptfenster.", LogLevel.Verbose);
             _windowManager.ShowMainWindow();
         }
 
         private void NotifyIcon_ExitClick(object? sender, EventArgs e)
         {
-            Logger.Instance.Log("NotifyIcon 'Beenden' wurde angeklickt, schließe Anwendung.", LogLevel.Verbose);
             _closeToTray = false;
             Close();
             _windowManager.AppManager.SaveConfig();
@@ -276,7 +275,6 @@ namespace HecticEscape
 
         private void UpdateStatusTextBlocks()
         {
-            Logger.Instance.Log("UpdateStatusTextBlocks wird aufgerufen", LogLevel.Verbose);
             if (_windowManager.TimeManager == null) return;
 
             // Free-Timer
@@ -487,7 +485,6 @@ namespace HecticEscape
         // -------------------- Gruppen-Tab --------------------
         private void LoadGroups()
         {
-            Logger.Instance.Log("Lade Gruppen.", LogLevel.Verbose);
             var allGroups = _windowManager.GroupManager.GetAllGroupNames();
             GroupSelectionComboBox?.Items.Clear();
 
@@ -515,14 +512,12 @@ namespace HecticEscape
 
         private void CreateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("CreateGroupButton clicked.", LogLevel.Verbose);
             _windowManager.GroupManager.CreateGroup();
             LoadGroups();
         }
 
         private void DeleteGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("DeleteGroupButton clicked.", LogLevel.Verbose);
             string? groupNameToDelete = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupNameToDelete)) return;
             var group = _windowManager.GroupManager.GetGroupByName(groupNameToDelete);
@@ -533,7 +528,6 @@ namespace HecticEscape
 
         private void ActivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ActivateGroupButton clicked.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
             var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
@@ -544,7 +538,6 @@ namespace HecticEscape
 
         private void DeactivateGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("DeactivateGroupButton clicked.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
             var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
@@ -555,14 +548,12 @@ namespace HecticEscape
 
         private void GroupSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Logger.Instance.Log("GroupSelectionComboBox_SelectionChanged aufgerufen.", LogLevel.Verbose);
             UpdateGroupActivityTextBox();
             UpdateDailyTimeGroupTextBox();
         }
 
         private void SaveDailyTimeGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("SaveDailyTimeGroupButton clicked.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? dailyTimeMs = DailyTimeGroupTextBox?.Text?.Trim();
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(dailyTimeMs)) return;
@@ -587,7 +578,6 @@ namespace HecticEscape
 
         private void UpdateDailyTimeGroupTextBox()
         {
-            Logger.Instance.Log("UpdateDailyTimeGroupTextBox wird aufgerufen.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
             var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
@@ -601,7 +591,6 @@ namespace HecticEscape
 
         private void UpdateDailyTimeLeftGroupTextBox()
         {
-            Logger.Instance.Log("UpdateDailyTimeLeftTextBox wird aufgerufen.", LogLevel.Verbose);
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
@@ -616,7 +605,6 @@ namespace HecticEscape
 
         private void ResetDailyTimeGroupButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ResetDailyTimeButton clicked.", LogLevel.Verbose);
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup)) return;
@@ -631,19 +619,16 @@ namespace HecticEscape
 
         private void EnableGroupBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("EnableGroupBlockingCheckBox checked", LogLevel.Verbose);
             _windowManager.SetEnableGroupBlocking(true);
         }
 
         private void EnableGroupBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("EnableGroupBlockingCheckBox uncheked", LogLevel.Verbose);
             _windowManager.SetEnableGroupBlocking(false);
         }
 
         private void UpdateGroupActivityTextBox()
         {
-            Logger.Instance.Log("UpdateGroupActivityTextBox wird aufgerufen.", LogLevel.Verbose);
             if (GroupSelectionComboBox?.SelectedItem is string selectedGroup && !string.IsNullOrEmpty(selectedGroup))
             {
                 try
@@ -677,7 +662,6 @@ namespace HecticEscape
         // -------------------- Prozesse-Tab --------------------
         private void SaveProcessButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("SaveProcessButton clicked.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
@@ -688,7 +672,6 @@ namespace HecticEscape
 
         private void DeleteProcessButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("DeleteProcessButton clicked.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
@@ -700,7 +683,6 @@ namespace HecticEscape
 
         private void ShowBlockedAppsButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowBlockedAppsButton clicked.", LogLevel.Verbose);
             string? groupID = GroupSelectionComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(groupID)) return;
 
@@ -727,7 +709,6 @@ namespace HecticEscape
 
         private void ShowRunningProcessesButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowRunningProcessesButton clicked.", LogLevel.Verbose);
             var processes = _windowManager.AppManager.GetRunningProcesses();
             ProcessListBox?.Items.Clear();
             if (processes != null)
@@ -739,7 +720,6 @@ namespace HecticEscape
 
         private void SaveDailyTimeButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("SaveDailyTimeButton clicked.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             string? dailyTimeMs = DailyTimeTextBox?.Text?.Trim();
@@ -766,14 +746,12 @@ namespace HecticEscape
 
         private void ProcessListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Logger.Instance.Log("ProcessListBox_SelectionChanged aufgerufen.", LogLevel.Verbose);
             UpdateDailyTimeTextBox();
             UpdateDailyTimeLeftTextBox();
         }
 
         private void UpdateDailyTimeTextBox()
         {
-            Logger.Instance.Log("UpdateDailyTimeTextBox wird aufgerufen.", LogLevel.Verbose);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
@@ -795,7 +773,6 @@ namespace HecticEscape
 
         private void UpdateDailyTimeLeftTextBox()
         {
-            Logger.Instance.Log("UpdateDailyTimeLeftTextBox wird aufgerufen.", LogLevel.Verbose);
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
@@ -818,7 +795,6 @@ namespace HecticEscape
 
         private void ResetDailyTimeButton_Click(object sender, EventArgs e)
         {
-            Logger.Instance.Log("ResetDailyTimeButton clicked.", LogLevel.Verbose);
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
@@ -835,37 +811,31 @@ namespace HecticEscape
 
         private void ProcessTabOpend(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ProcessTabOpend aufgerufen.", LogLevel.Verbose);
             ShowBlockedAppsButton_Click(sender, e);
         }
 
         private void ShowProcessesWithWindowOnlyCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowProcessesWithWindowOnlyCheckBox aktiviert", LogLevel.Verbose);
             _windowManager.SetEnableShowProcessesWithWindowOnly(true);
         }
         private void ShowProcessesWithWindowOnlyCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowProcessesWithWindowOnlyCheckBox deaktiviert", LogLevel.Verbose);
             _windowManager.SetEnableShowProcessesWithWindowOnly(false);
         }
 
         private void IncludeFoundGanesCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("IncludeFoundGanesCheckBox aktiviert", LogLevel.Verbose);
             IncludeFoundGames(true);
 
 
         }
         private void IncludeFoundGanesCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("IncludeFoundGanesCheckBox deaktiviert", LogLevel.Verbose);
             _windowManager.SetEnableIncludeFoundGames(false);
         }
 
         private void IncludeFoundGames(bool enable)
         {
-            Logger.Instance.Log($"IncludeFoundGames aufgerufen: {enable}", LogLevel.Verbose);   
             if (enable)
             {
                 string? groupName = GroupSelectionComboBox?.SelectedItem as string;
@@ -886,7 +856,6 @@ namespace HecticEscape
 
         private void FindeGamesButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("FindeGamesButton clicked.", LogLevel.Verbose);
             _windowManager.AppManager.GameManager.ScanAndSaveGames();
             IncludeFoundGames(true);
             ShowBlockedAppsButton_Click(sender, e);
@@ -895,29 +864,24 @@ namespace HecticEscape
         // -------------------- Websites-Tab --------------------
         private void ShowBlockedWebsitesButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowBlockedWebsitesButton clicked.", LogLevel.Verbose);
         }
 
         private void SaveWebsiteButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("SaveWebsiteButton clicked.", LogLevel.Verbose);
         }
 
         private void DeleteWebsiteButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("DeleteWebsiteButton clicked.", LogLevel.Verbose);
         }
 
         private void WebsiteTabOpend(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("WebsiteTabOpend aufgerufen.", LogLevel.Verbose);
             ShowBlockedWebsitesButton_Click(sender, e);
         }
 
         // -------------------- Timer-Tab --------------------
         private void ListTimers()
         {
-            Logger.Instance.Log("ListTimers wird aufgerufen.", LogLevel.Verbose);
             TimerTypeComboBox?.Items.Clear();
             TimerTypeComboBox?.Items.Add("Freizeit");
             TimerTypeComboBox?.Items.Add("Pause");
@@ -932,7 +896,6 @@ namespace HecticEscape
 
         private void SetTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("SetTimerButton clicked.", LogLevel.Verbose);
             if (_windowManager.TimeManager == null) return;
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
@@ -972,7 +935,6 @@ namespace HecticEscape
 
         private void StartTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StartTimerButton clicked.", LogLevel.Verbose);
             if (_windowManager.TimeManager == null) return;
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
@@ -1000,7 +962,6 @@ namespace HecticEscape
 
         private void StopTimerButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StopTimerButton clicked.", LogLevel.Verbose);
             if (_windowManager.TimeManager == null) return;
             string? selectedTimer = TimerTypeComboBox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedTimer))
@@ -1028,13 +989,11 @@ namespace HecticEscape
 
         private void TimerTypeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Logger.Instance.Log("TimerTypeComboBox_SelectionChanged aufgerufen.", LogLevel.Verbose);
             UpdateTimerDurationTextBox();
         }
 
         private void UpdateTimerDurationTextBox()
         {
-            Logger.Instance.Log("UpdateTimerDurationTextBox wird aufgerufen.", LogLevel.Verbose);
             if (_windowManager.TimeManager == null)
             {
                 if (TimerDurationTextBox != null)
@@ -1067,7 +1026,6 @@ namespace HecticEscape
 
         private void StartTimerWithDuration()
         {
-            Logger.Instance.Log("StartTimerWithDuration aufgerufen.", LogLevel.Verbose);
             int minutes = 0;
             if (int.TryParse(TimerDurationTextBox.Text, out minutes))
             {
@@ -1079,42 +1037,35 @@ namespace HecticEscape
         // -------------------- Steuerung-Tab --------------------
         private void StartProxyButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StartProxyButton clicked.", LogLevel.Verbose);
         }
 
         private void StopProxyButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StopProxyButton clicked.", LogLevel.Verbose);
         }
 
         private void StopAllTimersButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StopAllTimersButton clicked.", LogLevel.Verbose);
             _windowManager.TimeManager?.StopAllTimers();
         }
 
         private void ForceBreakButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ForceBreakButton clicked.", LogLevel.Verbose);
             _windowManager.TimeManager?.ForceBreak();
         }
 
         private void EndBreakButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("EndBreakButton clicked.", LogLevel.Verbose);
             _windowManager.TimeManager?.EndBreak();
         }
 
         private void ToggleOverlayButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ToggleOverlayButton clicked.", LogLevel.Verbose);
             ToggleEnableOverlay();
             UpdateStatusTextBlocks();
         }
 
         private void DebugButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("DebugButton clicked.", LogLevel.Verbose);
             _windowManager.SetEnableDebugMode(!_windowManager.EnableDebugMode);
 
             if (_windowManager.EnableDebugMode)
@@ -1128,7 +1079,6 @@ namespace HecticEscape
 
         private void VerboseButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("VerboseButton clicked.", LogLevel.Verbose);
             _windowManager.SetEnableVerboseMode(!_windowManager.EnableVerboseMode);
             UpdateStatusTextBlocks();
             Logger.Instance.Log($"Verbose {(_windowManager.EnableVerboseMode ? "aktiviert" : "deaktiviert")}", LogLevel.Info);
@@ -1136,7 +1086,6 @@ namespace HecticEscape
 
         private void WebsiteBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("Website-BlockingCheckBox aktiviert", LogLevel.Verbose);
             MessageBox.Show($"{_languageManager.Get("ErrorMessages.WebsiteBlockingMissing")}", $"{_languageManager.Get("Misc.Error")}", MessageBoxButton.OK, MessageBoxImage.Information);
             WebsiteBlockingCheckBox.IsChecked = false;
             return;
@@ -1144,20 +1093,17 @@ namespace HecticEscape
 
         private void WebsiteBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("Website-BlockingCheckBox deaktiviert", LogLevel.Verbose);
             return;
         }
 
         private void AppBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("App-Blocking aktiviert", LogLevel.Verbose);
             _windowManager.SetEnableAppBlocking(true);
             ProzesseTab.IsEnabled = true;
         }
 
         private void AppBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("App-BlockingCheckBox deaktiviert", LogLevel.Verbose);
             _windowManager.SetEnableAppBlocking(false);
             ProzesseTab.IsEnabled = false;
         }
@@ -1166,29 +1112,24 @@ namespace HecticEscape
         {
             _windowManager.TimeManager.StartTimer(TimerType.Work);
             _windowManager.TimeManager.StartTimer(TimerType.Check);
-            Logger.Instance.Log("Blockier-/Pausenlogik wurde gestartet.", LogLevel.Verbose);
         }
 
         private void StartTimerAtStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StartTimerAtStartupCheckBox aktiviert", LogLevel.Verbose);
             _windowManager.SetStartTimerAtStartup(true);
         }
 
         private void StartTimerAtStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("StartTimerAtStartupCheckBox deaktiviert", LogLevel.Verbose);
             _windowManager.SetStartTimerAtStartup(false);
         }
 
         private void LanguageSelectionComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            Logger.Instance.Log("LanguageSelectionComboBox_SelectionChanged aufgerufen.", LogLevel.Verbose);
         }
 
         private void GetCurrentLanguage()
         {
-            Logger.Instance.Log("GetCurrentLanguage wird aufgerufen.", LogLevel.Verbose);
             string? currentLanguage = _windowManager.LanguageManager.GetCurrentLanguageString();
             if (currentLanguage != null && LanguageSelectionCombobox != null)
             {
@@ -1203,7 +1144,6 @@ namespace HecticEscape
 
         private void LoadLanguages()
         {
-            Logger.Instance.Log("LoadLanguages wird aufgerufen.", LogLevel.Verbose);
             var allLanguages = _windowManager.LanguageManager.GetAllLanguages();
             LanguageSelectionCombobox?.Items.Clear();
 
@@ -1225,7 +1165,6 @@ namespace HecticEscape
 
         private void ChangeLanguageButton_Click(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ChangeLanguageButton clicked.", LogLevel.Verbose);
             string? selectedLanguage = LanguageSelectionCombobox?.SelectedItem as string;
             if (string.IsNullOrEmpty(selectedLanguage)) return;
             _windowManager.LanguageManager.SetCurrentLanguageString(selectedLanguage);
@@ -1235,26 +1174,22 @@ namespace HecticEscape
         private void EnableUpdateCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableUpdateCheck(true);
-            Logger.Instance.Log("Update-Check aktiviert", LogLevel.Verbose);
         }
 
         private void EnableUpdateCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableUpdateCheck(false);
-            Logger.Instance.Log("Update-Check deaktiviert", LogLevel.Verbose);
         }
 
         private async void EnableStartOnWindowsStartupCheckBox_Checked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableStartOnWindowsStartup(true);
-            Logger.Instance.Log("Autostart aktiviert", LogLevel.Verbose);
             await StartOnWindowsStartupAsync(true);
         }
 
         private async void EnableStartOnWindowsStartupCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
             _windowManager.SetEnableStartOnWindowsStartup(false);
-            Logger.Instance.Log("Autostart deaktiviert", LogLevel.Verbose);
             await StartOnWindowsStartupAsync(false);
         }
 
@@ -1266,30 +1201,25 @@ namespace HecticEscape
         // -------------------- Overlay --------------------
         private void ShowTimerInOverlay_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowTimerInOverlay_Checked aufgerufen.", LogLevel.Verbose);
             _windowManager.SetEnableShowTimeInOverlay(true);
         }
 
         private void ShowTimerInOverlay_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowTimerInOverlay_Unchecked aufgerufen.", LogLevel.Verbose);
             _windowManager.SetEnableShowTimeInOverlay(false);
         }
 
         private void ShowAppTimerInOverlay_Checked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowAppTimerInOverlay_Checked aufgerufen.", LogLevel.Verbose);
             _windowManager.SetEnableShowAppTimeInOverlay(true);
         }
         private void ShowAppTimerInOverlay_Unchecked(object sender, RoutedEventArgs e)
         {
-            Logger.Instance.Log("ShowAppTimerInOverlay_Unchecked aufgerufen.", LogLevel.Verbose);
             _windowManager.SetEnableShowAppTimeInOverlay(false);
         }
 
         private void ToggleEnableOverlay()
         {
-            Logger.Instance.Log("ToggleEnableOverlay aufgerufen.", LogLevel.Verbose);
             _windowManager.OverlayManager.ToggleOverlayVisibility();
             UpdateStatusTextBlocks();
         }
@@ -1297,7 +1227,6 @@ namespace HecticEscape
         // -------------------- Hilfsmethoden --------------------
         public async Task StartOnWindowsStartupAsync(bool enable)
         {
-            Logger.Instance.Log($"StartOnWindowsStartupAsync aufgerufen. Enable: {enable}", LogLevel.Verbose);
             try
             {
                 // Pfad zum Skript (relativ zum Programmverzeichnis)
@@ -1395,7 +1324,6 @@ namespace HecticEscape
 
         private void MainWindow_Closing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
-            Logger.Instance.Log("MainWindow_Closing aufgerufen.", LogLevel.Verbose);
             if (_closeToTray)
             {
                 try
@@ -1406,7 +1334,6 @@ namespace HecticEscape
                     {
                         _notifyIcon.BalloonTipTitle = "HecticEscape";
                         _notifyIcon.ShowBalloonTip(1000);
-                        Logger.Instance.Log("HecticEscape minimiert in den Systemtray.", LogLevel.Verbose);
                     }
                 }
                 catch (Exception ex)
@@ -1434,6 +1361,13 @@ namespace HecticEscape
             }
         }
 
- 
+        private void ScanForNewAppsCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            _windowManager.SetEnableScanForNewApps(true);
+        }
+        private void ScanForNewAppsCheckBox_Unchecked(object sender, RoutedEventArgs e)
+        {
+            _windowManager.SetEnableScanForNewApps(false);
+        }
     }
 }

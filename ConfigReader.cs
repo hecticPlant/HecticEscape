@@ -17,14 +17,24 @@ namespace HecticEscape
         public Config Config { get; private set; }
         public LanguageFile LanguageFile { get; private set; }
         public LanguageData CurrentLanguage { get; private set; }
+        public ProcessFile ProcessFile { get; set; }
+
+        public event Action? NewProcessFileCreated;
+
         private readonly string _filePathConfig = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "HecticEscape",
             "Config.json");
-        private readonly string _langFilePath;
+        private readonly string _langFilePath = Path.Combine(
+            AppDomain.CurrentDomain.BaseDirectory, "Lang.json");
+        private readonly string _processListFilePath = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "HecticEscape",
+            "ProcessList.json");
 
         private TimersTimer _saveConfigTimer = null!;
         private bool _saveConfigFlag = false;
+        private bool _saveProcessListFlag = false;
 
         public ConfigReader()
         {
@@ -36,11 +46,11 @@ namespace HecticEscape
                 Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
                 "HecticEscape");
             Directory.CreateDirectory(appDataPath);
-            _langFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Lang.json");
 
             SetupConfig();
             LoadLanguages();
             SetupConfigTimer();
+            LoadProcessList();
 
             Logger.Instance.Log("ConfigReader initialisiert.", LogLevel.Info);
 
@@ -55,6 +65,11 @@ namespace HecticEscape
                 {
                     SaveConfig();
                     _saveConfigFlag = false;
+                }
+                if (_saveProcessListFlag)
+                {
+                    SaveProcessList();
+                    _saveProcessListFlag = false;
                 }
             };
             _saveConfigTimer.AutoReset = true;
@@ -110,6 +125,157 @@ namespace HecticEscape
             }
         }
 
+        private void EnsureValidConfigStructure()
+        {
+            if (Config.Gruppen == null)
+            {
+                Config.Gruppen = new Dictionary<string, Gruppe>();
+            }
+
+            foreach (var gruppe in Config.Gruppen.Values)
+            {
+                if (gruppe.Apps == null)
+                {
+                    gruppe.Apps = new List<AppHE>();
+                }
+                else
+                {
+                    foreach (var app in gruppe.Apps)
+                    {
+                        if (app.Logs == null)
+                        {
+                            app.Logs = new List<Log>();
+                        }
+                        if (app.Name == null)
+                        {
+                            app.Name = string.Empty;
+                        }
+                    }
+                }
+
+                if (gruppe.Websites == null)
+                {
+                    gruppe.Websites = new List<Website>();
+                }
+                else
+                {
+                    foreach (var site in gruppe.Websites)
+                    {
+                        if (site.Name == null)
+                        {
+                            site.Name = string.Empty;
+                        }
+                    }
+                }
+
+                if (gruppe.Logs == null)
+                {
+                    gruppe.Logs = new List<Log>();
+                }
+
+                if (gruppe.Name == null)
+                {
+                    gruppe.Name = string.Empty;
+                }
+            }
+
+            Config.ActiveLanguageNameString ??= string.Empty;
+
+            Config.PauseTimerForegroundColorHex ??= "#FFFFFF";
+            Config.PauseTimerBackgroundColorHex ??= "#000000";
+            Config.PauseTimerForegroundOpacity = Clamp(Config.PauseTimerForegroundOpacity, 0.0, 1.0);
+            Config.PauseTimerBackgroundOpacity = Clamp(Config.PauseTimerBackgroundOpacity, 0.0, 1.0);
+
+            Config.AppTimerForegroundColorHex ??= "#FF0000";
+            Config.AppTimerBackgroundColorHex ??= "#000000";
+            Config.AppTimerForegroundOpacity = Clamp(Config.AppTimerForegroundOpacity, 0.0, 1.0);
+            Config.AppTimerBackgroundOpacity = Clamp(Config.AppTimerBackgroundOpacity, 0.0, 1.0);
+
+            Config.MessageForegroundColorHex ??= "#FFFFFF";
+            Config.MessageBackgroundColorHex ??= "#000000";
+            Config.MessageForegroundOpacity = Clamp(Config.MessageForegroundOpacity, 0.0, 1.0);
+            Config.MessageBackgroundOpacity = Clamp(Config.MessageBackgroundOpacity, 0.0, 1.0);
+        }
+
+        /// <summary>
+        /// Klemmt einen Wert zwischen min und max ein.
+        /// </summary>
+        private double Clamp(double value, double min, double max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
+        private void LoadProcessList()
+        {
+            string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HecticEscape");
+
+            if (!File.Exists(_processListFilePath))
+            {
+                Logger.Instance.Log($"{_processListFilePath} nicht gefunden. Erstelle neue.", LogLevel.Warn);
+                Directory.CreateDirectory(appDataPath);
+                ProcessFile = new ProcessFile
+                {
+                    Prozesse = new Dictionary<string, ProcessData>()
+                };
+
+                string json = JsonSerializer.Serialize(ProcessFile, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+
+                File.WriteAllText(_processListFilePath, json);
+                Logger.Instance.Log("Leere Prozessliste erstellt.", LogLevel.Info);
+                OnNewProcessFileCreated();
+                return;
+            }
+            Logger.Instance.Log($"{_processListFilePath} gefunden. Lese Prozessliste ein.", LogLevel.Verbose);
+            try
+            {
+                var json = File.ReadAllText(_processListFilePath);
+                ProcessFile = JsonSerializer.Deserialize<ProcessFile>(json, new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true,
+                    ReadCommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true
+                }) ?? new ProcessFile { Prozesse = new Dictionary<string, ProcessData>() };
+
+                Logger.Instance.Log($"Prozessliste geladen: {string.Join(", ", ProcessFile.Prozesse.Keys)}", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Laden der Prozessliste: {ex.Message}", LogLevel.Error);
+            }
+        }
+        private void SaveProcessList()
+        {
+            try
+            {
+                if (ProcessFile == null)
+                {
+                    Logger.Instance.Log("Keine Prozessdaten zum Speichern vorhanden.", LogLevel.Warn);
+                    return;
+                }
+
+                string appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "HecticEscape");
+
+                // Ordner zur Sicherheit nochmal erstellen, falls nicht vorhanden
+                Directory.CreateDirectory(appDataPath);
+
+                string json = JsonSerializer.Serialize(ProcessFile, new JsonSerializerOptions
+                {
+                    WriteIndented = true
+                });
+
+                File.WriteAllText(_processListFilePath, json);
+                Logger.Instance.Log("Prozessliste gespeichert.", LogLevel.Info);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Speichern der Prozessliste: {ex.Message}", LogLevel.Error);
+            }
+        }
         private void LoadLanguages()
         {
             if (!File.Exists(_langFilePath))
@@ -204,19 +370,20 @@ namespace HecticEscape
                 EnableShowProcessesWithWindowOnly = true,
                 EnableIncludeFoundGames = false,
                 EnableGroupBlocking = false,
+                EnabbleScanForNewApps = true,
                 PauseTimerForegroundColorHex = "#FFFFFFFF",
                 PauseTimerBackgroundColorHex = "#00000000",
                 PauseTimerForegroundOpacity = 1.0,
                 PauseTimerBackgroundOpacity = 1.0,
-                AppTimerForegroundColorHex  = "##FF0000",
-                AppTimerBackgroundColorHex  = "#00000000",
-                AppTimerForegroundOpacity  = 1.0,
-                AppTimerBackgroundOpacity  = 1.0,
-                MessageForegroundColorHex  = "#FFFFFFFF",
+                AppTimerForegroundColorHex = "#FF0000",
+                AppTimerBackgroundColorHex = "#00000000",
+                AppTimerForegroundOpacity = 1.0,
+                AppTimerBackgroundOpacity = 1.0,
+                MessageForegroundColorHex = "#FFFFFFFF",
                 MessageBackgroundColorHex = "#00000000",
                 MessageForegroundOpacity = 1.0,
                 MessageBackgroundOpacity = 1.0,
-    };
+            };
 
             var defaultGroup = new Gruppe
             {
@@ -238,14 +405,24 @@ namespace HecticEscape
 
         public void SetSaveConfigFlag()
         {
-            Logger.Instance.Log("Setze SaveConfigFlag.", LogLevel.Verbose);
             if (!_saveConfigFlag)
             {
                 _saveConfigFlag = true;
             }
             else
             {
-                Logger.Instance.Log("SaveConfigFlag wurde bereits gesetzt, Timer läuft.", LogLevel.Verbose);
+                return;
+            }
+        }
+
+        public void SetSaveProcessListFlag()
+        {
+            if (!_saveProcessListFlag)
+            {
+                _saveProcessListFlag = true;
+            }
+            else
+            {
                 return;
             }
         }
@@ -256,29 +433,10 @@ namespace HecticEscape
             {
                 string json = JsonSerializer.Serialize(Config, new JsonSerializerOptions { WriteIndented = true });
                 File.WriteAllText(_filePathConfig, json);
-                Logger.Instance.Log("Konfiguration gespeichert.", LogLevel.Verbose);
             }
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler beim Speichern der Konfiguration: {ex.Message}", LogLevel.Error);
-            }
-        }
-
-        private void EnsureValidConfigStructure()
-        {
-            if (Config.Gruppen == null)
-                Config.Gruppen = new Dictionary<string, Gruppe>();
-
-            foreach (var kvp in Config.Gruppen)
-            {
-                var grp = kvp.Value;
-                if (grp.Apps == null) grp.Apps = new List<AppHE>();
-                if (grp.Websites == null) grp.Websites = new List<Website>();
-
-                foreach (var app in grp.Apps)
-                {
-                    if (app.Logs == null) app.Logs = new List<Log>();
-                }
             }
         }
 
@@ -287,7 +445,6 @@ namespace HecticEscape
         {
             if (CurrentLanguage != null)
             {
-                Logger.Instance.Log($"Aktuelle Sprache: {CurrentLanguage.Name}", LogLevel.Verbose);
                 return CurrentLanguage;
             }
             Logger.Instance.Log("Keine aktuelle Sprache gesetzt.", LogLevel.Warn);
@@ -297,7 +454,6 @@ namespace HecticEscape
         {
             if (!string.IsNullOrEmpty(Config.ActiveLanguageNameString))
             {
-                Logger.Instance.Log($"Aktive Sprache aus Config: {Config.ActiveLanguageNameString}", LogLevel.Verbose);
                 return Config.ActiveLanguageNameString;
             }
             return "ERROR:LANGUAGE";
@@ -336,7 +492,6 @@ namespace HecticEscape
         {
             if (LanguageFile.Sprachen != null)
             {
-                Logger.Instance.Log($"GetAllLanguages: {LanguageFile.Sprachen.Count} Sprachen gefunden.", LogLevel.Verbose);
                 return LanguageFile.Sprachen.Values.ToList();
             }
             Logger.Instance.Log("GetAllLanguages: Keine Sprachen gefunden.", LogLevel.Warn);
@@ -347,7 +502,6 @@ namespace HecticEscape
             if (LanguageFile.Sprachen != null)
             {
                 var names = LanguageFile.Sprachen.Values.Select(l => l.Name).ToList();
-                Logger.Instance.Log($"GetAllLanguageNamesString: {names.Count} Sprachen-Namen gefunden.", LogLevel.Verbose);
                 return names;
             }
             Logger.Instance.Log("GetAllLanguageNamesString: Keine Sprachen-Namen gefunden.", LogLevel.Warn);
@@ -358,25 +512,21 @@ namespace HecticEscape
         // --- Globale Einstellungen (Flags, Timer, etc.) ---
         public bool GetEnableShowProcessesWithWindowOnly()
         {
-            Logger.Instance.Log($"GetEnableShowProcessesWithWindowOnly: {Config.EnableShowProcessesWithWindowOnly}", LogLevel.Verbose);
             return Config.EnableShowProcessesWithWindowOnly;
         }
         public void SetEnableShowProcessesWithWindowOnly(bool value)
         {
             Config.EnableShowProcessesWithWindowOnly = value;
-            Logger.Instance.Log($"Setze EnableShowProcessesWithWindowOnly auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetEnableIncludeFoundGames()
         {
-            Logger.Instance.Log($"GetEnableIncludeFoundGames: {Config.EnableIncludeFoundGames}", LogLevel.Verbose);
             return Config.EnableIncludeFoundGames;
         }
         public void SetEnableIncludeFoundGames(bool value)
         {
             Config.EnableIncludeFoundGames = value;
-            Logger.Instance.Log($"Setze EnableIncludeFoundGames auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
@@ -384,313 +534,277 @@ namespace HecticEscape
         public void SetEnableUpdateCheck(bool value)
         {
             Config.EnableUpdateCheck = value;
-            Logger.Instance.Log($"Setze EnableUpdateCheck auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
         public bool GetEnableUpdateCheck()
         {
-            Logger.Instance.Log($"GetEnableUpdateCheck: {Config.EnableUpdateCheck}", LogLevel.Verbose);
             return Config.EnableUpdateCheck;
         }
 
         public void SetEnableStartOnWindowsStartup(bool value)
         {
             Config.EnableStartOnWindowsStartup = value;
-            Logger.Instance.Log($"Setze EnableStartOnWindowsStartup auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
-        public bool GetEnableStartOnWindowsStartup() 
+        public bool GetEnableStartOnWindowsStartup()
         {
-            Logger.Instance.Log($"GetEnableStartOnWindowsStartup: {Config.EnableStartOnWindowsStartup}", LogLevel.Verbose);
             return Config.EnableStartOnWindowsStartup;
         }
         public bool GetEnableVerboseMode()
         {
-            Logger.Instance.Log($"GetEnableVerboseMode: {Config.EnableVerboseMode}", LogLevel.Verbose);
             return Config.EnableVerboseMode;
         }
         public void SetEnableVerboseMode(bool value)
         {
             Config.EnableVerboseMode = value;
-            Logger.Instance.Log($"Setze EnableVerboseMode auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetWebsiteBlockingEnabled()
         {
-            Logger.Instance.Log($"GetWebsiteBlockingEnabled: {Config.EnableWebsiteBlocking}", LogLevel.Verbose);
             return Config.EnableWebsiteBlocking;
         }
         public void SetWebsiteBlockingEnabled(bool enabled)
         {
             Config.EnableWebsiteBlocking = enabled;
-            Logger.Instance.Log($"Setze EnableWebsiteBlocking auf {enabled}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetAppBlockingEnabled()
         {
-            Logger.Instance.Log($"GetAppBlockingEnabled: {Config.EnableAppBlocking}", LogLevel.Verbose);
             return Config.EnableAppBlocking;
         }
         public void SetEnableAppBlocking(bool enabled)
         {
             Config.EnableAppBlocking = enabled;
-            Logger.Instance.Log($"Setze EnableAppBlocking auf {enabled}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetStartTimerAtStartup()
         {
-            Logger.Instance.Log($"GetStartTimerAtStartup: {Config.StartTimerAtStartup}", LogLevel.Verbose);
             return Config.StartTimerAtStartup;
         }
         public void SetStartTimerAtStartup(bool value)
         {
             Config.StartTimerAtStartup = value;
-            Logger.Instance.Log($"Setze StartTimerAtStartup auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
-        public int GetIntervalFreeMs() 
+        public int GetIntervalFreeMs()
         {
-            Logger.Instance.Log($"GetIntervalFreeMs: {Config.IntervalFreeMs}", LogLevel.Verbose);
             return Config.IntervalFreeMs;
         }
         public void SetIntervalFreeMs(int value)
         {
             Config.IntervalFreeMs = value;
-            Logger.Instance.Log($"Setze IntervalFreeMs auf {value} ms.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public int GetIntervalBreakMs()
         {
-            Logger.Instance.Log($"GetIntervalBreakMs: {Config.IntervalBreakMs}", LogLevel.Verbose);
             return Config.IntervalBreakMs;
         }
         public void SetIntervalBreakMs(int value)
         {
             Config.IntervalBreakMs = value;
-            Logger.Instance.Log($"Setze IntervalBreakMs auf {value} ms.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public int GetIntervalCheckMs()
         {
-            Logger.Instance.Log($"GetIntervalCheckMs: {Config.IntervalCheckMs}", LogLevel.Verbose);
             return Config.IntervalCheckMs;
         }
         public void SetIntervalCheckMs(int value)
         {
             Config.IntervalCheckMs = value;
-            Logger.Instance.Log($"Setze IntervalCheckMs auf {value} ms.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetEnableDebugMode()
-        {             
-            Logger.Instance.Log($"GetEnableDebugMode: {Config.EnableDebugMode}", LogLevel.Verbose);
+        {
             return Config.EnableDebugMode;
         }
         public void SetEnableDebugMode(bool value)
         {
             Config.EnableDebugMode = value;
-            Logger.Instance.Log($"Setze EnableDebugMode auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetShowTimeInOverlayEnable()
         {
-            Logger.Instance.Log($"GetShowTimeInOverlayEnable: {Config.EnableShowTimeInOverlay}", LogLevel.Verbose);
             return Config.EnableShowTimeInOverlay;
         }
         public void EnableShowTimeInOverlay(bool value)
         {
             Config.EnableShowTimeInOverlay = value;
-            Logger.Instance.Log($"Setze EnableShowTimeInOverlay auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetShowAppTimeInOverlayEnable()
         {
-            Logger.Instance.Log($"GetShowAppTimeInOverlayEnable: {Config.EnableShowAppTimeInOverlay}", LogLevel.Verbose);
             return Config.EnableShowAppTimeInOverlay;
         }
         public void SetShowAppTimeInOverlayEnable(bool value)
         {
             Config.EnableShowAppTimeInOverlay = value;
-            Logger.Instance.Log($"Setze EnableShowAppTimeInOverlayEnable auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetEnableOverlay()
         {
-            Logger.Instance.Log($"GetEnableOverlay: {Config.EnableOverlay}", LogLevel.Verbose);
             return Config.EnableOverlay;
         }
         public void SetEnableOverlay(bool value)
         {
             Config.EnableOverlay = value;
-            Logger.Instance.Log($"Setze EnableOverlay auf {value}.", LogLevel.Verbose);
             SetSaveConfigFlag();
         }
 
         public bool GetEnableGroupBlocking()
         {
-            Logger.Instance.Log($"GetEnableGroupBlocking : {Config.EnableGroupBlocking}", LogLevel.Verbose);
             return Config.EnableGroupBlocking;
         }
         public void SetEnableGroupBlocking(bool value)
         {
-            Logger.Instance.Log($"SetEnableGroupBlocking: {value}", LogLevel.Verbose);
             Config.EnableGroupBlocking = value;
         }
 
         public string GetPauseTimerForegroundColorHex()
         {
-            Logger.Instance.Log($"GetPauseTimerForegroundColorHex: {Config.PauseTimerForegroundColorHex}", LogLevel.Verbose);
             return Config.PauseTimerForegroundColorHex;
         }
         public void SetPauseTimerForegroundColorHex(string value)
         {
-            Logger.Instance.Log($"SetPauseTimerForegroundColorHex: {value}", LogLevel.Verbose);
             Config.PauseTimerForegroundColorHex = value;
             SetSaveConfigFlag();
         }
 
         public string GetPauseTimerBackgroundColorHex()
         {
-            Logger.Instance.Log($"GetPauseTimerBackgroundColorHex: {Config.PauseTimerBackgroundColorHex}", LogLevel.Verbose);
             return Config.PauseTimerBackgroundColorHex;
         }
         public void SetPauseTimerBackgroundColorHex(string value)
         {
-            Logger.Instance.Log($"SetPauseTimerBackgroundColorHex: {value}", LogLevel.Verbose);
             Config.PauseTimerBackgroundColorHex = value;
             SetSaveConfigFlag();
         }
 
         public double GetPauseTimerForegroundOpacity()
         {
-            Logger.Instance.Log($"GetPauseTimerForegroundOpacity: {Config.PauseTimerForegroundOpacity}", LogLevel.Verbose);
             return Config.PauseTimerForegroundOpacity;
         }
         public void SetPauseTimerForegroundOpacity(double value)
         {
-            Logger.Instance.Log($"SetPauseTimerForegroundOpacity: {value}", LogLevel.Verbose);
             Config.PauseTimerForegroundOpacity = value;
             SetSaveConfigFlag();
         }
 
         public double GetPauseTimerBackgroundOpacity()
         {
-            Logger.Instance.Log($"GetPauseTimerBackgroundOpacity: {Config.PauseTimerBackgroundOpacity}", LogLevel.Verbose);
             return Config.PauseTimerBackgroundOpacity;
         }
         public void SetPauseTimerBackgroundOpacity(double value)
         {
-            Logger.Instance.Log($"SetPauseTimerBackgroundOpacity: {value}", LogLevel.Verbose);
             Config.PauseTimerBackgroundOpacity = value;
             SetSaveConfigFlag();
         }
 
         public string GetAppTimerForegroundColorHex()
         {
-            Logger.Instance.Log($"GetAppTimerForegroundColorHex: {Config.AppTimerForegroundColorHex}", LogLevel.Verbose);
             return Config.AppTimerForegroundColorHex;
         }
         public void SetAppTimerForegroundColorHex(string value)
         {
-            Logger.Instance.Log($"SetAppTimerForegroundColorHex: {value}", LogLevel.Verbose);
             Config.AppTimerForegroundColorHex = value;
             SetSaveConfigFlag();
         }
 
         public string GetAppTimerBackgroundColorHex()
         {
-            Logger.Instance.Log($"GetAppTimerBackgroundColorHex: {Config.AppTimerBackgroundColorHex}", LogLevel.Verbose);
             return Config.AppTimerBackgroundColorHex;
         }
         public void SetAppTimerBackgroundColorHex(string value)
         {
-            Logger.Instance.Log($"SetAppTimerBackgroundColorHex: {value}", LogLevel.Verbose);
             Config.AppTimerBackgroundColorHex = value;
             SetSaveConfigFlag();
         }
 
         public double GetAppTimerForegroundOpacity()
         {
-            Logger.Instance.Log($"GetAppTimerForegroundOpacity: {Config.AppTimerForegroundOpacity}", LogLevel.Verbose);
             return Config.AppTimerForegroundOpacity;
         }
         public void SetAppTimerForegroundOpacity(double value)
         {
-            Logger.Instance.Log($"SetAppTimerForegroundOpacity: {value}", LogLevel.Verbose);
             Config.AppTimerForegroundOpacity = value;
             SetSaveConfigFlag();
         }
 
         public double GetAppTimerBackgroundOpacity()
         {
-            Logger.Instance.Log($"GetAppTimerBackgroundOpacity: {Config.AppTimerBackgroundOpacity}", LogLevel.Verbose);
             return Config.AppTimerBackgroundOpacity;
         }
         public void SetAppTimerBackgroundOpacity(double value)
         {
-            Logger.Instance.Log($"SetAppTimerBackgroundOpacity: {value}", LogLevel.Verbose);
             Config.AppTimerBackgroundOpacity = value;
             SetSaveConfigFlag();
         }
 
         public string GetMessageForegroundColorHex()
         {
-            Logger.Instance.Log($"GetMessageForegroundColorHex: {Config.MessageForegroundColorHex}", LogLevel.Verbose);
             return Config.MessageForegroundColorHex;
         }
         public void SetMessageForegroundColorHex(string value)
         {
-            Logger.Instance.Log($"SetMessageForegroundColorHex: {value}", LogLevel.Verbose);
             Config.MessageForegroundColorHex = value;
             SetSaveConfigFlag();
         }
 
         public string GetMessageBackgroundColorHex()
         {
-            Logger.Instance.Log($"GetMessageBackgroundColorHex: {Config.MessageBackgroundColorHex}", LogLevel.Verbose);
             return Config.MessageBackgroundColorHex;
         }
         public void SetMessageBackgroundColorHex(string value)
         {
-            Logger.Instance.Log($"SetMessageBackgroundColorHex: {value}", LogLevel.Verbose);
             Config.MessageBackgroundColorHex = value;
             SetSaveConfigFlag();
         }
 
         public double GetMessageForegroundOpacity()
         {
-            Logger.Instance.Log($"GetMessageForegroundOpacity: {Config.MessageForegroundOpacity}", LogLevel.Verbose);
             return Config.MessageForegroundOpacity;
         }
         public void SetMessageForegroundOpacity(double value)
         {
-            Logger.Instance.Log($"SetMessageForegroundOpacity: {value}", LogLevel.Verbose);
             Config.MessageForegroundOpacity = value;
             SetSaveConfigFlag();
         }
 
         public double GetMessageBackgroundOpacity()
         {
-            Logger.Instance.Log($"GetMessageBackgroundOpacity: {Config.MessageBackgroundOpacity}", LogLevel.Verbose);
             return Config.MessageBackgroundOpacity;
         }
         public void SetMessageBackgroundOpacity(double value)
         {
-            Logger.Instance.Log($"SetMessageBackgroundOpacity: {value}", LogLevel.Verbose);
             Config.MessageBackgroundOpacity = value;
             SetSaveConfigFlag();
         }
 
+        public bool GetEnableScanForNewApps()
+        {
+            return Config.EnabbleScanForNewApps;
+        }
+        public void SetEnableScanForNewApps(bool value)
+        {
+            Config.EnabbleScanForNewApps = value;
+            SetSaveConfigFlag();
 
+        }
+
+        private async Task OnNewProcessFileCreated()
+        {
+            await Task.Delay(10000);
+            NewProcessFileCreated?.Invoke();
+        }
+        
     }
 }

@@ -130,7 +130,6 @@ namespace HecticEscape
             try
             {
                 _windowManager.OverlayManager.SetPauseTimerForegroundOpacity(op);
-                Logger.Instance.Log($"Customizer: PauseTimer ForegroundOpacity gesetzt: {op:F2}", LogLevel.Verbose);
             }
             catch (Exception ex)
             {
@@ -144,7 +143,6 @@ namespace HecticEscape
             try
             {
                 _windowManager.OverlayManager.SetPauseTimerBackgroundOpacity(op);
-                Logger.Instance.Log($"Customizer: PauseTimer BackgroundOpacity gesetzt: {op:F2}", LogLevel.Verbose);
             }
             catch (Exception ex)
             {
@@ -224,7 +222,6 @@ namespace HecticEscape
             try
             {
                 _windowManager.OverlayManager.SetAppTimerForegroundOpacity(op);
-                Logger.Instance.Log($"Customizer: AppTimer ForegroundOpacity gesetzt: {op:F2}", LogLevel.Verbose);
             }
             catch (Exception ex)
             {
@@ -238,7 +235,6 @@ namespace HecticEscape
             try
             {
                 _windowManager.OverlayManager.SetAppTimerBackgroundOpacity(op);
-                Logger.Instance.Log($"Customizer: AppTimer BackgroundOpacity gesetzt: {op:F2}", LogLevel.Verbose);
             }
             catch (Exception ex)
             {
@@ -318,7 +314,6 @@ namespace HecticEscape
             try
             {
                 _windowManager.OverlayManager.SetMessageForegroundOpacity(op);
-                Logger.Instance.Log($"Customizer: Message ForegroundOpacity gesetzt: {op:F2}", LogLevel.Verbose);
             }
             catch (Exception ex)
             {
@@ -332,7 +327,6 @@ namespace HecticEscape
             try
             {
                 _windowManager.OverlayManager.SetMessageBackgroundOpacity(op);
-                Logger.Instance.Log($"Customizer: Message BackgroundOpacity gesetzt: {op:F2}", LogLevel.Verbose);
             }
             catch (Exception ex)
             {

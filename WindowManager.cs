@@ -16,6 +16,7 @@ namespace HecticEscape
         public readonly GroupManager GroupManager;
         public MainWindow? MainWindow { get; set; }
         public CustomizerWindow? CustomizerWindow { get; set; }
+        public GroupSelectionWindow? GroupSelectionWindow { get; set; }
 
         public WindowManager(
             IServiceProvider services,
@@ -64,7 +65,25 @@ namespace HecticEscape
             }
         }
 
-
+        public void ShowGroupSelectionWindow(string processName, bool modal = false)
+        {
+            GroupSelectionWindow = _services.GetRequiredService<GroupSelectionWindow>();
+            if (MainWindow != null)
+            {
+                GroupSelectionWindow.Owner = MainWindow;
+            }
+            if (modal)
+            {
+                GroupSelectionWindow.ShowDialog();
+            }
+            else
+            {
+                GroupSelectionWindow.Show();
+                GroupSelectionWindow.WindowState = WindowState.Normal;
+                GroupSelectionWindow.Activate();
+                GroupSelectionWindow.SetProcessName(processName);
+            }
+        }
         public void InitializeValuesFromTarget()
         {
             try
@@ -126,7 +145,6 @@ namespace HecticEscape
 
         public void ShowMainWindow()
         {
-            Logger.Instance.Log("WindowManager: Zeige MainWindow", LogLevel.Verbose);
             if (MainWindow != null)
             {
                 MainWindow.Show();

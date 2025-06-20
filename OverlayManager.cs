@@ -37,7 +37,6 @@ namespace HecticEscape
 
         public void AttachToTimeManager(TimeManager timeManager)
         {
-            Logger.Instance.Log("OverlayManager an TimeManager angehängt", LogLevel.Verbose);
             timeManager.TimerTicked += remaining =>
             {
                 ShowTimer(remaining);
@@ -64,13 +63,11 @@ namespace HecticEscape
 
         public void CancelCountdown()
         {
-            Logger.Instance.Log("OverlayManager: Countdown abgebrochen", LogLevel.Verbose);
             _overlay.CancelCountdown();
         }
 
         public void ShowTimer(TimeSpan remaining)
         {
-            Logger.Instance.Log($"OverlayManager: Zeige Timer für {remaining.TotalSeconds} Sekunden", LogLevel.Verbose);
             _lastTimerRemaining = remaining;
             if (GetEnableOverlay() && GetShowTimer() && remaining.TotalSeconds > 0)
                 _overlay.ShowTimer(remaining);
@@ -81,7 +78,6 @@ namespace HecticEscape
 
         public void ShowAppTimer(TimeSpan remainig)
         {
-            Logger.Instance.Log($"OverlayManager: Zeige App-Timer für {remainig.TotalSeconds} Sekunden", LogLevel.Verbose);
             if (GetEnableOverlay() && GetShowAppTimer() && remainig.TotalSeconds > 0)
                 _overlay.ShowAppTimer(remainig);
             else
@@ -91,7 +87,6 @@ namespace HecticEscape
 
         public void HideTimer()
         {
-            Logger.Instance.Log("OverlayManager: Timer ausgeblendet", LogLevel.Verbose);
             _lastTimerRemaining = null;
             _overlay.HideTimer();
             UpdateOverlayVisibility();
@@ -99,7 +94,6 @@ namespace HecticEscape
        
         public void ToggleOverlayVisibility()
         {
-            Logger.Instance.Log("OverlayManager: Overlay-Sichtbarkeit umgeschaltet", LogLevel.Verbose);
             if (GetEnableOverlay())
             {
                 DisableOverlay();
@@ -112,27 +106,23 @@ namespace HecticEscape
        
         public void EnableOverlay()
         {
-            Logger.Instance.Log("OverlayManager: Overlay aktiviert", LogLevel.Verbose);
             _configReader.SetEnableOverlay(true);
             _overlay.Dispatcher.Invoke(() => _overlay.Show());
         }
 
         public void DisableOverlay()
         {
-            Logger.Instance.Log("OverlayManager: Overlay deaktiviert", LogLevel.Verbose);
             _configReader.SetEnableOverlay(false);
             _overlay.Dispatcher.Invoke(() => _overlay.Hide());
         }
 
         public bool GetEnableOverlay()
         {
-            Logger.Instance.Log("OverlayManager: Abfrage EnableOverlay", LogLevel.Verbose);
             return _configReader.GetEnableOverlay();
         }
 
         public async Task ShowPauseMessage()
         {
-            Logger.Instance.Log("OverlayManager: Zeige Pause-Nachricht", LogLevel.Verbose);
             var overlayWindow = _overlay;
             if (overlayWindow != null)
             {
@@ -164,14 +154,12 @@ namespace HecticEscape
 
         public void HideAppTimer()
         {
-            Logger.Instance.Log("OverlayManager: App-Timer ausgeblendet", LogLevel.Verbose);
             _overlay.HideAppTimer();
             UpdateOverlayVisibility();
         }
 
         public void UpdateOverlayVisibility()
         {
-            Logger.Instance.Log("OverlayManager: Aktualisiere Overlay-Sichtbarkeit", LogLevel.Verbose);
             if (!GetEnableOverlay())
             {
                 _overlay.Dispatcher.Invoke(() => _overlay.Hide());
@@ -186,12 +174,10 @@ namespace HecticEscape
             if (timerVisible || messageActive || appTimerVisible)
             {
                 _overlay.Dispatcher.Invoke(() => _overlay.Show());
-                Logger.Instance.Log("OverlayManager: Overlay sichtbar, da Timer oder Nachricht aktiv", LogLevel.Verbose);
             }
             else
             {
                 _overlay.Dispatcher.Invoke(() => _overlay.Hide());
-                Logger.Instance.Log("OverlayManager: Overlay ausgeblendet, da keine aktiven Timer oder Nachrichten", LogLevel.Verbose);
             }
         }
         
@@ -474,7 +460,6 @@ namespace HecticEscape
 
         protected override void Dispose(bool disposing)
         {
-            Logger.Instance.Log("OverlayManager: Dispose aufgerufen", LogLevel.Verbose);
             if (!_disposed)
             {
                 if (disposing)

@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using Org.BouncyCastle.Asn1.Mozilla;
+using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
 namespace HecticEscape
@@ -52,6 +53,7 @@ namespace HecticEscape
         public bool EnableShowProcessesWithWindowOnly { get; set; }
         public bool EnableIncludeFoundGames { get; set; }
         public bool EnableGroupBlocking { get; set; }
+        public bool EnabbleScanForNewApps { get; set; }
 
         // Pause-Timer Farben & Opacity
         public string PauseTimerForegroundColorHex { get; set; }
@@ -77,6 +79,15 @@ namespace HecticEscape
     public class LanguageFile
     {
         public Dictionary<string, LanguageData> Sprachen { get; set; }
+    }
+
+    public class  ProcessFile
+    {
+        public Dictionary<string, ProcessData> Prozesse { get; set; }
+    }
+    public class ProcessData
+    {
+        public string Name { get; set; }
     }
 
     public class LanguageData

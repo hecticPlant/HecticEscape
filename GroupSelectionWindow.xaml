@@ -1,0 +1,20 @@
+﻿<Window x:Class="HecticEscape.GroupSelectionWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:local="clr-namespace:HecticEscape"
+        mc:Ignorable="d"
+        Title="GroupSelectionWindow" Height="167" Width="239">
+    <Grid>
+        <StackPanel Margin="10">
+            <TextBlock x:Name="NewProcessFoundTextBlock"  Text="Neuen Prozess gefunden:" Margin="0 0 0 5"/>
+            <TextBlock Text="Hinzufügen zur Gruppe:" Margin="0 0 0 5"/>
+            <ComboBox x:Name="GroupComboBox" Margin="0 0 0 10"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                <Button Content="OK" Width="70" Margin="0 0 10 0" Click="Ok_Click"/>
+                <Button Content="Abbrechen" Width="70" Click="Cancel_Click"/>
+            </StackPanel>
+        </StackPanel>
+    </Grid>
+</Window>

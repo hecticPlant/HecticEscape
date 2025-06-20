@@ -83,6 +83,9 @@ namespace HecticEscape
         public bool EnableGroupBlocking => _configReader.GetEnableGroupBlocking();
         public void SetEnableGroupBlocking(bool enable) => _configReader.SetEnableGroupBlocking(enable);
 
+        public bool EnableScanForNewApps => _configReader.GetEnableScanForNewApps();
+        public void SetEnableScanForNewApps(bool enable) => _configReader.SetEnableScanForNewApps(enable);
+
         public void Dispose()
         {
             Dispose(true);

@@ -20,6 +20,7 @@ namespace HecticEscape
         public event Action? OverlayToggleRequested;
         public event Action<TimeSpan>? TimerTicked;
         public event Action<TimeSpan>? AppTimerTicked;
+        public event Action<string>? NewProcessDetected;
 
         private readonly AppManager _appManager;
         private readonly WebManager _webManager;
@@ -186,11 +187,22 @@ namespace HecticEscape
                     WarnAboutPause(GetRemainingWorkTime(), CloseType.Pause);
                 }
                 ShowAppTimerIfDailyTimeIsLow();
+                ScanForNewProcesses();
             }
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler in CheckHandler: {ex.Message}", LogLevel.Error);
             }
+        }
+        private async Task ScanForNewProcesses()
+        {
+            string newProcess = _appManager.ScanForNewProcesses();
+            if (string.IsNullOrEmpty(newProcess)) return;
+            if (_appManager.EnableScanForNewApps)
+            { 
+                await OnNewProcessDetected(newProcess); 
+            }
+
         }
 
         private async Task ShowAppTimerIfDailyTimeIsLow()
@@ -225,36 +237,25 @@ namespace HecticEscape
                     Logger.Instance.Log($"Fehler beim Ausblenden des Timers: {ex}", LogLevel.Error);
                 }
             }
-
-            Logger.Instance.Log("Keine Gruppe oder App mit relevant niedrigem Zeit-Intervall gefunden.", LogLevel.Verbose);
         }
 
         private bool IsNearWarningTime(TimeSpan eingabe)
         {
-            Logger.Instance.Log($"Prüfe Warnzeit für verbleibende Zeit: {eingabe}", LogLevel.Info);
 
             foreach (var target in _announceTimes)
             {
                 TimeSpan diff = (eingabe - target).Duration();
 
-                Logger.Instance.Log($"Differenz zu Intervall {target}: {diff}", LogLevel.Verbose);
-
                 if (diff <= _toleranz)
                 {
-                    Logger.Instance.Log(
-                        $"Verbleibende Zeit {eingabe} ist nahe am Warnintervall {target} (Differenz {diff} ≤ Toleranz {_toleranz}).",
-                        LogLevel.Info);
                     return true;
                 }
             }
-
-            Logger.Instance.Log($"Keine Warnzeit nahe genug gefunden für Eingabe {eingabe} (Toleranz: {_toleranz}).", LogLevel.Verbose);
             return false;
         }
 
         private void WarnAboutPause(TimeSpan remaining, CloseType closeType)
         {
-            Logger.Instance.Log("WarnAboutPause wird aufgerufen", LogLevel.Verbose);
             if (IsNearWarningTime(remaining))
             {
                 string message = "Error";
@@ -267,13 +268,11 @@ namespace HecticEscape
                     message = string.Format(_languageManager.Get("Overlay.PauseBeginntIn"), FormatTimeSpan(remaining));
                 }
                 _overlayManager.ShowMessage(message, 2000);
-                Logger.Instance.Log($"Countdown-Anzeige: {message}", LogLevel.Verbose);
             }
             if (remaining <= TimeSpan.FromSeconds(10) && !_countdownActive)
             {
                 _countdownActive = true;
                 _overlayManager.ShowCountdown(remaining.Seconds);
-                Logger.Instance.Log("Countdown gestartet", LogLevel.Verbose);
             }
         }
 
@@ -398,49 +397,40 @@ namespace HecticEscape
 
         public int GetWorkIntervalSeconds()
         {
-            Logger.Instance.Log($"Arbeitszeit-Intervall: {_intervalWorkMs / 1000} Sekunden", LogLevel.Verbose);
             return _intervalWorkMs / 1000;
         }
         public int GetBreakIntervalSeconds()
         {
-            Logger.Instance.Log($"Pausenzeit-Intervall: {_intervalBreakMs / 1000} Sekunden", LogLevel.Verbose);
             return _intervalBreakMs / 1000;
         }
         public int GetCheckIntervalSeconds()
         {
-            Logger.Instance.Log($"Check-Intervall: {_intervalCheckMs / 1000} Sekunden", LogLevel.Verbose);
             return _intervalCheckMs / 1000;
         }
 
         public bool IsWorkTimerRunning()
         {
-            Logger.Instance.Log($"Arbeitszeit-Timer läuft: {_workTimer.Enabled}", LogLevel.Verbose);
             return _workTimer.Enabled;
         }
         public bool IsBreakTimerRunning()
         {
-            Logger.Instance.Log($"Pausenzeit-Timer läuft: {_breakTimer.Enabled}", LogLevel.Verbose);
             return _breakTimer.Enabled;
         }
         public bool IsCheckTimerRunning()
         {
-            Logger.Instance.Log($"Check-Timer läuft: {_checkTimer.Enabled}", LogLevel.Verbose);
             return _checkTimer.Enabled;
         }
         public bool IsBreakActive()
         {
-            Logger.Instance.Log($"Pause aktiv: {_isBreakActive}", LogLevel.Verbose);
             return _isBreakActive;
         }
 
         public bool IsCountdownActive()
         {
-            Logger.Instance.Log($"Countdown aktiv: {_countdownActive}", LogLevel.Verbose);
             return _countdownActive;
         }
         public void SetCountdownActive(bool active)
         {
-            Logger.Instance.Log($"Setze Countdown aktiv: {active}", LogLevel.Verbose);
             _countdownActive = active;
             if (!active)
             {
@@ -450,7 +440,6 @@ namespace HecticEscape
 
         public TimeSpan GetRemainingWorkTime()
         {
-            Logger.Instance.Log("Berechne verbleibende Arbeitszeit", LogLevel.Verbose);
             if (!_workTimer.Enabled || !_workTimerEnd.HasValue)
                 return TimeSpan.Zero;
             var remaining = _workTimerEnd.Value - DateTime.Now;
@@ -459,7 +448,6 @@ namespace HecticEscape
 
         public TimeSpan GetRemainingBreakTime()
         {
-            Logger.Instance.Log("Berechne verbleibende Pausenzeit", LogLevel.Verbose);
             if (!_breakTimer.Enabled || !_breakTimerEnd.HasValue)
                 return TimeSpan.Zero;
             var remaining = _breakTimerEnd.Value - DateTime.Now;
@@ -468,7 +456,6 @@ namespace HecticEscape
 
         public TimeSpan GetRemainingCheckTime()
         {
-            Logger.Instance.Log("Berechne verbleibende Check-Zeit", LogLevel.Verbose);
             if (!_checkTimer.Enabled || !_checkTimerEnd.HasValue)
                 return TimeSpan.Zero;
             var remaining = _checkTimerEnd.Value - DateTime.Now;
@@ -482,21 +469,18 @@ namespace HecticEscape
 
         private async Task SafeSwitchToBreakAsync()
         {
-            Logger.Instance.Log("Wechsel zu Pause wird versucht", LogLevel.Verbose);
             try { await SwitchToBreakAsync(); }
             catch (Exception ex) { Logger.Instance.Log($"Fehler in SwitchToBreakAsync: {ex.Message}", LogLevel.Error); }
         }
 
         private async Task SafeSwitchToWorkAsync()
         {
-            Logger.Instance.Log("Wechsel zu Arbeitszeit wird versucht", LogLevel.Verbose);
             try { await SwitchToWorkAsync(); }
             catch (Exception ex) { Logger.Instance.Log($"Fehler in SwitchToWorkAsync: {ex.Message}", LogLevel.Error); }
         }
 
         private string FormatTimeSpan(TimeSpan t)
         {
-            Logger.Instance.Log($"Formatiere TimeSpan: {t}", LogLevel.Verbose);
             if (t.TotalHours >= 1)
             {
                 int hours = (int)t.TotalHours;
@@ -518,7 +502,6 @@ namespace HecticEscape
 
         private async Task OnTimerTicked()
         {
-            Logger.Instance.Log("TimerTicked wird aufgerufen", LogLevel.Verbose);
             if (_workTimer.Enabled)
             {
                 TimerTicked?.Invoke(GetRemainingWorkTime());
@@ -536,6 +519,12 @@ namespace HecticEscape
         private async Task OnAppTimerTicked(TimeSpan timeSpan)
         {
             AppTimerTicked?.Invoke(timeSpan);
+        }
+
+        private async Task OnNewProcessDetected(string processName)
+        {
+            Logger.Instance.Log($"Neuer Prozess erkannt: {processName}", LogLevel.Info);
+            NewProcessDetected?.Invoke(processName);
         }
 
         protected override void Dispose(bool disposing)

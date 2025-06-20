@@ -49,7 +49,7 @@
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
       <CustomToolNamespace>HecticEscape</CustomToolNamespace>
     </None>
-    <None Update="Games.json">
+    <None Update="ProcessList.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
   </ItemGroup>
