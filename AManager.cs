@@ -68,6 +68,9 @@ namespace HecticEscape
         public bool EnableShowAppTimeInOverlay => _configReader.GetShowAppTimeInOverlayEnable();
         public void SetEnableShowAppTimeInOverlay(bool enable) => _configReader.SetShowAppTimeInOverlayEnable(enable);
 
+        public bool EnableShowTimerWhenAppIsOpen => _configReader.GetEnableShowTimerWhenAppIsOpen();
+        public void SetEnableShowTimerWhenAppIsOpen(bool enable) => _configReader.SetEnableShowTimerWhenAppIsOpen(enable);
+
         // System-Einstellungen
         public bool EnableUpdateCheck => _configReader.GetEnableUpdateCheck();
         public void SetEnableUpdateCheck(bool enable) => _configReader.SetEnableUpdateCheck(enable);

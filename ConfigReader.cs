@@ -165,6 +165,10 @@ namespace HecticEscape
                         {
                             site.Name = string.Empty;
                         }
+                        if(site.Logs == null)
+                        {
+                            site.Logs = new List<Log>();
+                        }
                     }
                 }
 
@@ -185,11 +189,13 @@ namespace HecticEscape
             Config.PauseTimerBackgroundColorHex ??= "#000000";
             Config.PauseTimerForegroundOpacity = Clamp(Config.PauseTimerForegroundOpacity, 0.0, 1.0);
             Config.PauseTimerBackgroundOpacity = Clamp(Config.PauseTimerBackgroundOpacity, 0.0, 1.0);
+            Config.PauseTimerStrokeThickness = ClampInt(Config.PauseTimerStrokeThickness, 0, 5);
 
             Config.AppTimerForegroundColorHex ??= "#FF0000";
             Config.AppTimerBackgroundColorHex ??= "#000000";
             Config.AppTimerForegroundOpacity = Clamp(Config.AppTimerForegroundOpacity, 0.0, 1.0);
             Config.AppTimerBackgroundOpacity = Clamp(Config.AppTimerBackgroundOpacity, 0.0, 1.0);
+            Config.AppTimerStrokeThickness = ClampInt(Config.AppTimerStrokeThickness, 0, 5);
 
             Config.MessageForegroundColorHex ??= "#FFFFFF";
             Config.MessageBackgroundColorHex ??= "#000000";
@@ -201,6 +207,13 @@ namespace HecticEscape
         /// Klemmt einen Wert zwischen min und max ein.
         /// </summary>
         private double Clamp(double value, double min, double max)
+        {
+            if (value < min) return min;
+            if (value > max) return max;
+            return value;
+        }
+
+        private int ClampInt(int value, int min, int max)
         {
             if (value < min) return min;
             if (value > max) return max;
@@ -798,6 +811,36 @@ namespace HecticEscape
             Config.EnabbleScanForNewApps = value;
             SetSaveConfigFlag();
 
+        }
+
+        public bool GetEnableShowTimerWhenAppIsOpen()
+        {
+            return Config.EnableShowTimerWhenAppIsOpen;
+        }
+        public void SetEnableShowTimerWhenAppIsOpen(bool value)
+        {
+            Config.EnableShowTimerWhenAppIsOpen = value;
+            SetSaveConfigFlag();
+        }
+
+        public int GetPauseTimerStrokeThickness()
+        {
+            return Config.PauseTimerStrokeThickness;
+        }
+        public void SetPauseTimerStrokeThickness(int value)
+        {
+            Config.PauseTimerStrokeThickness = value;
+            SetSaveConfigFlag();
+        }
+
+        public int GetAppTimerStrokeThickness()
+        {
+            return Config.AppTimerStrokeThickness;
+        }
+        public void SetAppTimerStrokeThickness(int value)
+        {
+            Config.AppTimerStrokeThickness = value;
+            SetSaveConfigFlag();
         }
 
         private async Task OnNewProcessFileCreated()

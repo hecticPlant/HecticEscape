@@ -126,7 +126,7 @@ namespace HecticEscape
         private void ForegroundTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             double op = e.NewValue;
-            ForegroundTransparencyValueText.Text = $"Opacity: {(int)(op * 100)}%";
+            ForegroundTransparencyValueText.Text = $"Stärke: {(int)(op * 100)}%";
             try
             {
                 _windowManager.OverlayManager.SetPauseTimerForegroundOpacity(op);
@@ -139,7 +139,7 @@ namespace HecticEscape
         private void BackgroundTransparencySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             double op = e.NewValue;
-            BackgroundTransparencyValueText.Text = $"Opacity: {(int)(op * 100)}%";
+            BackgroundTransparencyValueText.Text = $"Stärke: {(int)(op * 100)}%";
             try
             {
                 _windowManager.OverlayManager.SetPauseTimerBackgroundOpacity(op);
@@ -147,6 +147,20 @@ namespace HecticEscape
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler beim Setzen von PauseTimer BackgroundOpacity: {ex.Message}", LogLevel.Error);
+            }
+        }
+        private void ForegroundStrokeThicknessSlider_Value_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            int thickness = (int)e.NewValue;
+            ForegroundStrokeThicknessTextBlock.Text = $"StrokeThickness: {thickness}px";
+            try
+            {
+                _windowManager.OverlayManager.SetPauseTimerStrokeThickness(thickness);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen von PauseTimer StrokeThickness: {ex.Message}", LogLevel.Error);
+
             }
         }
 
@@ -239,6 +253,19 @@ namespace HecticEscape
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler beim Setzen von AppTimer BackgroundOpacity: {ex.Message}", LogLevel.Error);
+            }
+        }
+        private void AppTimerForegroundStrokeThicknessSlider_Value_Changed(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            int thickness = (int)e.NewValue;
+            AppTimerForegroundStrokeThicknessTextBlock.Text = $"StrokeThickness: {thickness}px";
+            try
+            {
+                _windowManager.OverlayManager.SetAppTimerStrokeThickness(thickness);
+            }
+            catch (Exception ex)
+            {
+                Logger.Instance.Log($"Fehler beim Setzen von AppTimer StrokeThickness: {ex.Message}", LogLevel.Error);
             }
         }
 
@@ -334,7 +361,6 @@ namespace HecticEscape
             }
         }
 
-
         public void Dispose()
         {
             Logger.Instance.Log("Disposing CustomizerWindow.", LogLevel.Debug);
@@ -357,5 +383,7 @@ namespace HecticEscape
             base.OnClosed(e);
             Dispose();
         }
+
+
     }
 }

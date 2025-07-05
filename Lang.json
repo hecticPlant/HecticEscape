@@ -55,8 +55,6 @@
             "ProzesseText": "Prozesse",
             "AppBlockingCheckBox": "App-Blocking aktiv",
             "WebText": "Web",
-            "StartProxyButton": "Start Proxy",
-            "StopProxyButton": "Stop Proxy",
             "WebsiteBlockingCheckBox": "Website-Blocking aktiv",
             "LanguageText": "Sprache",
             "ChangeLanguageButton": "Sprache wechseln",

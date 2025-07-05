@@ -70,18 +70,25 @@ namespace HecticEscape
         {
             _lastTimerRemaining = remaining;
             if (GetEnableOverlay() && GetShowTimer() && remaining.TotalSeconds > 0)
+            {
                 _overlay.ShowTimer(remaining);
+            }
             else
+            {
                 _overlay.HideTimer();
+            }
             UpdateOverlayVisibility();
         }
 
         public void ShowAppTimer(TimeSpan remainig)
         {
             if (GetEnableOverlay() && GetShowAppTimer() && remainig.TotalSeconds > 0)
+            {
                 _overlay.ShowAppTimer(remainig);
-            else
-                _overlay.HideTimer();
+            }
+            else {
+            _overlay.HideAppTimer();
+            } 
             UpdateOverlayVisibility();
         }
 
@@ -166,8 +173,7 @@ namespace HecticEscape
                 return;
             }
 
-            // Timer oder Nachricht aktiv?
-            bool timerVisible = GetShowTimer() && (_lastTimerRemaining?.TotalSeconds > 0);
+            bool timerVisible = GetShowTimer();
             bool messageActive = _overlay.IsMessageActive();
             bool appTimerVisible = GetShowAppTimer();
 
@@ -272,6 +278,19 @@ namespace HecticEscape
 
             _configReader.SetPauseTimerBackgroundOpacity(opacity);
         }
+        public void SetPauseTimerStrokeThickness(int thickness)
+        {
+            if (thickness < 0)
+            {
+                Logger.Instance.Log($"SetPauseTimerStrokeThickness: Ungültiger Wert {thickness}. Muss >= 0 sein.", LogLevel.Warn);
+                return;
+            }
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                _overlay.OverlayTimerTextBlock.StrokeThickness = thickness;
+            });
+            _configReader.SetPauseTimerStrokeThickness(thickness);
+        }
 
         public void SetAppTimerForegroundColorHex(string hex)
         {
@@ -367,6 +386,20 @@ namespace HecticEscape
 
             _configReader.SetAppTimerBackgroundOpacity(opacity);
         }
+        public void SetAppTimerStrokeThickness(int thickness)
+        {
+            if (thickness < 0)
+            {
+                Logger.Instance.Log($"SetAppTimerStrokeThickness: Ungültiger Wert {thickness}. Muss >= 0 sein.", LogLevel.Warn);
+                return;
+            }
+            _overlay.Dispatcher.Invoke(() =>
+            {
+                _overlay.OverlayAppTimerTextBlock.StrokeThickness = thickness;
+
+            });
+            _configReader.SetAppTimerStrokeThickness(thickness);
+        }
 
         public void SetMessageForegroundColorHex(string hex)
         {
@@ -457,6 +490,7 @@ namespace HecticEscape
 
             _configReader.SetMessageBackgroundOpacity(opacity);
         }
+
 
         protected override void Dispose(bool disposing)
         {

@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.VisualBasic;
 using Microsoft.Win32;
 using System.Diagnostics;
 using System.IO;
@@ -6,9 +7,9 @@ using System.Reflection;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Forms;
+using System.Windows.Interop;
 using System.Windows.Media;
 using System.Windows.Threading;
-using System.Windows.Interop;
 using MessageBox = System.Windows.MessageBox;
 
 namespace HecticEscape
@@ -23,7 +24,6 @@ namespace HecticEscape
         private bool _closeToTray = true;
         private readonly UpdateManager _updateManager = new UpdateManager();
         private bool _isInitialized = false;
-        private readonly HashSet<int> _alreadyAnnouncedMinutes = new();
 
         private static T ResolveDependency<T>(string dependencyName) where T : class
         {
@@ -74,7 +74,6 @@ namespace HecticEscape
                 EnableUpdateCheckBox.IsChecked = _windowManager.EnableUpdateCheck;
                 EnableStartOnWindowsStartupCheckBox.IsChecked = _windowManager.EnableStartOnWindowsStartup;
                 ShowProcessesWithWindowOnlyCheckBox.IsChecked = _windowManager.EnableShowProcessesWithWindowOnly;
-                //IncludeFoundGanesCheckBox.IsChecked = _windowManager.AppManager.EnableIncludeFoundGames;
                 EnableGroupBlockingCheckBox.IsChecked = _windowManager.EnableGroupBlocking;
                 ScanForNewAppsCheckBox.IsChecked = _windowManager.AppManager.EnableScanForNewApps;
             }
@@ -96,7 +95,9 @@ namespace HecticEscape
             };
 
             ResetDailyTimeButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
-            ResetDailyTimeGroupButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;  
+            ResetDailyTimeGroupButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed; 
+            ForceBreakButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
+            EndBreakButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
 
             try
             {
@@ -337,21 +338,6 @@ namespace HecticEscape
                 }
             }
 
-            // Proxy-Status
-            if (ProxyStatusTextBlock != null)
-            {
-                if (_windowManager.WebManager.IsProxyRunning)
-                {
-                    ProxyStatusTextBlock.Text = "Proxy aktiv";
-                    ProxyStatusTextBlock.Foreground = Brushes.Green;
-                }
-                else
-                {
-                    ProxyStatusTextBlock.Text = "Proxy inaktiv";
-                    ProxyStatusTextBlock.Foreground = Brushes.Red;
-                }
-            }
-
             // Debug-Status
             if (DebugStatusTextBlock != null)
             {
@@ -396,8 +382,24 @@ namespace HecticEscape
                     OverlayStatusTextBlock.Foreground = Brushes.Gray;
                 }
             }
+
+            // Proxy-Status
+            if (ProxyStatusTextBlock != null)
+            {
+                if (_windowManager.WebManager.isListening)
+                {
+                    ProxyStatusTextBlock.Text = "Listener aktiv";
+                    ProxyStatusTextBlock.Foreground = Brushes.Green;
+                }
+                else
+                {
+                    ProxyStatusTextBlock.Text = "Listener inaktiv";
+                    ProxyStatusTextBlock.Foreground = Brushes.Gray;
+                }
+            }
             UpdateDailyTimeLeftTextBox();
             UpdateDailyTimeLeftGroupTextBox();
+            UpdateDailyWebsiteTimeLeftTextBox();
         }
 
         // -------------------- Sprachdatei --------------------
@@ -460,8 +462,7 @@ namespace HecticEscape
             AppBlockingCheckBox.Content = _languageManager.Get("SteuerungTab.AppBlockingCheckBox");
 
             WebTextBlock.Text = _languageManager.Get("SteuerungTab.WebText");
-            StartProxyButton.Content = _languageManager.Get("SteuerungTab.StartProxyButton");
-            StopProxyButton.Content = _languageManager.Get("SteuerungTab.StopProxyButton");
+            
             WebsiteBlockingCheckBox.Content = _languageManager.Get("SteuerungTab.WebsiteBlockingCheckBox");
 
             LanguageTextBlock.Text = _languageManager.Get("SteuerungTab.LanguageText");
@@ -798,7 +799,11 @@ namespace HecticEscape
             DateOnly today = DateOnly.FromDateTime(DateTime.Now);
             string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
             string? selectedProcess = ProcessListBox?.SelectedItem as string;
-            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess)) return;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedProcess))
+            {
+                Logger.Instance.Log($"ResetDailyTimeButton_Click: Gruppe {selectedGroup} oder Prozess {selectedProcess }nicht ausgewählt.", LogLevel.Warn);
+                return;
+            }
             var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
             var app = _windowManager.AppManager.GetAppByName(group, selectedProcess);
             if (app == null) return;
@@ -862,21 +867,170 @@ namespace HecticEscape
         }
 
         // -------------------- Websites-Tab --------------------
+        private void WebsiteTabOpend(object sender, RoutedEventArgs e)
+        {
+            ShowBlockedWebsitesButton_Click(sender, e);
+        }
+
         private void ShowBlockedWebsitesButton_Click(object sender, RoutedEventArgs e)
         {
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            var group = _windowManager.GroupManager.GetGroupByName(groupID);
+            if (group == null || string.IsNullOrEmpty(group.Name))
+            {
+                Logger.Instance.Log($"Gruppe '{groupID}' nicht gefunden.", LogLevel.Warn);
+                return;
+            }
+
+            WebsiteListBox.Items.Clear();
+            var websites = _windowManager.WebManager.GetWebsitesFromGroup(group);
+            foreach (var site in websites)
+                WebsiteListBox.Items.Add(site.Name);
         }
 
         private void SaveWebsiteButton_Click(object sender, RoutedEventArgs e)
         {
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            var group = _windowManager.GroupManager.GetGroupByName(groupID);
+            if (group == null || string.IsNullOrEmpty(group.Name))
+            {
+                Logger.Instance.Log($"Gruppe '{groupID}' nicht gefunden.", LogLevel.Warn);
+                return;
+            }
+
+            var website = WebsiteInputTextBox.Text.Trim();
+            if (!string.IsNullOrEmpty(website))
+            {
+                _windowManager.WebManager.AddWebsiteToGroup(group, website);
+                ShowBlockedWebsitesButton_Click(sender, e);
+                WebsiteInputTextBox.Clear();
+            }
         }
 
         private void DeleteWebsiteButton_Click(object sender, RoutedEventArgs e)
         {
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            var group = _windowManager.GroupManager.GetGroupByName(groupID);
+            if (group == null || string.IsNullOrEmpty(group.Name))
+            {
+                Logger.Instance.Log($"Gruppe '{groupID}' nicht gefunden.", LogLevel.Warn);
+                return;
+            }
+
+            var selected = WebsiteListBox.SelectedItem as string;
+            if (!string.IsNullOrEmpty(selected))
+            {
+                Website website = _windowManager.WebManager.GetWebsiteByName(group, selected);
+                _windowManager.WebManager.RemoveWebsiteFromGroup(group, website);
+                ShowBlockedWebsitesButton_Click(sender, e);
+            }
         }
 
-        private void WebsiteTabOpend(object sender, RoutedEventArgs e)
+        private void WebsiteListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            ShowBlockedWebsitesButton_Click(sender, e);
+            UpdateDailyWebsiteTimeTextBox();
+            UpdateDailyWebsiteTimeLeftTextBox();
+        }
+
+        private void SaveDailyWebsiteTimeButton_Click(object sender, RoutedEventArgs e)
+        {
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            var group = _windowManager.GroupManager.GetGroupByName(groupID);
+            if (group == null || string.IsNullOrEmpty(group.Name))
+            {
+                Logger.Instance.Log($"Gruppe '{groupID}' nicht gefunden.", LogLevel.Warn);
+                return;
+            }
+
+            var selectedWebsite = WebsiteListBox.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedWebsite)) return;
+            Website website = _windowManager.WebManager.GetWebsiteByName(group, selectedWebsite);
+
+            if (!TimeSpan.TryParse(DailyWebsiteTimeMaskedBox?.Text, out var timeSpan))
+            {
+                MessageBox.Show($"{_languageManager.Get("ErrorMessages.InvalidTimeFormat")}", "Error", MessageBoxButton.OK, MessageBoxImage.Warning);
+                Logger.Instance.Log($"Ungültiges Zeitformat: '{DailyWebsiteTimeMaskedBox?.Text}'");
+                return;
+            }
+            int timeInSeconds = (int)timeSpan.TotalSeconds;
+            long dailyTimeMsValue = timeInSeconds * 1000;
+
+            _windowManager.WebManager.SetDailyTimeMs(group, website, dailyTimeMsValue);
+            UpdateDailyWebsiteTimeTextBox();
+        }
+
+        private void UpdateDailyWebsiteTimeTextBox()
+        {
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedWebsite = WebsiteListBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedWebsite)) return;
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            if (group == null) return;
+            var website = _windowManager.WebManager.GetWebsiteByName(group, selectedWebsite);
+            if (website == null)
+            {
+                if (DailyWebsiteTimeTextBox != null)
+                    DailyWebsiteTimeTextBox.Text = "00:00:00";
+                return;
+            }
+            long dailyTimeMs = website.DailyTimeMs;
+            if (DailyWebsiteTimeTextBox != null)
+            {
+                DailyWebsiteTimeTextBox.Text = TimeSpan.FromMilliseconds(dailyTimeMs).ToString(@"hh\:mm\:ss");
+            }
+        }
+
+        private void UpdateDailyWebsiteTimeLeftTextBox()
+        {
+            string? groupID = GroupSelectionComboBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(groupID)) return;
+
+            var group = _windowManager.GroupManager.GetGroupByName(groupID);
+            if (group == null || string.IsNullOrEmpty(group.Name))
+            {
+                Logger.Instance.Log($"Gruppe '{groupID}' nicht gefunden.", LogLevel.Warn);
+                return;
+            }
+
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+            var selectedWebsite = WebsiteListBox.SelectedItem as string;
+            if (group == null || string.IsNullOrEmpty(group.Name) || string.IsNullOrEmpty(selectedWebsite)) return; 
+            Website website = _windowManager.WebManager.GetWebsiteByName(group, selectedWebsite);
+            if (string.IsNullOrEmpty(selectedWebsite)) return;
+            long timeLeftMs = _windowManager.WebManager.GetDailyTimeLeft(group, website, today);
+            if (DailyWebsiteTimeLeftTextBox != null)
+            {
+                DailyWebsiteTimeLeftTextBox.Text = TimeSpan.FromMilliseconds(timeLeftMs).ToString(@"hh\:mm\:ss");
+            }
+        }
+
+        private void ResetDailyWebsiteTimeButton_Click(object sender, RoutedEventArgs e)
+        {
+            DateOnly today = DateOnly.FromDateTime(DateTime.Now);
+            string? selectedGroup = GroupSelectionComboBox?.SelectedItem as string;
+            string? selectedWebsite = WebsiteListBox?.SelectedItem as string;
+            if (string.IsNullOrEmpty(selectedGroup) || string.IsNullOrEmpty(selectedWebsite))
+            {
+                Logger.Instance.Log($"ResetDailyTimeButton_Click: Gruppe {selectedGroup} oder Prozess {selectedWebsite}nicht ausgewählt.", LogLevel.Warn);
+                return;
+            }
+            var group = _windowManager.GroupManager.GetGroupByName(selectedGroup);
+            if(group == null) return;
+            var website = _windowManager.WebManager.GetWebsiteByName(group, selectedWebsite);
+            if (website == null) return;
+            _windowManager.WebManager.SetTimeMS(group, website, 0);
+            UpdateDailyTimeTextBox();
+            UpdateDailyTimeLeftTextBox();
+            Logger.Instance.Log($"Tägliche Zeit für Website '{website.Name}' in Gruppe '{group.Name}' wurde zurückgesetzt." +
+                $"Neue Zeit:  {_windowManager.WebManager.GetDailyTimeLeft(group, website, today)}", LogLevel.Debug);
         }
 
         // -------------------- Timer-Tab --------------------
@@ -1035,12 +1189,14 @@ namespace HecticEscape
         }
 
         // -------------------- Steuerung-Tab --------------------
-        private void StartProxyButton_Click(object sender, RoutedEventArgs e)
+        private void StartListenerButton_Click(object sender, RoutedEventArgs e)
         {
+            _windowManager.WebManager.StartRedirectServer();
         }
 
-        private void StopProxyButton_Click(object sender, RoutedEventArgs e)
+        private void StopListenerButton_Click(object sender, RoutedEventArgs e)
         {
+            _windowManager.WebManager.StopRedirectServer();
         }
 
         private void StopAllTimersButton_Click(object sender, RoutedEventArgs e)
@@ -1075,6 +1231,9 @@ namespace HecticEscape
             UpdateStatusTextBlocks();
             ListTimers();
             ResetDailyTimeButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
+            ResetDailyTimeGroupButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
+            ForceBreakButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
+            EndBreakButton.Visibility = _windowManager.EnableDebugMode ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void VerboseButton_Click(object sender, RoutedEventArgs e)
@@ -1086,13 +1245,13 @@ namespace HecticEscape
 
         private void WebsiteBlockingCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            MessageBox.Show($"{_languageManager.Get("ErrorMessages.WebsiteBlockingMissing")}", $"{_languageManager.Get("Misc.Error")}", MessageBoxButton.OK, MessageBoxImage.Information);
-            WebsiteBlockingCheckBox.IsChecked = false;
+            _windowManager.SetEnableWebsiteBlocking(true);
             return;
         }
 
         private void WebsiteBlockingCheckBox_Unchecked(object sender, RoutedEventArgs e)
         {
+            _windowManager.SetEnableWebsiteBlocking(false);
             return;
         }
 
@@ -1196,6 +1355,16 @@ namespace HecticEscape
         private void CustomizeButton_Click(object sender, RoutedEventArgs e)
         {
             _windowManager.ShowCustomizerWindow();
+        }
+
+        private void StartRedirectButton_Click(object sender, RoutedEventArgs e)
+        {
+            _windowManager.WebManager.EnableRedirect();
+        }
+
+        private void StopRedirectButton_Click(object sender, RoutedEventArgs e)
+        {
+            _windowManager.WebManager.DisableRedirect();
         }
 
         // -------------------- Overlay --------------------
@@ -1369,5 +1538,7 @@ namespace HecticEscape
         {
             _windowManager.SetEnableScanForNewApps(false);
         }
+
+
     }
 }

@@ -40,7 +40,6 @@ namespace HecticEscape
         private bool _disposed = false;
         private bool _isBreakActive = false;
         private bool _countdownActive = false;
-        private bool _showApptimer = false;
 
         private DateTime? _workTimerEnd;
         private DateTime? _breakTimerEnd;
@@ -90,8 +89,6 @@ namespace HecticEscape
                 throw new ArgumentException("Timer-Intervalle müssen größer als 0 sein.");
 
             InitializeTimers();
-
-            _webManager.ProxyStatusChanged += OnProxyStatusChanged;
             Logger.Instance.Log("TimeManager initialisiert", LogLevel.Info);
 
             if (_startTimerAtStartup)
@@ -188,12 +185,14 @@ namespace HecticEscape
                 }
                 ShowAppTimerIfDailyTimeIsLow();
                 ScanForNewProcesses();
+                await _webManager.BlockHandler(_intervalCheckMs, _isBreakActive);
             }
             catch (Exception ex)
             {
                 Logger.Instance.Log($"Fehler in CheckHandler: {ex.Message}", LogLevel.Error);
             }
         }
+
         private async Task ScanForNewProcesses()
         {
             string newProcess = _appManager.ScanForNewProcesses();
@@ -523,7 +522,6 @@ namespace HecticEscape
 
         private async Task OnNewProcessDetected(string processName)
         {
-            Logger.Instance.Log($"Neuer Prozess erkannt: {processName}", LogLevel.Info);
             NewProcessDetected?.Invoke(processName);
         }
 

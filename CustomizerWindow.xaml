@@ -1,7 +1,7 @@
 ﻿<Window x:Class="HecticEscape.CustomizerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Anpassung" Height="851" Width="410"
+        Title="Anpassung" Height="973" Width="433"
         WindowStartupLocation="CenterOwner"
         ResizeMode="NoResize">
     <ScrollViewer x:Name="RootScrollViewer" VerticalScrollBarVisibility="Auto">
@@ -33,6 +33,10 @@
             <Slider x:Name="ForegroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="ForegroundTransparencySlider_ValueChanged"
                     TickFrequency="0.05" IsSnapToTickEnabled="False"/>
             <TextBlock x:Name="ForegroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+            <TextBlock x:Name="ForegroundStrokeThicknessTextBlock" Text="Umrandung (Stärke 0-5)"/>
+            <Slider x:Name="ForegroundStrokeThicknessSlider" MinHeight="0" Maximum="5" ValueChanged="ForegroundStrokeThicknessSlider_Value_Changed"
+                    TickFrequency="1" IsSnapToTickEnabled="True"/>
+            
 
             <TextBlock x:Name="PauseTimerBackgroundTransparencyLabel" Text="Transparenz Hintergrund (0–100%):" Margin="0,5,0,0"/>
             <Slider x:Name="BackgroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="BackgroundTransparencySlider_ValueChanged"
@@ -67,6 +71,10 @@
             <Slider x:Name="AppTimerForegroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="AppTimerForegroundTransparencySlider_ValueChanged"
                     TickFrequency="0.05" IsSnapToTickEnabled="False"/>
             <TextBlock x:Name="AppTimerForegroundTransparencyValueText" Text="Opacity: 100%" Margin="0,2,0,10"/>
+
+            <TextBlock x:Name="AppTimerForegroundStrokeThicknessTextBlock" Text="Umrandung (Stärke 0-5)"/>
+            <Slider x:Name="AppTimerForegroundStrokeThicknessSlider" MinHeight="0" Maximum="5" ValueChanged="AppTimerForegroundStrokeThicknessSlider_Value_Changed"
+                    TickFrequency="1" IsSnapToTickEnabled="True"/>
 
             <TextBlock x:Name="AppTimerBackgroundTransparencyLabel" Text="Transparenz Hintergrund (0–100%):" Margin="0,5,0,0"/>
             <Slider x:Name="AppTimerBackgroundTransparencySlider" Minimum="0" Maximum="1" ValueChanged="AppTimerBackgroundTransparencySlider_ValueChanged"

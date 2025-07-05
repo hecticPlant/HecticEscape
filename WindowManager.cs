@@ -37,15 +37,17 @@ namespace HecticEscape
             WebManager = webManager ?? throw new ArgumentNullException(nameof(webManager));
             LanguageManager = languageManager ?? throw new ArgumentNullException(nameof(languageManager));
             GroupManager = groupManager ?? throw new ArgumentNullException(nameof(groupManager));
+            Initialize();
         }
 
         public override void Initialize()
         {
+            InitializeValuesCustomizerWindow();
         }
 
         public void ShowCustomizerWindow(bool modal = false)
         {
-            CustomizerWindow = _services.GetRequiredService<CustomizerWindow>(); // <<< hinzufügen
+            CustomizerWindow = _services.GetRequiredService<CustomizerWindow>();
 
             if (MainWindow != null)
             {
@@ -61,7 +63,7 @@ namespace HecticEscape
                 CustomizerWindow.Show();
                 CustomizerWindow.WindowState = WindowState.Normal;
                 CustomizerWindow.Activate();
-                InitializeValuesFromTarget();
+                InitializeValuesCustomizerWindow();
             }
         }
 
@@ -84,30 +86,33 @@ namespace HecticEscape
                 GroupSelectionWindow.SetProcessName(processName);
             }
         }
-        public void InitializeValuesFromTarget()
+        
+        public void InitializeValuesCustomizerWindow()
         {
+
             try
             {
                 OverlayManager.SetPauseTimerForegroundColorHex(_configReader.GetPauseTimerForegroundColorHex());
                 OverlayManager.SetPauseTimerBackgroundColorHex(_configReader.GetPauseTimerBackgroundColorHex());
-                OverlayManager.SetPauseTimerForegroundOpacity(_configReader.GetPauseTimerForegroundOpacity());
-                OverlayManager.SetPauseTimerBackgroundOpacity(_configReader.GetPauseTimerBackgroundOpacity());
-
                 OverlayManager.SetAppTimerForegroundColorHex(_configReader.GetAppTimerForegroundColorHex());
                 OverlayManager.SetAppTimerBackgroundColorHex(_configReader.GetAppTimerBackgroundColorHex());
-                OverlayManager.SetAppTimerForegroundOpacity(_configReader.GetAppTimerForegroundOpacity());
-                OverlayManager.SetAppTimerBackgroundOpacity(_configReader.GetAppTimerBackgroundOpacity());
-
                 OverlayManager.SetMessageForegroundColorHex(_configReader.GetMessageForegroundColorHex());
                 OverlayManager.SetMessageBackgroundColorHex(_configReader.GetMessageBackgroundColorHex());
+
+                // Opacity-Slider Werte
+                OverlayManager.SetPauseTimerForegroundOpacity(_configReader.GetPauseTimerForegroundOpacity());
+                OverlayManager.SetPauseTimerBackgroundOpacity(_configReader.GetPauseTimerBackgroundOpacity());
+                OverlayManager.SetAppTimerForegroundOpacity(_configReader.GetAppTimerForegroundOpacity());
+                OverlayManager.SetAppTimerBackgroundOpacity(_configReader.GetAppTimerBackgroundOpacity());
+                OverlayManager.SetAppTimerStrokeThickness(_configReader.GetAppTimerStrokeThickness());
+                OverlayManager.SetPauseTimerStrokeThickness(_configReader.GetPauseTimerStrokeThickness());
                 OverlayManager.SetMessageForegroundOpacity(_configReader.GetMessageForegroundOpacity());
                 OverlayManager.SetMessageBackgroundOpacity(_configReader.GetMessageBackgroundOpacity());
 
-                Logger.Instance.Log("InitializeValuesFromTarget erfolgreich abgeschlossen.", LogLevel.Debug);
             }
             catch (Exception ex)
             {
-                Logger.Instance.Log($"CustomizerWindow: Fehler in InitializeValuesFromTarget: {ex.Message}", LogLevel.Error);
+                Logger.Instance.Log($"CustomizerWindow: Fehler in SetPreview: {ex.Message}", LogLevel.Error);
             }
 
             try
@@ -132,10 +137,10 @@ namespace HecticEscape
                 CustomizerWindow.BackgroundTransparencySlider.Value = _configReader.GetPauseTimerBackgroundOpacity();
                 CustomizerWindow.AppTimerForegroundTransparencySlider.Value = _configReader.GetAppTimerForegroundOpacity();
                 CustomizerWindow.AppTimerBackgroundTransparencySlider.Value = _configReader.GetAppTimerBackgroundOpacity();
+                CustomizerWindow.AppTimerForegroundStrokeThicknessSlider.Value = _configReader.GetAppTimerStrokeThickness();
+                CustomizerWindow.ForegroundStrokeThicknessSlider.Value = _configReader.GetPauseTimerStrokeThickness();
                 CustomizerWindow.MessageForegroundTransparencySlider.Value = _configReader.GetMessageForegroundOpacity();
                 CustomizerWindow.MessageBackgroundTransparencySlider.Value = _configReader.GetMessageBackgroundOpacity();
-
-                Logger.Instance.Log("CustomizerWindow: SetPreview erfolgreich ausgeführt.", LogLevel.Debug);
             }
             catch (Exception ex)
             {

@@ -31,6 +31,8 @@ namespace HecticEscape
     public class Website
     {
         public string Name { get; set; }
+        public long DailyTimeMs { get; set; }
+        public List<Log> Logs { get; set; }
     }
 
     public class Config
@@ -54,18 +56,21 @@ namespace HecticEscape
         public bool EnableIncludeFoundGames { get; set; }
         public bool EnableGroupBlocking { get; set; }
         public bool EnabbleScanForNewApps { get; set; }
+        public bool EnableShowTimerWhenAppIsOpen { get; set; }
 
         // Pause-Timer Farben & Opacity
         public string PauseTimerForegroundColorHex { get; set; }
         public string PauseTimerBackgroundColorHex { get; set; }
         public double PauseTimerForegroundOpacity { get; set; }
         public double PauseTimerBackgroundOpacity { get; set; }
+        public int PauseTimerStrokeThickness { get; set; }
 
         // App-Timer Farben & Opacity
         public string AppTimerForegroundColorHex { get; set; }
         public string AppTimerBackgroundColorHex { get; set; }
         public double AppTimerForegroundOpacity { get; set; }
         public double AppTimerBackgroundOpacity { get; set; }
+        public int AppTimerStrokeThickness { get; set; }
 
         // Message-Text Einstellungen
         public string MessageForegroundColorHex { get; set; }

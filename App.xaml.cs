@@ -63,7 +63,6 @@ namespace HecticEscape
             });
 
             services.AddSingleton<UpdateManager>();
-            services.AddSingleton<WebProxyHE>();
             services.AddSingleton<Logger>(sp => Logger.Instance);
             services.AddSingleton<Overlay>(sp =>
             {
@@ -99,7 +98,8 @@ namespace HecticEscape
             services.AddSingleton<WebManager>(sp =>
                 new WebManager(
                     sp.GetRequiredService<ConfigReader>(),
-                    sp.GetRequiredService<WebProxyHE>()));
+                    sp.GetRequiredService<GroupManager>()
+                    ));
 
             services.AddSingleton<TimeManager>(sp =>
                 new TimeManager(

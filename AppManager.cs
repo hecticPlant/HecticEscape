@@ -97,9 +97,9 @@ namespace HecticEscape
                 string cleanedName = CleanProcessName(process.ProcessName);
                 if (!GetAllActiveApps().Contains(cleanedName, StringComparer.OrdinalIgnoreCase))
                 {
-                    Logger.Instance.Log($"Neuer Prozess gefunden: {cleanedName}. Füge zur Konfiguration hinzu.", LogLevel.Verbose);
                     if (!IsProcessInProcessFile(cleanedName))
-                    { 
+                    {
+                        Logger.Instance.Log($"Neuer Prozess gefunden: {cleanedName}. Füge zur Konfiguration hinzu.", LogLevel.Verbose);
                         AddProcessToFile(cleanedName);
                         _configReader.SetSaveProcessListFlag();
                         return cleanedName;
@@ -254,6 +254,7 @@ namespace HecticEscape
             long used = log?.TimeMs ?? 0;
             return app.DailyTimeMs - used;
         }
+
         public void AddTimeToLog(AppHE app, DateOnly date, long timeMs)
         {
             if (app == null || date == default || timeMs < 0)

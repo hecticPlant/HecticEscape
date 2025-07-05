@@ -65,7 +65,6 @@ namespace HecticEscape
             base.OnSourceInitialized(e);
             var hwnd = new WindowInteropHelper(this).Handle;
             int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
-            //SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED | WS_EX_TRANSPARENT);
             SetWindowLong(hwnd, GWL_EXSTYLE, ex | WS_EX_LAYERED);
         }
 
@@ -183,11 +182,14 @@ namespace HecticEscape
 
         private void UpdateOverlayVisibility()
         {
-            if (!_overlayManager.GetEnableOverlay() || (!_messageActive && OverlayTimerBorder.Visibility != Visibility.Visible && OverlayAppTimerBorder.Visibility != Visibility.Visible)) 
+            bool overlayEnabled = _overlayManager?.GetEnableOverlay() ?? false;
+            bool timerVisible = OverlayTimerBorder.Visibility == Visibility.Visible;
+            bool appTimerVisible = OverlayAppTimerBorder.Visibility == Visibility.Visible;
+
+            if (!overlayEnabled || (!_messageActive && !timerVisible && !appTimerVisible))
             {
                 if (IsVisible)
                     Hide();
-                return;
             }
             else
             {
@@ -195,6 +197,7 @@ namespace HecticEscape
                     Show();
             }
         }
+
 
         public void EnableOverlay()
         {
